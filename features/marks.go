@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/charmbracelet/glamour"
 	"golang.org/x/net/html"
 )
@@ -19,14 +20,13 @@ type SemesterDetails struct {
 	SemIds   []string
 }
 
-func fetchReq(target_url string) ([]byte, error) {
+func fetchReq(target_url string, semID string) ([]byte, error) {
 	client := &http.Client{}
 
 	//variables that need to be set with every request
 	authID := "21BIT0151"
-	csrf := "a022dd03-bd92-4d10-bcbd-dc84ad5a1281"
-	semID := ""
-	jsessionID := "DE24F6685815D26D85F4923E39339555"
+	csrf := "5ff29e3c-f47e-4dc9-a70e-4c78a1d0b9cf"
+	jsessionID := "9A44D5A85C54D382FFF5C4ED5F6E9606"
 
 	var data = strings.NewReader(fmt.Sprintf("------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"authorizedID\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"semesterSubId\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"_csrf\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J--\r\n", authID, semID, csrf))
 	req, err := http.NewRequest("POST", target_url, data)
@@ -63,7 +63,7 @@ func fetchReq(target_url string) ([]byte, error) {
 
 func GetSemDetails() SemesterDetails {
 	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentTimeTable"
-	bodyText, err := fetchReq(url)
+	bodyText, err := fetchReq(url, "")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -226,10 +226,97 @@ func getTextContent(n *html.Node) string {
 	return textContent
 }
 
-func Marks(sem_choice *int) {
-	if sem_choice != nil {
+func GetMarks(semID string) {
+	url := "https://vtop.vit.ac.in/vtop/examinations/doStudentMarkView"
+	bodyText, err := fetchReq(url, semID)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Parse the HTML
+	doc, err := html.Parse(strings.NewReader(string(bodyText)))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Find all elements with the specified class
+	class := "customTable-level1"
+	elements := findElementsByClass(doc, class)
+
+	// Convert HTML elements to Markdown tables
+	for _, element := range elements {
+		// Convert each element to Markdown
+		markdownTable, err := convertHTMLElementToMarkdown(element)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// Print or process the Markdown table
+		fmt.Println("Markdown Table:")
+		fmt.Println(markdownTable)
+	}
+
+	// Print or process the found elements
+	fmt.Printf("Number of elements found: %d\n", len(elements))
+
+}
+
+func convertHTMLElementToMarkdown(element *html.Node) (string, error) {
+	var markdownTable string
+
+	// Use goquery for easier HTML manipulation
+	doc := goquery.NewDocumentFromNode(element)
+
+	// Iterate over table rows
+	doc.Find("tr").Each(func(_ int, rowSelection *goquery.Selection) {
+		// Iterate over table cells in each row
+		rowSelection.Find("td").Each(func(_ int, cellSelection *goquery.Selection) {
+			// Extract and append cell text to the markdownTable string
+			markdownTable += cellSelection.Text() + " | "
+		})
+
+		// Remove the trailing " | " and add a new line
+		markdownTable = strings.TrimSuffix(markdownTable, " | ") + "\n"
+	})
+
+	return markdownTable, nil
+}
+
+func findElementsByClass(n *html.Node, class string) []*html.Node {
+	var result []*html.Node
+
+	var visit func(*html.Node)
+	visit = func(n *html.Node) {
+		if n.Type == html.ElementNode && hasClass(n, class) {
+			result = append(result, n)
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			visit(c)
+		}
+	}
+	visit(n)
+
+	return result
+}
+
+func hasClass(n *html.Node, class string) bool {
+	for _, attr := range n.Attr {
+		if attr.Key == "class" {
+			classes := strings.Fields(attr.Val)
+			for _, c := range classes {
+				if c == class {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func Marks(sem_choice int) {
+	if sem_choice != 0 {
 		// Validate the provided choice
-		choice := *sem_choice
+		choice := sem_choice
 		semDetails := GetSemDetails()
 
 		if choice < 1 || choice > len(semDetails.SemIds) {
