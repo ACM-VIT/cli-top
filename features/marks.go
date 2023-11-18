@@ -3,14 +3,14 @@
 package features
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 
-	"github.com/olekukonko/tablewriter"
+	"github.com/charmbracelet/glamour"
 	"golang.org/x/net/html"
 )
 
@@ -24,9 +24,9 @@ func fetchReq(target_url string) ([]byte, error) {
 
 	//variables that need to be set with every request
 	authID := "21BIT0151"
-	csrf := "82bca422-9254-4979-932a-738930917b14"
+	csrf := "8d382f9c-6ab9-41db-94f4-ac797de05c48"
 	semID := ""
-	jsessionID := "01EBB69913CFF3E87F2F1729C5B17F69"
+	jsessionID := "D723A10D72692B3AB5B1ED0BE95A6D7B"
 
 	var data = strings.NewReader(fmt.Sprintf("------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"authorizedID\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"semesterSubId\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"_csrf\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J--\r\n", authID, semID, csrf))
 	req, err := http.NewRequest("POST", target_url, data)
@@ -108,9 +108,31 @@ func GetSemDetails() SemesterDetails {
 func PrintSemDetails() {
 	semDetails := GetSemDetails()
 
-	// Create a table
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Index", "SemId", "SemName"})
+	if len(semDetails.SemIds) == 0 {
+		fmt.Println("Error fetching semester details or no semesters available.")
+		return
+	}
+
+	// Generate Markdown table text
+	markdownTable := generateSemDetailsMarkdownTable(semDetails)
+
+	// Render Markdown using glamour
+	rendered, err := glamour.Render(markdownTable, "dark")
+	if err != nil {
+		fmt.Println("Error rendering Markdown:", err)
+		return
+	}
+
+	// Print the rendered Markdown
+	fmt.Println(rendered)
+}
+
+func generateSemDetailsMarkdownTable(semDetails SemesterDetails) string {
+	var buf bytes.Buffer
+
+	// Table header
+	buf.WriteString("| Index | SemId          | SemName                   |\n")
+	buf.WriteString("|-------|----------------|---------------------------|\n")
 
 	// Iterate through SemIds and SemNames using a for loop
 	for i := 0; i < len(semDetails.SemIds); i++ {
@@ -118,12 +140,11 @@ func PrintSemDetails() {
 		semId := semDetails.SemIds[i]
 		semName := semDetails.SemNames[i]
 
-		// Add a row to the table
-		table.Append([]string{index, semId, semName})
+		// Table row
+		buf.WriteString(fmt.Sprintf("| %-5s | %-14s | %-25s |\n", index, semId, semName))
 	}
 
-	// Render the table
-	table.Render()
+	return buf.String()
 }
 
 func findAndSaveSemIds(n *html.Node, targetClass string, result *[]string) {
@@ -190,4 +211,31 @@ func getTextContent(n *html.Node) string {
 	}
 
 	return textContent
+}
+
+func Marks() {
+	in := `# Select the semester to view the marks for:`
+
+	out, _ := glamour.Render(in, "dark")
+	fmt.Print(out)
+
+	PrintSemDetails()
+
+	var choice int
+	fmt.Print("\nEnter the index of the semester to view marks: ")
+	fmt.Scanln(&choice)
+
+	// Validate the choice
+	if choice < 1 || choice > len(GetSemDetails().SemIds) {
+		fmt.Println("Invalid choice. Please select a valid index.")
+		return
+	}
+
+	// Display the selected semester details
+	selectedIndex := choice - 1
+	selectedSemId := GetSemDetails().SemIds[selectedIndex]
+	selectedSemName := GetSemDetails().SemNames[selectedIndex]
+
+	fmt.Printf("\nYou selected SemId: %s, SemName: %s\n", selectedSemId, selectedSemName)
+
 }
