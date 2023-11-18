@@ -226,30 +226,47 @@ func getTextContent(n *html.Node) string {
 	return textContent
 }
 
-func Marks() {
-	in := `# Select the semester to view the marks for:`
+func Marks(sem_choice *int) {
+	if sem_choice != nil {
+		// Validate the provided choice
+		choice := *sem_choice
+		semDetails := GetSemDetails()
 
-	out, _ := glamour.Render(in, "dark")
-	fmt.Print(out)
+		if choice < 1 || choice > len(semDetails.SemIds) {
+			fmt.Println("Invalid choice. Please select a valid index.")
+			return
+		}
 
-	PrintSemDetails()
+		// Display the selected semester details
+		selectedIndex := choice - 1
+		selectedSemId := semDetails.SemIds[selectedIndex]
+		selectedSemName := semDetails.SemNames[selectedIndex]
 
-	var choice int
-	fmt.Print("\nEnter the index of the semester to view marks: ")
-	fmt.Scanln(&choice)
+		fmt.Printf("\nYou selected SemId: %s, SemName: %s\n", selectedSemId, selectedSemName)
+	} else {
+		in := `# Select the semester to view the marks for:`
 
-	// Validate the choice
-	semDetails := GetSemDetails()
-	if choice < 1 || choice > len(semDetails.SemIds) {
-		fmt.Println("Invalid choice. Please select a valid index.")
-		return
+		out, _ := glamour.Render(in, "dark")
+		fmt.Print(out)
+
+		PrintSemDetails()
+
+		var choice int
+		fmt.Print("\nEnter the index of the semester to view marks: ")
+		fmt.Scanln(&choice)
+
+		// Validate the choice
+		semDetails := GetSemDetails()
+		if choice < 1 || choice > len(semDetails.SemIds) {
+			fmt.Println("Invalid choice. Please select a valid index.")
+			return
+		}
+
+		// Display the selected semester details
+		selectedIndex := choice - 1
+		selectedSemId := semDetails.SemIds[selectedIndex]
+		selectedSemName := semDetails.SemNames[selectedIndex]
+
+		fmt.Printf("\nYou selected SemId: %s, SemName: %s\n", selectedSemId, selectedSemName)
 	}
-
-	// Display the selected semester details
-	selectedIndex := choice - 1
-	selectedSemId := semDetails.SemIds[selectedIndex]
-	selectedSemName := semDetails.SemNames[selectedIndex]
-
-	fmt.Printf("\nYou selected SemId: %s, SemName: %s\n", selectedSemId, selectedSemName)
-
 }
