@@ -7,6 +7,5 @@ import "vtop-cli/features"
 func main() {
 	// Call Marks function with an integer
 
-	// features.Marks(0)
-	features.GetMarks("VL20232401")
+	features.Marks(0)
 }
