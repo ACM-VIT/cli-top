@@ -25,8 +25,8 @@ func fetchReq(target_url string, semID string) ([]byte, error) {
 
 	//variables that need to be set with every request
 	authID := "21BIT0151"
-	csrf := "e6a1a4e7-2bc0-47f0-8027-0e614a0373f1"
-	jsessionID := "93BC5F2322296E0EDEC7BA326FB0AF75"
+	csrf := "f16fa23f-c0b3-4f9f-bc1d-4ba000d96e3e"
+	jsessionID := "1BB3D5A9A32750B4945B8643EAAA514F"
 
 	var data = strings.NewReader(fmt.Sprintf("------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"authorizedID\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"semesterSubId\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"_csrf\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J--\r\n", authID, semID, csrf))
 	req, err := http.NewRequest("POST", target_url, data)
@@ -270,11 +270,17 @@ func GetMarks(semID string) {
 		}
 		markdown, err := renderer.Render(markdownTable)
 		if err != nil {
-			fmt.Println("Error rendering markdown:", err)
+			fmt.Println("Error rendering Table:", err)
 			return
 		}
 
-		fmt.Println(subjectDetails[i])
+		subjectDetail, e1 := renderer.Render(subjectDetails[i])
+		if e1 != nil {
+			fmt.Println("Error rendering SubjectDetails:", err)
+			return
+		}
+
+		fmt.Println(subjectDetail)
 		fmt.Println(markdown)
 	}
 }
@@ -305,7 +311,7 @@ func subjectDetails(html string) []string {
 		// Add more lines as needed for other columns
 
 		// Print or use the extracted data
-		detail := fmt.Sprintf("CourseCode: %s, CourseTitle: %s,  CourseType: %s, Faculty: %s, Slot: %s, ClassNbr: %s\n", subject, name, ctype, fac, slot, code)
+		detail := fmt.Sprintf("## CourseCode: %s, CourseTitle: %s,  CourseType: %s, Faculty: %s, Slot: %s, ClassNbr: %s\n", subject, name, ctype, fac, slot, code)
 		// Print or use other extracted data as needed
 
 		details = append(details, detail)
@@ -431,7 +437,21 @@ func Marks(sem_choice int) {
 
 	}
 
-	fmt.Printf("\nYou selected SemId: %s, SemName: %s\n", selectedSemId, selectedSemName)
+	// Format the string with glamour
+	formattedSelection := fmt.Sprintf("\n# You selected SemId: %s, SemName: %s\n", selectedSemId, selectedSemName)
+
+	// Render and print the formatted string
+	renderer, err := glamour.NewTermRenderer(glamour.WithStylePath("dark"), glamour.WithWordWrap(150))
+	if err != nil {
+		log.Fatal("Error creating glamour renderer:", err)
+	}
+
+	output, err := renderer.Render(formattedSelection)
+	if err != nil {
+		log.Fatal("Error rendering formatted string:", err)
+	}
+
+	fmt.Print(output)
 
 	fmt.Println()
 
