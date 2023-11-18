@@ -25,8 +25,8 @@ func fetchReq(target_url string, semID string) ([]byte, error) {
 
 	//variables that need to be set with every request
 	authID := "21BIT0151"
-	csrf := "5ff29e3c-f47e-4dc9-a70e-4c78a1d0b9cf"
-	jsessionID := "9A44D5A85C54D382FFF5C4ED5F6E9606"
+	csrf := "a7c295ed-0569-4e67-95f8-7fda969b32b7"
+	jsessionID := "884EF185A5F577CEEE4E3AA0B4AD75EE"
 
 	var data = strings.NewReader(fmt.Sprintf("------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"authorizedID\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"semesterSubId\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"_csrf\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J--\r\n", authID, semID, csrf))
 	req, err := http.NewRequest("POST", target_url, data)
@@ -128,6 +128,8 @@ func PrintSemDetails() {
 
 	// Generate Markdown table text
 	markdownTable := generateSemDetailsMarkdownTable(semDetails)
+
+	fmt.Print(markdownTable)
 
 	// Render Markdown using glamour
 	rendered, err := glamour.Render(markdownTable, "dark")
@@ -251,35 +253,64 @@ func GetMarks(semID string) {
 			log.Fatal(err)
 		}
 
-		// Print or process the Markdown table
-		fmt.Println("Markdown Table:")
-		fmt.Println(markdownTable)
+		renderer, e := glamour.NewTermRenderer(glamour.WithStylePath("dark"), glamour.WithWordWrap(150))
+		if e != nil {
+			fmt.Println("Error rendering markdown:", err)
+			return
+		}
+		markdown, err := renderer.Render(markdownTable)
+		if err != nil {
+			fmt.Println("Error rendering markdown:", err)
+			return
+		}
+
+		fmt.Println(markdown)
 	}
 
-	// Print or process the found elements
-	fmt.Printf("Number of elements found: %d\n", len(elements))
-
+	// // Print or process the found elements
+	// fmt.Printf("Number of elements found: %d\n", len(elements))
 }
 
 func convertHTMLElementToMarkdown(element *html.Node) (string, error) {
-	var markdownTable string
+	var markdownTable strings.Builder
+	var tableStarted bool
 
 	// Use goquery for easier HTML manipulation
 	doc := goquery.NewDocumentFromNode(element)
 
-	// Iterate over table rows
-	doc.Find("tr").Each(func(_ int, rowSelection *goquery.Selection) {
-		// Iterate over table cells in each row
-		rowSelection.Find("td").Each(func(_ int, cellSelection *goquery.Selection) {
-			// Extract and append cell text to the markdownTable string
-			markdownTable += cellSelection.Text() + " | "
-		})
+	// Find and print data rows excluding rows with class "tableHeader-level1"
+	doc.Find("tbody").Each(func(_ int, bodySelection *goquery.Selection) {
+		bodySelection.Find("tr").Each(func(_ int, rowSelection *goquery.Selection) {
+			// Check if the row has the specified class
+			if !rowSelection.HasClass("tableHeader-level1") {
+				if !tableStarted {
+					printTable("Header", nil, &markdownTable) // Print header only once
+					tableStarted = true
+				}
 
-		// Remove the trailing " | " and add a new line
-		markdownTable = strings.TrimSuffix(markdownTable, " | ") + "\n"
+				row := []string{}
+				rowSelection.Find("td").Each(func(_ int, cellSelection *goquery.Selection) {
+					// Extract and append cell text to the markdownTable string
+					text := strings.TrimSpace(cellSelection.Text())
+					row = append(row, text)
+				})
+				printFormattedRow(row, &markdownTable)
+			}
+		})
 	})
 
-	return markdownTable, nil
+	return markdownTable.String(), nil
+}
+
+func printTable(title string, data [][]string, builder *strings.Builder) {
+	builder.WriteString(fmt.Sprintf("| %-5s | %-31s | %-7s | %-10s | %-7s | %-10s | %-13s |\n",
+		"Index", "Title", "MaxMark", "Weightage%", "Status", "ScoredMark", "WeightageMark"))
+	builder.WriteString("|-------|---------------------------------|---------|------------|---------|------------|---------------|\n")
+}
+
+func printFormattedRow(row []string, builder *strings.Builder) {
+	builder.WriteString(fmt.Sprintf("| %-5s | %-31s | %-7s | %-10s | %-7s | %-10s | %-13s |\n",
+		row[0], row[1], row[2], row[3], row[4], row[5], row[6]))
 }
 
 func findElementsByClass(n *html.Node, class string) []*html.Node {
