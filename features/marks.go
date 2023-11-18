@@ -25,8 +25,8 @@ func fetchReq(target_url string, semID string) ([]byte, error) {
 
 	//variables that need to be set with every request
 	authID := "21BIT0151"
-	csrf := "a7c295ed-0569-4e67-95f8-7fda969b32b7"
-	jsessionID := "884EF185A5F577CEEE4E3AA0B4AD75EE"
+	csrf := "e6a1a4e7-2bc0-47f0-8027-0e614a0373f1"
+	jsessionID := "93BC5F2322296E0EDEC7BA326FB0AF75"
 
 	var data = strings.NewReader(fmt.Sprintf("------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"authorizedID\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"semesterSubId\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"_csrf\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J--\r\n", authID, semID, csrf))
 	req, err := http.NewRequest("POST", target_url, data)
@@ -128,8 +128,6 @@ func PrintSemDetails() {
 
 	// Generate Markdown table text
 	markdownTable := generateSemDetailsMarkdownTable(semDetails)
-
-	fmt.Print(markdownTable)
 
 	// Render Markdown using glamour
 	rendered, err := glamour.Render(markdownTable, "dark")
@@ -241,12 +239,24 @@ func GetMarks(semID string) {
 		log.Fatal(err)
 	}
 
+	subjectDetails := subjectDetails(string(bodyText))
+
 	// Find all elements with the specified class
 	class := "customTable-level1"
 	elements := findElementsByClass(doc, class)
 
+	// Check if elements were found
+	if len(elements) == 0 {
+		fmt.Println()
+		in := `# No Data Found`
+
+		out, _ := glamour.Render(in, "dark")
+		fmt.Print(out)
+		return
+	}
+
 	// Convert HTML elements to Markdown tables
-	for _, element := range elements {
+	for i, element := range elements {
 		// Convert each element to Markdown
 		markdownTable, err := convertHTMLElementToMarkdown(element)
 		if err != nil {
@@ -264,11 +274,43 @@ func GetMarks(semID string) {
 			return
 		}
 
+		fmt.Println(subjectDetails[i])
 		fmt.Println(markdown)
 	}
+}
 
-	// // Print or process the found elements
-	// fmt.Printf("Number of elements found: %d\n", len(elements))
+func subjectDetails(html string) []string {
+	var details []string
+	// Load the HTML document
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Use CSS selectors to find and extract data
+	doc.Find("tr.tableContent").Each(func(i int, s *goquery.Selection) {
+		// Skip every other iteration
+		if i%2 != 0 {
+			return
+		}
+
+		// Extract data from each column
+		td := s.Find("td")
+		code := td.Eq(1).Text()
+		subject := td.Eq(2).Text()
+		name := td.Eq(3).Text()
+		ctype := td.Eq(4).Text()
+		fac := td.Eq(6).Text()
+		slot := td.Eq(7).Text()
+		// Add more lines as needed for other columns
+
+		// Print or use the extracted data
+		detail := fmt.Sprintf("CourseCode: %s, CourseTitle: %s,  CourseType: %s, Faculty: %s, Slot: %s, ClassNbr: %s\n", subject, name, ctype, fac, slot, code)
+		// Print or use other extracted data as needed
+
+		details = append(details, detail)
+	})
+	return details
 }
 
 func convertHTMLElementToMarkdown(element *html.Node) (string, error) {
@@ -345,6 +387,9 @@ func hasClass(n *html.Node, class string) bool {
 }
 
 func Marks(sem_choice int) {
+	selectedSemId := ""
+	selectedSemName := ""
+
 	if sem_choice != 0 {
 		// Validate the provided choice
 		choice := sem_choice
@@ -357,10 +402,9 @@ func Marks(sem_choice int) {
 
 		// Display the selected semester details
 		selectedIndex := choice - 1
-		selectedSemId := semDetails.SemIds[selectedIndex]
-		selectedSemName := semDetails.SemNames[selectedIndex]
+		selectedSemId = semDetails.SemIds[selectedIndex]
+		selectedSemName = semDetails.SemNames[selectedIndex]
 
-		fmt.Printf("\nYou selected SemId: %s, SemName: %s\n", selectedSemId, selectedSemName)
 	} else {
 		in := `# Select the semester to view the marks for:`
 
@@ -382,9 +426,14 @@ func Marks(sem_choice int) {
 
 		// Display the selected semester details
 		selectedIndex := choice - 1
-		selectedSemId := semDetails.SemIds[selectedIndex]
-		selectedSemName := semDetails.SemNames[selectedIndex]
+		selectedSemId = semDetails.SemIds[selectedIndex]
+		selectedSemName = semDetails.SemNames[selectedIndex]
 
-		fmt.Printf("\nYou selected SemId: %s, SemName: %s\n", selectedSemId, selectedSemName)
 	}
+
+	fmt.Printf("\nYou selected SemId: %s, SemName: %s\n", selectedSemId, selectedSemName)
+
+	fmt.Println()
+
+	GetMarks(selectedSemId)
 }
