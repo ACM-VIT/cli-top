@@ -24,9 +24,9 @@ func fetchReq(target_url string) ([]byte, error) {
 
 	//variables that need to be set with every request
 	authID := "21BIT0151"
-	csrf := "8d382f9c-6ab9-41db-94f4-ac797de05c48"
+	csrf := "a022dd03-bd92-4d10-bcbd-dc84ad5a1281"
 	semID := ""
-	jsessionID := "D723A10D72692B3AB5B1ED0BE95A6D7B"
+	jsessionID := "DE24F6685815D26D85F4923E39339555"
 
 	var data = strings.NewReader(fmt.Sprintf("------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"authorizedID\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"semesterSubId\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"_csrf\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J--\r\n", authID, semID, csrf))
 	req, err := http.NewRequest("POST", target_url, data)
@@ -62,7 +62,7 @@ func fetchReq(target_url string) ([]byte, error) {
 }
 
 func GetSemDetails() SemesterDetails {
-	url := "https://vtop.vit.ac.in/vtop/examinations/StudentMarkView"
+	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentTimeTable"
 	bodyText, err := fetchReq(url)
 	if err != nil {
 		log.Fatal(err)
@@ -80,7 +80,7 @@ func GetSemDetails() SemesterDetails {
 
 	var tempIds []string
 	// Find and save the semester IDs
-	findAndSaveSemIds(doc, "form-control", &tempIds)
+	findAndSaveSemIds(doc, "form-select", &tempIds)
 
 	SemIds = removeEmptyStrings(tempIds)
 
@@ -96,6 +96,19 @@ func GetSemDetails() SemesterDetails {
 			SemNames = append(SemNames, "Unknown")
 		}
 	}
+
+	// Reverse SemIds and SemNames
+	reverseSemIds := make([]string, len(SemIds))
+	reverseSemNames := make([]string, len(SemNames))
+	for i := 0; i < len(SemIds); i++ {
+		reverseIndex := len(SemIds) - 1 - i
+		reverseSemIds[i] = SemIds[reverseIndex]
+		reverseSemNames[i] = SemNames[reverseIndex]
+	}
+
+	// Save the reversed values back to SemDetails
+	SemIds = reverseSemIds
+	SemNames = reverseSemNames
 
 	// Return the encapsulated struct
 	return SemesterDetails{
@@ -226,15 +239,16 @@ func Marks() {
 	fmt.Scanln(&choice)
 
 	// Validate the choice
-	if choice < 1 || choice > len(GetSemDetails().SemIds) {
+	semDetails := GetSemDetails()
+	if choice < 1 || choice > len(semDetails.SemIds) {
 		fmt.Println("Invalid choice. Please select a valid index.")
 		return
 	}
 
 	// Display the selected semester details
 	selectedIndex := choice - 1
-	selectedSemId := GetSemDetails().SemIds[selectedIndex]
-	selectedSemName := GetSemDetails().SemNames[selectedIndex]
+	selectedSemId := semDetails.SemIds[selectedIndex]
+	selectedSemName := semDetails.SemNames[selectedIndex]
 
 	fmt.Printf("\nYou selected SemId: %s, SemName: %s\n", selectedSemId, selectedSemName)
 
