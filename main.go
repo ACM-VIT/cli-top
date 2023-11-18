@@ -5,5 +5,7 @@ package main
 import "vtop-cli/features"
 
 func main() {
-	features.Marks()
+	// sem_choice := 5
+	features.Marks(nil)
+	// features.Marks(sem_choice)
 }
