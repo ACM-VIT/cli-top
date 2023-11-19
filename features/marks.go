@@ -68,8 +68,8 @@ func GetSemDetails() SemesterDetails {
 		log.Fatal(err)
 	}
 
-	// Parse the HTML
-	doc, err := html.Parse(strings.NewReader(string(bodyText)))
+	// Use goquery to parse the HTML
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -160,27 +160,13 @@ func generateSemDetailsMarkdownTable(semDetails SemesterDetails) string {
 	return buf.String()
 }
 
-func findAndSaveSemIds(n *html.Node, targetClass string, result *[]string) {
-	if n.Type == html.ElementNode && n.Data == "select" {
-		for _, attr := range n.Attr {
-			if attr.Key == "class" && strings.Contains(attr.Val, targetClass) {
-				// Process the <select> element
-				for c := n.FirstChild; c != nil; c = c.NextSibling {
-					if c.Type == html.ElementNode && c.Data == "option" {
-						for _, optAttr := range c.Attr {
-							if optAttr.Key == "value" {
-								// Save the value attribute to the result slice
-								*result = append(*result, optAttr.Val)
-							}
-						}
-					}
-				}
-			}
+func findAndSaveSemIds(doc *goquery.Document, targetClass string, result *[]string) {
+	doc.Find("select." + targetClass + " option").Each(func(i int, s *goquery.Selection) {
+		value, exists := s.Attr("value")
+		if exists {
+			*result = append(*result, value)
 		}
-	}
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		findAndSaveSemIds(c, targetClass, result)
-	}
+	})
 }
 
 func removeEmptyStrings(data []string) []string {
@@ -193,23 +179,8 @@ func removeEmptyStrings(data []string) []string {
 	return cleanedData
 }
 
-func findOptionWithTagValue(n *html.Node, targetValue string) string {
-	if n.Type == html.ElementNode && n.Data == "option" {
-		for _, attr := range n.Attr {
-			if attr.Key == "value" && attr.Val == targetValue {
-				// Found the <option> tag with the specified value, return its text content
-				return getTextContent(n)
-			}
-		}
-	}
-
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		if result := findOptionWithTagValue(c, targetValue); result != "" {
-			return result
-		}
-	}
-
-	return ""
+func findOptionWithTagValue(doc *goquery.Document, targetValue string) string {
+	return doc.Find("option[value='" + targetValue + "']").Text()
 }
 
 func getTextContent(n *html.Node) string {
@@ -233,13 +204,13 @@ func GetMarks(semID string) {
 		log.Fatal(err)
 	}
 
-	// Parse the HTML
-	doc, err := html.Parse(strings.NewReader(string(bodyText)))
+	// Use goquery to parse the HTML
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	subjectDetails := subjectDetails(string(bodyText))
+	subjectDetails := subjectDetails(doc)
 
 	// Find all elements with the specified class
 	class := "customTable-level1"
@@ -285,13 +256,8 @@ func GetMarks(semID string) {
 	}
 }
 
-func subjectDetails(html string) []string {
+func subjectDetails(doc *goquery.Document) []string {
 	var details []string
-	// Load the HTML document
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	// Use CSS selectors to find and extract data
 	doc.Find("tr.tableContent").Each(func(i int, s *goquery.Selection) {
@@ -319,32 +285,30 @@ func subjectDetails(html string) []string {
 	return details
 }
 
-func convertHTMLElementToMarkdown(element *html.Node) (string, error) {
+func convertHTMLElementToMarkdown(element *goquery.Selection) (string, error) {
 	var markdownTable strings.Builder
 	var tableStarted bool
 
 	// Use goquery for easier HTML manipulation
-	doc := goquery.NewDocumentFromNode(element)
+	// doc := goquery.NewDocumentFromNode(element)
 
 	// Find and print data rows excluding rows with class "tableHeader-level1"
-	doc.Find("tbody").Each(func(_ int, bodySelection *goquery.Selection) {
-		bodySelection.Find("tr").Each(func(_ int, rowSelection *goquery.Selection) {
-			// Check if the row has the specified class
-			if !rowSelection.HasClass("tableHeader-level1") {
-				if !tableStarted {
-					printTable("Header", nil, &markdownTable) // Print header only once
-					tableStarted = true
-				}
-
-				row := []string{}
-				rowSelection.Find("td").Each(func(_ int, cellSelection *goquery.Selection) {
-					// Extract and append cell text to the markdownTable string
-					text := strings.TrimSpace(cellSelection.Text())
-					row = append(row, text)
-				})
-				printFormattedRow(row, &markdownTable)
+	element.Find("tbody tr").Each(func(_ int, rowSelection *goquery.Selection) {
+		// Check if the row has the specified class
+		if !rowSelection.HasClass("tableHeader-level1") {
+			if !tableStarted {
+				printTable("Header", nil, &markdownTable) // Print header only once
+				tableStarted = true
 			}
-		})
+
+			row := []string{}
+			rowSelection.Find("td").Each(func(_ int, cellSelection *goquery.Selection) {
+				// Extract and append cell text to the markdownTable string
+				text := strings.TrimSpace(cellSelection.Text())
+				row = append(row, text)
+			})
+			printFormattedRow(row, &markdownTable)
+		}
 	})
 
 	return markdownTable.String(), nil
@@ -361,19 +325,12 @@ func printFormattedRow(row []string, builder *strings.Builder) {
 		row[0], row[1], row[2], row[3], row[4], row[5], row[6]))
 }
 
-func findElementsByClass(n *html.Node, class string) []*html.Node {
-	var result []*html.Node
+func findElementsByClass(doc *goquery.Document, class string) []*goquery.Selection {
+	var result []*goquery.Selection
 
-	var visit func(*html.Node)
-	visit = func(n *html.Node) {
-		if n.Type == html.ElementNode && hasClass(n, class) {
-			result = append(result, n)
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			visit(c)
-		}
-	}
-	visit(n)
+	doc.Find("." + class).Each(func(_ int, selection *goquery.Selection) {
+		result = append(result, selection)
+	})
 
 	return result
 }
