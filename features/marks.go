@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"vtop-cli/types"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/charmbracelet/glamour"
@@ -18,13 +19,10 @@ type SemesterDetails struct {
 	SemIds   []string
 }
 
-func GetSemDetails() SemesterDetails {
+func GetSemDetails(cookies types.Tokens) SemesterDetails {
 	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentTimeTable"
-	authID := "21BIT0151"
-	csrf := "f16fa23f-c0b3-4f9f-bc1d-4ba000d96e3e"
-	jsessionID := "1BB3D5A9A32750B4945B8643EAAA514F"
 
-	bodyText, err := fetchReq(cookies{authID, csrf, jsessionID}, url, "")
+	bodyText, err := fetchReq(cookies, url, "")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -79,8 +77,8 @@ func GetSemDetails() SemesterDetails {
 
 }
 
-func PrintSemDetails() {
-	semDetails := GetSemDetails()
+func PrintSemDetails(cookies types.Tokens) {
+	semDetails := GetSemDetails(cookies)
 
 	if len(semDetails.SemIds) == 0 {
 		fmt.Println("Error fetching semester details or no semesters available.")
@@ -158,12 +156,10 @@ func getTextContent(n *html.Node) string {
 	return textContent
 }
 
-func GetMarks(semID string) {
+func GetMarks(secrets types.Tokens, semID string) {
 	url := "https://vtop.vit.ac.in/vtop/examinations/doStudentMarkView"
-	authID := "21BIT0151"
-	csrf := "f16fa23f-c0b3-4f9f-bc1d-4ba000d96e3e"
-	jsessionID := "1BB3D5A9A32750B4945B8643EAAA514F"
-	bodyText, err := fetchReq(cookies{authID, csrf, jsessionID}, url, semID)
+
+	bodyText, err := fetchReq(secrets, url, semID)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -313,14 +309,14 @@ func hasClass(n *html.Node, class string) bool {
 	return false
 }
 
-func Marks(sem_choice int) {
+func Marks(secrets types.Tokens, sem_choice int) {
 	selectedSemId := ""
 	selectedSemName := ""
 
 	if sem_choice != 0 {
 		// Validate the provided choice
 		choice := sem_choice
-		semDetails := GetSemDetails()
+		semDetails := GetSemDetails(secrets)
 
 		if choice < 1 || choice > len(semDetails.SemIds) {
 			fmt.Println("Invalid choice. Please select a valid index.")
@@ -338,14 +334,14 @@ func Marks(sem_choice int) {
 		out, _ := glamour.Render(in, "dark")
 		fmt.Print(out)
 
-		PrintSemDetails()
+		PrintSemDetails(secrets)
 
 		var choice int
 		fmt.Print("\nEnter the index of the semester to view marks: ")
 		fmt.Scanln(&choice)
 
 		// Validate the choice
-		semDetails := GetSemDetails()
+		semDetails := GetSemDetails(secrets)
 		if choice < 1 || choice > len(semDetails.SemIds) {
 			fmt.Println("Invalid choice. Please select a valid index.")
 			return
@@ -376,5 +372,5 @@ func Marks(sem_choice int) {
 
 	fmt.Println()
 
-	GetMarks(selectedSemId)
+	GetMarks(secrets, selectedSemId)
 }

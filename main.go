@@ -3,13 +3,13 @@
 package main
 
 import (
-	// "vtop-cli/features"
+	features "vtop-cli/features"
 	login "vtop-cli/login"
 )
 
 func main() {
 	// Call Marks function with an integer
-	login.Login()
-	// features.Marks(0)
+	secrets := login.Login("21BCI0028")
+	features.Marks(secrets, 0)
 
 }
