@@ -1,4 +1,4 @@
-package main
+package login
 
 import (
 	"crypto/tls"
@@ -69,6 +69,6 @@ func getLoginPage() {
 	fmt.Printf("%s\n", bodyText)
 }
 
-func main() {
+func Login() {
 	getLoginPage()
 }
