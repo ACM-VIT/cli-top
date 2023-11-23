@@ -7,12 +7,14 @@ import (
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/ACM-VIT/vtop-cli/sign-in/login"
 )
 
 func getLoginPage() {
 
-	secrets := getSessionServer()
-	vtopCookies := cookies{
+	secrets := login.getSessionServer()
+	vtopCookies := login.cookies{
 		server:     secrets["SERVERID"],
 		_csrf:      secrets["_csrf"],
 		jsessionID: secrets["JSESSIONID"],
