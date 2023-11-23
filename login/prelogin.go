@@ -1,4 +1,4 @@
-package main
+package login
 
 import (
 	"crypto/tls"
@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 )
 
@@ -44,61 +45,52 @@ func getSessionServer() map[string]string {
 		// fmt.Println(cookie.Name, cookie.Value)
 		secrets[cookie.Name] = cookie.Value
 	}
-	fmt.Println(secrets)
 
-	// bodyText, err := io.ReadAll(resp.Body)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	bodyText, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
 	// fmt.Printf("%s\n", bodyText)
 
-	return secrets
+	// Convert bodyText to a string
+	bodyString := string(bodyText)
 
+	// Split the string into lines
+	lines := strings.Split(bodyString, "\n")
+
+	// Search for the line that contains "csrfValue"
+	for _, line := range lines {
+		if strings.Contains(line, "csrfValue") {
+			// fmt.Println("Found line:", line)
+
+			// Define a regular expression that matches the pattern of the variable assignment
+			re := regexp.MustCompile(`var csrfValue = /\*(.*?)\*/'.*';`)
+
+			// Find the match
+			match := re.FindStringSubmatch(line)
+
+			// If a match was found, print the value of the variable
+			if len(match) > 1 {
+				secrets["_csrf"] = match[1]
+			}
+
+			break
+		}
+	}
+
+	fmt.Println(secrets)
+
+	return secrets
 }
 
 func getLoginPage() {
 
 	secrets := getSessionServer()
 
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
-	var data = strings.NewReader(`_csrf=b80b461c-ed16-49c5-b411-6a959c9f15cf&flag=VTOP`)
-	req, err := http.NewRequest("POST", "https://vtop.vit.ac.in/vtop/prelogin/setup", data)
-	if err != nil {
-		log.Fatal(err)
-	}
-	req.Header.Set("Host", "vtop.vit.ac.in")
-	req.Header.Set("Content-Length", "52")
-	req.Header.Set("Cache-Control", "max-age=0")
-	req.Header.Set("Sec-Ch-Ua", `"Chromium";v="119", "Not?A_Brand";v="24"`)
-	req.Header.Set("Sec-Ch-Ua-Mobile", "?0")
-	req.Header.Set("Sec-Ch-Ua-Platform", `"Linux"`)
-	req.Header.Set("Upgrade-Insecure-Requests", "1")
-	req.Header.Set("Origin", "https://vtop.vit.ac.in")
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.6045.159 Safari/537.36")
-	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
-	req.Header.Set("Sec-Fetch-Site", "same-origin")
-	req.Header.Set("Sec-Fetch-Mode", "navigate")
-	req.Header.Set("Sec-Fetch-User", "?1")
-	req.Header.Set("Sec-Fetch-Dest", "document")
-	req.Header.Set("Referer", "https://vtop.vit.ac.in/vtop/open/page")
-	// req.Header.Set("Accept-Encoding", "gzip, deflate, br")
-	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
-	req.Header.Set("Priority", "u=0, i")
-	req.Header.Set("Cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", secrets["JSESSIONID"], secrets["SERVERID"]))
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer resp.Body.Close()
-	bodyText, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("%s\n", bodyText)
+	fmt.Println("JSESSIONID:", secrets["JSESSIONID"])
+	fmt.Println("SERVERID:", secrets["SERVERID"])
+	fmt.Println("_csrf:", secrets["_csrf"])
+
 }
 
 func main() {
