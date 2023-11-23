@@ -3,34 +3,27 @@ package login
 import (
 	"crypto/tls"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"strings"
+
+	types "vtop-cli/types"
 )
 
-type tokens struct {
-	server     string
-	_csrf      string
-	jsessionID string
-}
-
-func getLoginPage() {
+func getLoginPage() types.Cookies {
 
 	secrets := getSessionServer()
-	vtopCookies := tokens{
-		server:     secrets["SERVERID"],
-		_csrf:      secrets["_csrf"],
-		jsessionID: secrets["JSESSIONID"],
+	vtopCookies := types.Cookies{
+		SERVERID:   secrets["SERVERID"],
+		CSRF:       secrets["_csrf"],
+		JSESSIONID: secrets["JSESSIONID"],
 	}
-
-	fmt.Println("VTOP Cookies:", vtopCookies)
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Transport: tr}
-	var data = strings.NewReader(fmt.Sprintf(`_csrf=%s&flag=VTOP`, vtopCookies._csrf))
+	var data = strings.NewReader(fmt.Sprintf(`_csrf=%s&flag=VTOP`, vtopCookies.CSRF))
 	req, err := http.NewRequest("POST", "https://vtop.vit.ac.in/vtop/prelogin/setup", data)
 	if err != nil {
 		log.Fatal(err)
@@ -54,19 +47,30 @@ func getLoginPage() {
 	// req.Header.Set("Accept-Encoding", "gzip, deflate, br")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("Priority", "u=0, i")
-	req.Header.Set("Cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", vtopCookies.jsessionID, vtopCookies.server))
+	req.Header.Set("Cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", vtopCookies.JSESSIONID, vtopCookies.SERVERID))
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer resp.Body.Close()
-	bodyText, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("%s\n", bodyText)
+
+	// bodyText, err := io.ReadAll(resp.Body)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// fmt.Printf("%s\n", bodyText)
+
+	return vtopCookies
 }
 
-func Login() {
-	getLoginPage()
+func Login(regNo string) types.Tokens {
+	secrets := getLoginPage()
+
+	vtopLoginCookies := types.Tokens{
+		AuthID:     regNo,
+		Csrf:       secrets.CSRF,
+		JsessionID: secrets.JSESSIONID,
+		ServerID:   secrets.SERVERID,
+	}
+	return vtopLoginCookies
 }

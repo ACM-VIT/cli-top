@@ -5,20 +5,16 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"vtop-cli/types"
 )
 
-type cookies struct {
-	authID     string
-	csrf       string
-	jsessionID string
-}
-
-func fetchReq(secrets cookies, target_url string, semID string) ([]byte, error) {
+func fetchReq(secrets types.Tokens, target_url string, semID string) ([]byte, error) {
 	client := &http.Client{}
 
 	//variables that need to be set with every request
 
-	var data = strings.NewReader(fmt.Sprintf("------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"authorizedID\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"semesterSubId\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"_csrf\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J--\r\n", secrets.authID, semID, secrets.csrf))
+	var data = strings.NewReader(fmt.Sprintf("------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"authorizedID\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"semesterSubId\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"_csrf\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J--\r\n", secrets.AuthID, semID, secrets.Csrf))
 	req, err := http.NewRequest("POST", target_url, data)
 	if err != nil {
 		return nil, err
@@ -27,7 +23,7 @@ func fetchReq(secrets cookies, target_url string, semID string) ([]byte, error) 
 	req.Header.Set("accept", "*/*")
 	req.Header.Set("accept-language", "en-US,en;q=0.6")
 	req.Header.Set("content-type", "multipart/form-data; boundary=----WebKitFormBoundary9yjNZXu7BBjgQK7J")
-	req.Header.Set("cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=s2", secrets.jsessionID))
+	req.Header.Set("cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", secrets.JsessionID, secrets.ServerID))
 	req.Header.Set("origin", "https://vtop.vit.ac.in")
 	req.Header.Set("referer", "https://vtop.vit.ac.in/vtop/content?")
 	req.Header.Set("sec-ch-ua", `"Brave";v="119", "Chromium";v="119", "Not?A_Brand";v="24"`)

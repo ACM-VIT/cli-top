@@ -78,7 +78,7 @@ func getSessionServer() map[string]string {
 
 	}
 
-	fmt.Println(secrets)
+	fmt.Println("(Prelogin) VTOP Cookies:", secrets)
 
 	return secrets
 
