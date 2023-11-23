@@ -1,4 +1,4 @@
-package login
+package prelogin
 
 import (
 	"crypto/tls"
@@ -9,13 +9,7 @@ import (
 	"regexp"
 )
 
-type cookies struct {
-	server     string
-	_csrf      string
-	jsessionID string
-}
-
-func getSessionServer() map[string]string {
+func GetSessionServer() map[string]string {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
