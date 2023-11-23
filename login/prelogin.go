@@ -1,4 +1,4 @@
-package prelogin
+package login
 
 import (
 	"crypto/tls"
@@ -9,7 +9,7 @@ import (
 	"regexp"
 )
 
-func GetSessionServer() map[string]string {
+func getSessionServer() map[string]string {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}

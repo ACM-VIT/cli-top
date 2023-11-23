@@ -7,8 +7,6 @@ import (
 	"log"
 	"net/http"
 	"strings"
-
-	prelogin "vtop-cli/login/prelogin"
 )
 
 type tokens struct {
@@ -19,7 +17,7 @@ type tokens struct {
 
 func getLoginPage() {
 
-	secrets := prelogin.GetSessionServer()
+	secrets := getSessionServer()
 	vtopCookies := tokens{
 		server:     secrets["SERVERID"],
 		_csrf:      secrets["_csrf"],
