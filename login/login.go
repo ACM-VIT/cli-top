@@ -8,13 +8,19 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ACM-VIT/vtop-cli/sign-in/login"
+	prelogin "vtop-cli/login/prelogin"
 )
+
+type tokens struct {
+	server     string
+	_csrf      string
+	jsessionID string
+}
 
 func getLoginPage() {
 
-	secrets := login.getSessionServer()
-	vtopCookies := login.cookies{
+	secrets := prelogin.GetSessionServer()
+	vtopCookies := tokens{
 		server:     secrets["SERVERID"],
 		_csrf:      secrets["_csrf"],
 		jsessionID: secrets["JSESSIONID"],
