@@ -1,6 +1,8 @@
 module vtop-cli
 
-go 1.20
+go 1.21
+
+toolchain go1.21.4
 
 require (
 	github.com/charmbracelet/glamour v0.6.0
@@ -8,7 +10,7 @@ require (
 )
 
 require (
-	github.com/PuerkitoBio/goquery v1.8.1 
+	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/alecthomas/chroma v0.10.0 // indirect
 	github.com/andybalholm/cascadia v1.3.2 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
