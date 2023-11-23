@@ -1,4 +1,4 @@
-package login
+package main
 
 import (
 	"crypto/tls"
@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"regexp"
-	"strings"
 )
 
 func getSessionServer() map[string]string {
@@ -55,32 +54,34 @@ func getSessionServer() map[string]string {
 	// Convert bodyText to a string
 	bodyString := string(bodyText)
 
-	// Split the string into lines
-	lines := strings.Split(bodyString, "\n")
+	// Define a regular expression that matches lines containing "csrfValue"
+	re := regexp.MustCompile(`.*csrfValue.*`)
 
-	// Search for the line that contains "csrfValue"
+	// Find the matches
+	lines := re.FindAllString(bodyString, -1)
+
+	// Iterate over the lines
 	for _, line := range lines {
-		if strings.Contains(line, "csrfValue") {
-			// fmt.Println("Found line:", line)
+		// fmt.Println("Found line:", line)
 
-			// Define a regular expression that matches the pattern of the variable assignment
-			re := regexp.MustCompile(`var csrfValue = /\*(.*?)\*/'.*';`)
+		// Define a regular expression that matches the pattern of the variable assignment
+		re := regexp.MustCompile(`var csrfValue = /\*(.*?)\*/'.*';`)
 
-			// Find the match
-			match := re.FindStringSubmatch(line)
+		// Find the match
+		match := re.FindStringSubmatch(line)
 
-			// If a match was found, print the value of the variable
-			if len(match) > 1 {
-				secrets["_csrf"] = match[1]
-			}
-
+		// If a match was found, print the value of the variable
+		if len(match) > 1 {
+			secrets["_csrf"] = match[1]
 			break
 		}
+
 	}
 
 	fmt.Println(secrets)
 
 	return secrets
+
 }
 
 func getLoginPage() {
