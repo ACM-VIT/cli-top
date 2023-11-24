@@ -60,8 +60,9 @@ func getLoginPage() (types.Cookies, string) {
 	stringBody := string(bodyText)
 	captchaImage := helpers.Extract(stringBody)
 	fmt.Println("getLoginPage() - Captcha:", captchaImage)
-	
+
 	captcha := getCaptcha(captchaImage)
+	fmt.Println("getCaptcha() - Captcha:", captcha)
 
 	return cookies, captcha
 }
