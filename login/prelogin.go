@@ -7,9 +7,10 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	types "vtop-cli/types"
 )
 
-func getSessionServer() map[string]string {
+func getSessionServer() types.Cookies {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -80,6 +81,11 @@ func getSessionServer() map[string]string {
 
 	fmt.Println("(Prelogin) VTOP Cookies:", secrets)
 
-	return secrets
+	vtopCookies := types.Cookies{
+		SERVERID:   secrets["SERVERID"],
+		CSRF:       secrets["_csrf"],
+		JSESSIONID: secrets["JSESSIONID"],
+	}
 
+	return vtopCookies
 }

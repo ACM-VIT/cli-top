@@ -13,18 +13,13 @@ import (
 
 func getLoginPage() types.Cookies {
 
-	secrets := getSessionServer()
-	vtopCookies := types.Cookies{
-		SERVERID:   secrets["SERVERID"],
-		CSRF:       secrets["_csrf"],
-		JSESSIONID: secrets["JSESSIONID"],
-	}
+	cookies := getSessionServer()
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Transport: tr}
-	var data = strings.NewReader(fmt.Sprintf(`_csrf=%s&flag=VTOP`, vtopCookies.CSRF))
+	var data = strings.NewReader(fmt.Sprintf(`_csrf=%s&flag=VTOP`, cookies.CSRF))
 	req, err := http.NewRequest("POST", "https://vtop.vit.ac.in/vtop/prelogin/setup", data)
 	if err != nil {
 		log.Fatal(err)
@@ -48,7 +43,7 @@ func getLoginPage() types.Cookies {
 	// req.Header.Set("Accept-Encoding", "gzip, deflate, br")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("Priority", "u=0, i")
-	req.Header.Set("Cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", vtopCookies.JSESSIONID, vtopCookies.SERVERID))
+	req.Header.Set("Cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", cookies.JSESSIONID, cookies.SERVERID))
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatal(err)
@@ -61,10 +56,10 @@ func getLoginPage() types.Cookies {
 	}
 	fmt.Printf("%s\n", bodyText)
 
-	return vtopCookies
+	return cookies
 }
 
-func performLogin(userInfo types.LogIn, vtopTokens types.Tokens) string {
+func performLogin(userInfo types.LogIn, cookies types.Cookies) string {
 
 	captcha := getCaptcha()
 
@@ -72,7 +67,7 @@ func performLogin(userInfo types.LogIn, vtopTokens types.Tokens) string {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Transport: tr}
-	var data = strings.NewReader(fmt.Sprintf(`_csrf=%s&username=%s&password=%s&captchaStr=%s`, vtopTokens.Csrf, userInfo.Username, userInfo.Password, captcha))
+	var data = strings.NewReader(fmt.Sprintf(`_csrf=%s&username=%s&password=%s&captchaStr=%s`, cookies.CSRF, userInfo.Username, userInfo.Password, captcha))
 	req, err := http.NewRequest("POST", "https://vtop.vit.ac.in/vtop/login", data)
 	if err != nil {
 		log.Fatal(err)
@@ -96,7 +91,7 @@ func performLogin(userInfo types.LogIn, vtopTokens types.Tokens) string {
 	// req.Header.Set("Accept-Encoding", "gzip, deflate, br")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("Priority", "u=0, i")
-	req.Header.Set("Cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", vtopTokens.JsessionID, vtopTokens.ServerID))
+	req.Header.Set("Cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", cookies.JSESSIONID, cookies.SERVERID))
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatal(err)
