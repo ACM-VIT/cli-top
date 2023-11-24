@@ -6,14 +6,14 @@ import (
 )
 
 func Login(regNo string, password string) types.Cookies {
-	vtopTokens := getLoginPage()
+	vtopTokens, captcha := getLoginPage()
 
 	userInfo := types.LogIn{
 		Username: regNo,
 		Password: password,
 	}
 
-	loginCreds := performLogin(userInfo, vtopTokens)
+	loginCreds := performLogin(userInfo, vtopTokens, captcha)
 	fmt.Println(loginCreds)
 
 	return vtopTokens
