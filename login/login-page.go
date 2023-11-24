@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"vtop-cli/helpers"
 	types "vtop-cli/types"
 )
 
@@ -55,6 +56,12 @@ func getLoginPage() types.Cookies {
 		log.Fatal(err)
 	}
 	fmt.Printf("%s\n", bodyText)
+	stringBody := string(bodyText)
+	src, err := helpers.Extract(stringBody)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(src)
 
 	return cookies
 }

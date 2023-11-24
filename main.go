@@ -5,7 +5,7 @@ package main
 import (
 	// features "vtop-cli/features"
 	"fmt"
-	"vtop-cli/features"
+	// "vtop-cli/features"
 	login "vtop-cli/login"
 	types "vtop-cli/types"
 )
@@ -18,6 +18,6 @@ func main() {
 	}
 	loginSecrets := login.Login(userInfo.Username, userInfo.Password)
 	fmt.Println("(Main) VTOP Cookies", loginSecrets)
-	features.Marks(userInfo.Username, loginSecrets, 0)
+	// features.Marks(userInfo.Username, loginSecrets, 0)
 
 }
