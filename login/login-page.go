@@ -12,7 +12,7 @@ import (
 	types "vtop-cli/types"
 )
 
-func getLoginPage() types.Cookies {
+func getLoginPage() (types.Cookies, string) {
 
 	cookies := getSessionServer()
 
@@ -55,20 +55,18 @@ func getLoginPage() types.Cookies {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("%s\n", bodyText)
-	stringBody := string(bodyText)
-	src, err := helpers.Extract(stringBody)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(src)
+	// fmt.Printf("%s\n", bodyText)
 
-	return cookies
+	stringBody := string(bodyText)
+	captchaImage := helpers.Extract(stringBody)
+	fmt.Println("getLoginPage() - Captcha:", captchaImage)
+	
+	captcha := getCaptcha(captchaImage)
+
+	return cookies, captcha
 }
 
-func performLogin(userInfo types.LogIn, cookies types.Cookies) string {
-
-	captcha := getCaptcha()
+func performLogin(userInfo types.LogIn, cookies types.Cookies, captcha string) string {
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -104,11 +102,11 @@ func performLogin(userInfo types.LogIn, cookies types.Cookies) string {
 		log.Fatal(err)
 	}
 	defer resp.Body.Close()
-	bodyText, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("%s\n", bodyText)
+	// bodyText, err := io.ReadAll(resp.Body)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// fmt.Printf("%s\n", bodyText)
 
 	return ""
 }
