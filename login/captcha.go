@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"vtop-cli/helpers"
 )
 
 const (
@@ -149,7 +150,13 @@ func fillCaptcha(imgB64 string) string {
 }
 
 func getCaptcha(src string) string {
-	result := fillCaptcha(src)
+	err := helpers.DownloadFile("captcha.png", src) // replace with your local file name and image URL
+	if err != nil {
+		// panic(err)
+		log.Fatal(err)
+		return ""
+	}
+	result := fillCaptcha("captcha.png")
 	// println(result)
 	return result
 }
