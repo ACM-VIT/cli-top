@@ -1,16 +1,12 @@
 package login
 
-import types "vtop-cli/types"
+import (
+	"fmt"
+	types "vtop-cli/types"
+)
 
-func Login(regNo string, password string) string {
-	secrets := getLoginPage()
-
-	vtopTokens := types.Tokens{
-		AuthID:     regNo,
-		Csrf:       secrets.CSRF,
-		JsessionID: secrets.JSESSIONID,
-		ServerID:   secrets.SERVERID,
-	}
+func Login(regNo string, password string) types.Cookies {
+	vtopTokens := getLoginPage()
 
 	userInfo := types.LogIn{
 		Username: regNo,
@@ -18,6 +14,7 @@ func Login(regNo string, password string) string {
 	}
 
 	loginCreds := performLogin(userInfo, vtopTokens)
+	fmt.Println(loginCreds)
 
-	return loginCreds
+	return vtopTokens
 }
