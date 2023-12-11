@@ -6,7 +6,8 @@ import (
 	// features "vtop-cli/features"
 	"fmt"
 	// "vtop-cli/features"
-	login "vtop-cli/login"
+
+	test "vtop-cli/test"
 	types "vtop-cli/types"
 )
 
@@ -21,6 +22,6 @@ func main() {
 	// fmt.Println("(Main) VTOP Cookies", loginSecrets)
 	// features.Marks(userInfo.Username, loginSecrets, 0)
 
-	fmt.Print(login.CaptchaParse("output_image.jpg"))
+	fmt.Print(test.CaptchaSolver())
 
 }

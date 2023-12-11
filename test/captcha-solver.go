@@ -1,12 +1,16 @@
 package test
 
 import (
+	"encoding/json"
 	"fmt"
 	"image"
 	"image/color"
 	"image/jpeg"
+	"io"
 	"log"
 	"os"
+
+	"github.com/otiai10/gosseract/v2"
 )
 
 func CaptchaSolver() string {
@@ -49,25 +53,25 @@ func CaptchaSolver() string {
 		panic(err)
 	}
 
-	// client := gosseract.NewClient()
-	// defer client.Close()
-	// imagePath := "output_image.jpg"
-	// err = client.SetImage(imagePath)
-	// if err != nil {
-	// 	log.Fatalf("Error setting image: %v", err)
-	// }
-	// text, err := client.Text()
-	// if err != nil {
-	// 	log.Fatalf("Error performing OCR: %v", err)
-	// }
-	// fmt.Println("OCR Result:")
-	// fmt.Println(text)
-	text := CaptchaParse("output_image.jpg")
+	client := gosseract.NewClient()
+	defer client.Close()
+	imagePath := "output_image.jpg"
+	err = client.SetImage(imagePath)
+	if err != nil {
+		log.Fatalf("Error setting image: %v", err)
+	}
+	text, err := client.Text()
+	if err != nil {
+		log.Fatalf("Error performing OCR: %v", err)
+	}
+	fmt.Println("OCR Result:")
+	fmt.Println(text)
+	text = CaptchaParse("output_image.jpg")
 	return text
 }
 
 func CaptchaParse(path string) string {
-	// bitmaps := importBitmaps("login/bitmaps.json")
+	bitmaps := importBitmaps("helpers/bitmaps.json")
 
 	file, err := os.Open(path) // replace with your file name
 	if err != nil {
@@ -109,8 +113,8 @@ func CaptchaParse(path string) string {
 	var captcha string
 
 	// Extracted captcha logic from JavaScript
-	for y := 1; y < height-1; y++ {
-		for x := 1; x < width-1; x++ {
+	for x := 1; x < 44; x++ {
+		for y := 1; y < 179; y++ {
 			condition1 := imgArr[y-1][x] == 255 && imgArr[y][x] == 0 && imgArr[y+1][x] == 255
 			condition2 := imgArr[y][x-1] == 255 && imgArr[y][x] == 0 && imgArr[y][x+1] == 255
 			condition3 := imgArr[y][x] != 255 && imgArr[y][x] != 0
@@ -150,49 +154,64 @@ func CaptchaParse(path string) string {
 		panic(err)
 	}
 
-	// // use tesseract here instead of the following logic
-	// for j := 30; j < 181; j += 30 {
-	// 	matches := make([][2]float64, 0)
-	// 	chars := "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ"
+	// use tesseract here instead of the following logic
+	for j := 30; j < 181; j += 30 {
+		matches := make([][2]float64, 0)
+		chars := "123456789ABCDEFGHIJKLMNPQRSTUVWXYZ"
 
-	// 	for i := 0; i < len(chars); i++ {
-	// 		match := 0.0
-	// 		black := 0.0
-	// 		ch := chars[i]
-	// 		mask := bitmaps[ch]
+		for i := 0; i < len(chars); i++ {
+			match := 0.0
+			black := 0.0
+			ch := chars[i]
+			mask := bitmaps[ch]
 
-	// 		for x := 0; x < 32; x++ {
-	// 			for y := 0; y < 30; y++ {
-	// 				y1 := y + j - 30
-	// 				x1 := x + 12
+			for x := 0; x < 32; x++ {
+				for y := 0; y < 30; y++ {
+					y1 := y + j - 30
+					x1 := x + 12
 
-	// 				if imgArr[y1][x1] == uint8(mask[x][y]) && mask[x][y] == 0 {
-	// 					match += 1
-	// 				}
+					if imgArr[y1][x1] == uint8(mask[x][y]) && mask[x][y] == 0 {
+						match += 1
+					}
 
-	// 				if mask[x][y] == 0 {
-	// 					black += 1
-	// 				}
-	// 			}
-	// 		}
+					if mask[x][y] == 0 {
+						black += 1
+					}
+				}
+			}
 
-	// 		perc := match / black
-	// 		matches = append(matches, [2]float64{perc, float64(ch)})
-	// 	}
+			perc := match / black
+			matches = append(matches, [2]float64{perc, float64(ch)})
+		}
 
-	// 	maxMatch := matches[0]
-	// 	for _, m := range matches {
-	// 		if m[0] > maxMatch[0] {
-	// 			maxMatch = m
-	// 		}
-	// 	}
+		maxMatch := matches[0]
+		for _, m := range matches {
+			if m[0] > maxMatch[0] {
+				maxMatch = m
+			}
+		}
 
-	// 	captcha += string(int(maxMatch[1]))
-	// }
+		captcha += string(int(maxMatch[1]))
+	}
 
-	// if len(imgArr) == 0 || len(imgArr[0]) == 0 {
-	// 	log.Fatal("Error: Image array is empty")
-	// }
+	if len(imgArr) == 0 || len(imgArr[0]) == 0 {
+		log.Fatal("Error: Image array is empty")
+	}
 
 	return captcha
+}
+
+func importBitmaps(filepath string) map[byte][][]uint8 {
+	jsonFile, err := os.Open(filepath) // replace with your json file name
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer jsonFile.Close()
+
+	byteValue, _ := io.ReadAll(jsonFile)
+
+	var data map[byte][][]uint8
+	json.Unmarshal(byteValue, &data)
+
+	return data
 }
