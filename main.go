@@ -16,8 +16,11 @@ func main() {
 		Username: "2XYYYZZZZ",
 		Password: "password",
 	}
-	loginSecrets := login.Login(userInfo.Username, userInfo.Password)
-	fmt.Println("(Main) VTOP Cookies", loginSecrets)
+	fmt.Println(userInfo)
+	// loginSecrets := login.Login(userInfo.Username, userInfo.Password)
+	// fmt.Println("(Main) VTOP Cookies", loginSecrets)
 	// features.Marks(userInfo.Username, loginSecrets, 0)
+
+	fmt.Print(login.CaptchaParse("output_image.jpg"))
 
 }

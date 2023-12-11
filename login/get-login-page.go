@@ -10,6 +10,7 @@ import (
 
 	"vtop-cli/helpers"
 	types "vtop-cli/types"
+	test "vtop-cli/test"
 )
 
 func getLoginPage() (types.Cookies, string) {
@@ -59,9 +60,12 @@ func getLoginPage() (types.Cookies, string) {
 
 	stringBody := string(bodyText)
 	captchaImage := helpers.Extract(stringBody)
-	// fmt.Println("getLoginPage() - Captcha:", captchaImage)
+	fmt.Println("getLoginPage() - Captcha:", captchaImage)
+	helpers.DecodeCaptchaFile("captcha.jpg", captchaImage)
+	// outfile := convertToGray("captcha.jpg")
+	// captcha := test.CaptchaParse(outfile)
 
-	captcha := getCaptcha(captchaImage)
+	captcha := test.CaptchaSolver()
 	fmt.Println("getCaptcha() - Captcha:", captcha)
 
 	return cookies, captcha
