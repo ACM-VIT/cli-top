@@ -9,13 +9,13 @@ import (
 	"vtop-cli/types"
 )
 
-func fetchReq(regNo string, cookies types.Cookies, target_url string, semID string) ([]byte, error) {
+func fetchReq(regNo string, reqType string, cookies types.Cookies, target_url string, semID string) ([]byte, error) {
 	client := &http.Client{}
 
 	//variables that need to be set with every request
 
 	var data = strings.NewReader(fmt.Sprintf("------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"authorizedID\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"semesterSubId\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"_csrf\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J--\r\n", regNo, semID, cookies.CSRF))
-	req, err := http.NewRequest("POST", target_url, data)
+	req, err := http.NewRequest(reqType, target_url, data)
 	if err != nil {
 		return nil, err
 	}
@@ -23,7 +23,7 @@ func fetchReq(regNo string, cookies types.Cookies, target_url string, semID stri
 	req.Header.Set("accept", "*/*")
 	req.Header.Set("accept-language", "en-US,en;q=0.6")
 	req.Header.Set("content-type", "multipart/form-data; boundary=----WebKitFormBoundary9yjNZXu7BBjgQK7J")
-	req.Header.Set("cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", cookies.JSESSIONID, cookies.SERVERID))
+	req.Header.Set("cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", "EB6A580FCD4006866DE707633B38C380", "s1"))
 	req.Header.Set("origin", "https://vtop.vit.ac.in")
 	req.Header.Set("referer", "https://vtop.vit.ac.in/vtop/content?")
 	req.Header.Set("sec-ch-ua", `"Brave";v="119", "Chromium";v="119", "Not?A_Brand";v="24"`)

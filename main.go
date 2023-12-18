@@ -7,7 +7,8 @@ import (
 	"fmt"
 	// "vtop-cli/features"
 
-	test "vtop-cli/test"
+	"vtop-cli/features"
+	"vtop-cli/login"
 	types "vtop-cli/types"
 )
 
@@ -18,10 +19,13 @@ func main() {
 		Password: "password",
 	}
 	fmt.Println(userInfo)
-	// loginSecrets := login.Login(userInfo.Username, userInfo.Password)
+	loginSecrets := login.Login(userInfo.Username, userInfo.Password)
 	// fmt.Println("(Main) VTOP Cookies", loginSecrets)
 	// features.Marks(userInfo.Username, loginSecrets, 0)
+	features.GetSpotlightDetails(loginSecrets)
+	//fmt.Print(test.CaptchaSolver())
 
-	fmt.Print(test.CaptchaSolver())
+	
+	
 
 }

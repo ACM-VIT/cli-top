@@ -22,7 +22,7 @@ type SemesterDetails struct {
 func GetSemDetails(cookies types.Cookies, regNo string) SemesterDetails {
 	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentTimeTable"
 
-	bodyText, err := fetchReq(regNo, cookies, url, "")
+	bodyText, err := fetchReq(regNo, "POST", cookies, url, "")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -159,7 +159,7 @@ func getTextContent(n *html.Node) string {
 func GetMarks(regNo string, cookies types.Cookies, semID string) {
 	url := "https://vtop.vit.ac.in/vtop/examinations/doStudentMarkView"
 
-	bodyText, err := fetchReq(regNo, cookies, url, semID)
+	bodyText, err := fetchReq(regNo, "POST", cookies, url, semID)
 	if err != nil {
 		log.Fatal(err)
 	}
