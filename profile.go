@@ -37,7 +37,7 @@ func prepareFormData(authorizedID string) url.Values {
 	formData := url.Values{}
 	formData.Set("verifyMenu", "true")
 	formData.Set("authorizedID", authorizedID)
-	formData.Set("_csrf", "7a9b86f4-c5e0-4d73-8a9e-1327c76fd4d7")
+	formData.Set("_csrf", "37249a38-9cde-4e10-a3e8-b0f899e369ce")
 	formData.Set("nocache", fmt.Sprintf("@%d", time.Now().UnixNano()/int64(time.Millisecond)))
 	return formData
 }
@@ -54,7 +54,7 @@ func prepareRequest(formData url.Values) (*http.Request, error) {
 
 	// Set headers (unchanged)
 	req.Header.Set("Host", "vtop.vit.ac.in")
-	req.Header.Set("Cookie", "JSESSIONID=4633CC1C25CC47B18FA168879E93AAF5; SERVERID=s2")
+	req.Header.Set("Cookie", "JSESSIONID=D233CAAD6D85248E4D1C09BA04295F13; SERVERID=s2")
 	req.Header.Set("Sec-Ch-Ua", `"Not_A Brand";v="8", "Chromium";v="120"`)
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
@@ -91,7 +91,8 @@ func parseAndPrintHumanReadable(body io.Reader) {
 			header := rowSelection.Find("td[style*='font-weight:bold;']").Text()
 			value := rowSelection.Find("td[style*='background-color']").Text()
 
-			fmt.Printf("%s: %s\n", header, value)
+			// Format the output with clear spacing and indentation
+			fmt.Printf("%-25s: %s\n", strings.TrimSpace(header), strings.TrimSpace(value))
 		})
 	})
 }
