@@ -14,11 +14,11 @@ import (
 func main() {
 	cookies := types.Cookies{
 		SERVERID:   "s1",
-		CSRF:       "7f6e6f77-c3d2-482b-bdb2-f74bdcf97356",
-		JSESSIONID: "C9F77ED32FE5E018A74B6428FD67AA05",
+		CSRF:       "9bc8e552-952d-4eca-a0e7-5dfc05c44f4e",
+		JSESSIONID: "4219A0A1DF403087A8D6EC3BA45BB640",
 	}
 
-	// Creating a LogIn instance
+	
 	login := types.LogIn{
 		Username: "22BCI0272",
 		Password: "",
