@@ -1,9 +1,9 @@
 package attendancecalculator
 
 import (
+	"VTOP-CLI/types"
 	"bytes"
 	"fmt"
-	"gomodules/types"
 	"io"
 	"log"
 	"math"
@@ -246,7 +246,6 @@ func getTextContent(n *html.Node) string {
 
 func GetAttendance(regNo string, cookies types.Cookies, semId string) {
 
-	
 	url := "https://vtop.vit.ac.in/vtop/processViewStudentAttendance"
 
 	sel_id := Marks(regNo, cookies, 0)
@@ -277,7 +276,6 @@ func GetAttendance(regNo string, cookies types.Cookies, semId string) {
 	// 	fmt.Println("hi")
 	// 	fmt.Println(subjectDetails)
 
-	
 }
 
 func findAndSaveAtten(doc *goquery.Document) {
@@ -386,12 +384,12 @@ func strToInt(str string) int {
 func Cal75(att int, tot int, perc int) string {
 	var ret string
 	if perc == 75 {
-		ret  = "\033[31m"+"Can skip 0 class"+"\033[0m"+"\t"
+		ret = "\033[31m" + "Can skip 0 class" + "\033[0m" + "\t"
 	} else if perc < 75 {
 		for i := 1; i < att; i++ {
-			if math.Ceil((float64(att+i) / float64(tot+i)) * 100) <= 75 {
-				ret = fmt.Sprintf("\033[31m"+"Attend %d class\033[0m"+"\033[0m"+"\t",i)
-				
+			if math.Ceil((float64(att+i)/float64(tot+i))*100) <= 75 {
+				ret = fmt.Sprintf("\033[31m"+"Attend %d class\033[0m"+"\033[0m"+"\t", i)
+
 			}
 		}
 	} else {
@@ -399,23 +397,21 @@ func Cal75(att int, tot int, perc int) string {
 		//  fmt.Println(att)
 		//  fmt.Println(tot)
 		//  fmt.Println(perc)
-		 //fmt.Println((float64(att) / float64(tot)) * 100)
+		//fmt.Println((float64(att) / float64(tot)) * 100)
 		//for j := 0; j<15 ; j++{
-			for i := 1; i < att; i++ {
-				//fmt.Println(att / (tot+i))
-				//fmt.Println("hello1")
-				//fmt.Println(math.Ceil((float64(att) / float64(tot+i)) * 100) )
-				if math.Ceil((float64(att) / float64(tot+i)) * 100) >= 75 {
-					
-					
-					
-					//fmt.Println("hello2")
-					ret = fmt.Sprintf("\033[32m"+"Can skip %d class"+"\033[0m"+"\t", i)
-					
-				}
+		for i := 1; i < att; i++ {
+			//fmt.Println(att / (tot+i))
+			//fmt.Println("hello1")
+			//fmt.Println(math.Ceil((float64(att) / float64(tot+i)) * 100) )
+			if math.Ceil((float64(att)/float64(tot+i))*100) >= 75 {
+
+				//fmt.Println("hello2")
+				ret = fmt.Sprintf("\033[32m"+"Can skip %d class"+"\033[0m"+"\t", i)
+
 			}
+		}
 		//}
-		
+
 	}
 	return ret
 }
@@ -450,7 +446,7 @@ func Marks(regNo string, cookies types.Cookies, sem_choice int) string {
 	selectedSemName := ""
 
 	var choice int
-	fmt.Print("\nEnter the index of the semester to view marks: ")
+	fmt.Print("\nEnter the index of the semester to view attendance: ")
 	fmt.Scanln(&choice)
 	semDet := GetSemDetails(cookies, regNo)
 
@@ -466,8 +462,6 @@ func Marks(regNo string, cookies types.Cookies, sem_choice int) string {
 			}
 		}
 	}
-
-	
 
 	// Format the string with glamour
 	formattedSelection := fmt.Sprintf("\n# You selected SemId: %s, SemName: %s\n", selectedSemId, selectedSemName)
