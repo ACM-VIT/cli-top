@@ -27,7 +27,7 @@ func getLeaveStatus(authorizedID string) (string, error) {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Transport: tr}
-	var data = strings.NewReader(fmt.Sprintf("_csrf=872ffe42-ad41-4cbf-a4bd-a95497552f65&authorizedID=%s&history=&form=undefined&control=history&x=Wed, 20 Dec 2023 14:12:17 GMT", authorizedID))
+	var data = strings.NewReader(fmt.Sprintf("_csrf=37249a38-9cde-4e10-a3e8-b0f899e369ce&authorizedID=%s&history=&form=undefined&control=history&x=Wed, 20 Dec 2023 14:12:17 GMT", authorizedID))
 	req, err := http.NewRequest("POST", "https://vtop.vit.ac.in/vtop/hostels/student/leave/6", data)
 	if err != nil {
 		return "", err
@@ -38,7 +38,7 @@ func getLeaveStatus(authorizedID string) (string, error) {
 	req.Header.Set("accept", "*/*")
 	req.Header.Set("accept-language", "en-US,en;q=0.9")
 	req.Header.Set("content-type", "application/x-www-form-urlencoded; charset=UTF-8")
-	req.Header.Set("cookie", "JSESSIONID=6AB74557F053CDB60FAF63A6C3C0C30A; SERVERID=s2")
+	req.Header.Set("cookie", "JSESSIONID=D233CAAD6D85248E4D1C09BA04295F13; SERVERID=s2")
 	req.Header.Set("origin", "https://vtop.vit.ac.in")
 	req.Header.Set("priority", "u=1, i")
 	req.Header.Set("referer", "https://vtop.vit.ac.in/vtop/content?")
@@ -74,7 +74,7 @@ func parseAndPrintHumanReadable(htmlContent string) {
 
 	// Create a new table and set its properties
 	table := tablewriter.NewWriter(log.Writer())
-	table.SetHeader([]string{"Visit Place", "Reason", "Leave Type", "From", "To", "Status", "Remarks"})
+	table.SetHeader([]string{"Leave ID", "Visit Place", "Reason", "Leave Type", "From", "To", "Status", "Remarks"})
 
 	// Find and print data from the HTML
 	doc.Find("tr").Each(func(i int, trSelection *goquery.Selection) {
@@ -91,3 +91,7 @@ func parseAndPrintHumanReadable(htmlContent string) {
 	// Render the table
 	table.Render()
 }
+
+
+
+
