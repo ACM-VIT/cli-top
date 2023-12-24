@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math"
+	//"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -95,7 +95,8 @@ func fetchReq2(regNo string, cookies types.Cookies, url string, semID string) ([
 //payload := []byte("_csrf=154a792d-e0d1-42fb-8300-c4211db46510&semesterSubId=VL20232405&authorizedID=22BCI0272&x=" + time.Now().UTC().Format(time.RFC1123))
 
 func GetSemDetails(cookies types.Cookies, regNo string) SemesterDetails {
-	url := "https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeView"
+	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentAttendance"
+
 
 	//fmt.Println(regNo, cookies)
 	bodyText, err := fetchReq(regNo, cookies, url, "")
@@ -118,7 +119,7 @@ func GetSemDetails(cookies types.Cookies, regNo string) SemesterDetails {
 
 	var tempIds []string
 	// Find and save the semester IDs
-	findAndSaveSemIds(doc, "form-control", &tempIds)
+	findAndSaveSemIds(doc, "form-select", &tempIds)
 	//fmt.Printf("%q", tempIds)
 	SemIds = removeEmptyStrings(tempIds)
 	//fmt.Printf("%q", SemIds)
@@ -137,7 +138,6 @@ func GetSemDetails(cookies types.Cookies, regNo string) SemesterDetails {
 		}
 	}
 
-	// Reverse SemIds and SemNames
 	finalSemIds := make([]string, len(SemIds))
 	finalSemNames := make([]string, len(SemNames))
 	for i := 0; i < len(SemIds); i++ {
@@ -145,12 +145,9 @@ func GetSemDetails(cookies types.Cookies, regNo string) SemesterDetails {
 		finalSemNames[i] = SemNames[i]
 	}
 
-	// Save the reversed values back to SemDetails
 	SemIds = finalSemIds
 	SemNames = finalSemNames
 
-	//fmt.Println("\nget wroking")
-	// Return the encapsulated struct
 	return SemesterDetails{
 		SemNames: SemNames,
 		SemIds:   SemIds,
@@ -160,15 +157,21 @@ func GetSemDetails(cookies types.Cookies, regNo string) SemesterDetails {
 
 func PrintSemDetails(regNo string, cookies types.Cookies) {
 	semDetails := GetSemDetails(cookies, regNo)
-	//fmt.Println(len(semDetails.SemNames))
-	//fmt.Println(len(semDetails.SemIds))
 	if len(semDetails.SemIds) == 0 {
 		fmt.Println("Error fetching semester details or no semesters available.")
 		return
 	}
-
 	
-	generateSemDetailsMarkdownTable(semDetails)
+	// generateSemDetailsMarkdownTable(semDetails)
+
+	markdownTable := generateSemDetailsMarkdownTable(semDetails)
+
+	rendered, err := glamour.Render(markdownTable, "dark")
+	if err != nil {
+		fmt.Println("Error rendering Markdown:", err)
+		return
+	}
+	fmt.Println(rendered)
 	
 }
 
@@ -188,92 +191,106 @@ func findAndSaveSemIds(doc *goquery.Document, targetClass string, result *[]stri
 	})
 }
 
-func generateSemDetailsMarkdownTable(semDetails SemesterDetails) {
-	//var buf bytes.Buffer
-	var c int
-	var r int
-	tot := int(math.Ceil(float64(len(semDetails.SemIds)) / float64(10)))
-
-	for {
-		// Display page number and prompt
-		fmt.Printf("\nEnter page no 1-%d to view sem details : ", tot)
-		fmt.Scanln(&c)
-
-		if c > tot || c < 1 {
-			fmt.Println("Invalid choice.")
-			break
-		}
-
-		pageLogic(c,tot, semDetails)
-		r = c
-
-		for {
-			fmt.Print("\nEnter 'n' for next page, 'p' for previous page, or 'g' for Grade-View : ")
-			var input string
-			fmt.Scanln(&input)
-
-			switch input {
-			case "n":
-				if r < tot {
-					r++
-					pageLogic(r,tot, semDetails)
-				} else {
-					fmt.Println("Invalid choice. Please enter again.")
-				}
-			case "p":
-				if r > 1 {
-					r--
-					pageLogic(r, tot,semDetails)
-				} else {
-					fmt.Println("Invalid choice. Please enter again.")
-				}
-			case "g":
-				fmt.Println("Grade-View selected.")
-				return
-			default:
-				fmt.Println("Invalid input. Please try again.")
-			}
-		}
-	}
-}
-
-
-func pageLogic(c int,tot int, semDetails SemesterDetails){
-	var buf bytes.Buffer
+func generateSemDetailsMarkdownTable(semDetails SemesterDetails)string {
 	
-	fmt.Printf("\n--- PAGE %d/%d ---\n\n", c, tot)
-	
-	if 10*(c-1)+9 < len(semDetails.SemIds){
-			 
-		buf.WriteString("| Index | SemId          | SemName                             |\n")
-		buf.WriteString("|-------|----------------|-------------------------------------|\n")
-		for i := 10*(c-1); i < 10*(c-1)+10; i++ {
-			index := fmt.Sprintf("%d", i+1)
-			semId := semDetails.SemIds[i]
-			semName := semDetails.SemNames[i]
-	
-			// Table row
-			buf.WriteString(fmt.Sprintf("| %-5s | %-14s | %-35s |\n", index, semId, semName))
-		}
+	// var c int
+	// var r int
+	// tot := int(math.Ceil(float64(len(semDetails.SemIds)) / float64(10)))
+
+	// for {
 		
-	}else{
-		buf.WriteString("| Index | SemId          | SemName                             |\n")
-		buf.WriteString("|-------|----------------|-------------------------------------|\n")
-		for i := 10*(c-1); i < len(semDetails.SemIds); i++ {
-			 index := fmt.Sprintf("%d", i+1)
-			 semId := semDetails.SemIds[i]
-			 semName := semDetails.SemNames[i]
-	
-			 // Table row
-			
-			 buf.WriteString(fmt.Sprintf("| %-5s | %-14s | %-35s |\n", index, semId, semName))
-		}
+	// 	fmt.Printf("\nEnter page no 1-%d to view sem details : ", tot)
+	// 	fmt.Scanln(&c)
 
+	// 	if c > tot || c < 1 {
+	// 		fmt.Println("Invalid choice.")
+	// 		break
+	// 	}
+
+	// 	pageLogic(c,tot, semDetails)
+	// 	r = c
+
+	// 	for {
+	// 		fmt.Print("\nEnter 'n' for next page, 'p' for previous page, or 'g' for Grade-View : ")
+	// 		var input string
+	// 		fmt.Scanln(&input)
+
+	// 		switch input {
+	// 		case "n":
+	// 			if r < tot {
+	// 				r++
+	// 				pageLogic(r,tot, semDetails)
+	// 			} else {
+	// 				fmt.Println("Invalid choice. Please enter again.")
+	// 			}
+	// 		case "p":
+	// 			if r > 1 {
+	// 				r--
+	// 				pageLogic(r, tot,semDetails)
+	// 			} else {
+	// 				fmt.Println("Invalid choice. Please enter again.")
+	// 			}
+	// 		case "g":
+	// 			fmt.Println("Grade-View selected.")
+	// 			return
+	// 		default:
+	// 			fmt.Println("Invalid input. Please try again.")
+	// 		}
+	// 	}
+	// }
+	var buf bytes.Buffer
+
+	buf.WriteString("| Index | SemId          | SemName                   |\n")
+	buf.WriteString("|-------|----------------|---------------------------|\n")
+
+	for i := 0; i < len(semDetails.SemIds); i++ {
+		index := fmt.Sprintf("%d", i+1)
+		semId := semDetails.SemIds[i]
+		semName := semDetails.SemNames[i]
+
+		buf.WriteString(fmt.Sprintf("| %-5s | %-14s | %-25s |\n", index, semId, semName))
 	}
-	fmt.Println(buf.String())
-	fmt.Printf("--- END OF PAGE %d/%d ---",c,tot)
-	fmt.Println(" ")
+
+	return buf.String()
 }
+
+
+// func pageLogic(c int,tot int, semDetails SemesterDetails){
+// 	var buf bytes.Buffer
+	
+// 	fmt.Printf("\n--- PAGE %d/%d ---\n\n", c, tot)
+	
+// 	if 10*(c-1)+9 < len(semDetails.SemIds){
+			 
+// 		buf.WriteString("| Index | SemId          | SemName                             |\n")
+// 		buf.WriteString("|-------|----------------|-------------------------------------|\n")
+// 		for i := 10*(c-1); i < 10*(c-1)+10; i++ {
+// 			index := fmt.Sprintf("%d", i+1)
+// 			semId := semDetails.SemIds[i]
+// 			semName := semDetails.SemNames[i]
+	
+// 			// Table row
+// 			buf.WriteString(fmt.Sprintf("| %-5s | %-14s | %-35s |\n", index, semId, semName))
+// 		}
+		
+// 	}else{
+// 		buf.WriteString("| Index | SemId          | SemName                             |\n")
+// 		buf.WriteString("|-------|----------------|-------------------------------------|\n")
+// 		for i := 10*(c-1); i < len(semDetails.SemIds); i++ {
+// 			 index := fmt.Sprintf("%d", i+1)
+// 			 semId := semDetails.SemIds[i]
+// 			 semName := semDetails.SemNames[i]
+	
+// 			 // Table row
+			
+// 			 buf.WriteString(fmt.Sprintf("| %-5s | %-14s | %-35s |\n", index, semId, semName))
+// 		}
+
+// 	}
+// 	fmt.Println(buf.String())
+// 	fmt.Printf("--- END OF PAGE %d/%d ---",c,tot)
+// 	fmt.Println(" ")
+// }
 
 
 func GetGrade(regNo string, cookies types.Cookies, semId string) {
