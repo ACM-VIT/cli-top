@@ -1,4 +1,4 @@
-module gomodules
+module VTOP-CLI
 
 go 1.21.5
 
@@ -26,5 +26,4 @@ require (
 	github.com/yuin/goldmark v1.5.2 // indirect
 	github.com/yuin/goldmark-emoji v1.0.1 // indirect
 	golang.org/x/sys v0.15.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

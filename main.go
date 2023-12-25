@@ -5,28 +5,30 @@ import (
 	"fmt"
 	// "vtop-cli/features"
 	//"gopkg.in/yaml.v3"
-	"gomodules/attendancecalculator"
+	// "VTOP-CLI/attendancecalculator"
 	//test "gomodules/test"
-	types "gomodules/types"
+	types "VTOP-CLI/types"
+	"VTOP-CLI/gradeView"
 )
 
 func main() {
 	cookies := types.Cookies{
-		SERVERID:   "s2",
-		CSRF:       "b5cc5f45-9372-43ac-8e07-559df2f4f941",
-		JSESSIONID: "C932917D52B590F2B0C0208EA482E080",
+		SERVERID:   "s1",
+		CSRF:       "9bc8e552-952d-4eca-a0e7-5dfc05c44f4e",
+		JSESSIONID: "4219A0A1DF403087A8D6EC3BA45BB640",
 	}
 
-	// Creating a LogIn instance
+	
 	login := types.LogIn{
 		Username: "22BCI0272",
-		Password: "Hemlo@1005",
+		Password: "",
 	}
 
-	attendancecalculator.PrintSemDetails(login.Username, cookies)
-
-	//semId := attendancecalculator.Marks(login.Username, cookies, 0)
-	attendancecalculator.GetAttendance(login.Username, cookies, "")
+	// attendancecalculator.PrintSemDetails(login.Username, cookies)
+	// attendancecalculator.GetAttendance(login.Username, cookies, "")
+	gradeView.PrintSemDetails(login.Username,cookies)
+	gradeView.GetGrade(login.Username,cookies,"")
 	fmt.Println("")
 
 }
+
