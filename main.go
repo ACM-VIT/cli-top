@@ -9,7 +9,8 @@ import (
 	"os"
 
 	// "vtop-cli/features"
-	"vtop-cli/test"
+
+	"vtop-cli/login"
 	types "vtop-cli/types"
 
 	"github.com/lpernett/godotenv"
