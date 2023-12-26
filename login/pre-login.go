@@ -38,6 +38,7 @@ func getSessionServer() types.Cookies {
 	defer resp.Body.Close()
 
 	vtopCookies := helpers.ExtractCookies(resp)
+	vtopCookies.CSRF = helpers.ExtractCSRF(helpers.ExtractBodyText(resp))
 
 	return vtopCookies
 }

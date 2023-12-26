@@ -6,8 +6,37 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strings"
 	"vtop-cli/types"
+
+	"github.com/PuerkitoBio/goquery"
 )
+
+func extractImageSrc(html string) (string, error) {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		return "", err
+	}
+
+	src := doc.Find("#captchaBlock img").AttrOr("src", "")
+	if src == "" {
+		fmt.Println("No captcha image found")
+		return "", fmt.Errorf("no captcha image found")
+	}
+
+	return src, nil
+}
+
+func ExtractImage(html string) string {
+	src, err := extractImageSrc(html)
+	if err != nil {
+		log.Fatal(err)
+		return ""
+	}
+	// fmt.Println(src)
+
+	return src
+}
 
 func ExtractCookies(resp *http.Response) types.Cookies {
 	if resp == nil {
@@ -21,27 +50,28 @@ func ExtractCookies(resp *http.Response) types.Cookies {
 		secrets[cookie.Name] = cookie.Value
 	}
 
-	fmt.Println("(Helper - ExtractCookies) VTOP Cookies:", secrets)
+	fmt.Println("(Helper - ExtractCookies):", secrets)
 
 	cookies := types.Cookies{
 		SERVERID:   secrets["SERVERID"],
-		CSRF:       ExtractCSRF(resp),
+		CSRF:       "",
 		JSESSIONID: secrets["JSESSIONID"],
 	}
 
 	return cookies
 }
 
-func ExtractCSRF(resp *http.Response) string {
-
+func ExtractBodyText(resp *http.Response) string {
 	bodyText, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatal(err)
+		return ""
 	}
-	// fmt.Printf("%s\n", bodyText)
 
-	// Convert bodyText to a string
-	bodyString := string(bodyText)
+	return string(bodyText)
+}
+
+func ExtractCSRF(bodyString string) string {
 
 	// Define a regular expression that matches lines containing "csrfValue"
 	re := regexp.MustCompile(`.*csrfValue.*`)
@@ -66,6 +96,8 @@ func ExtractCSRF(resp *http.Response) string {
 			break
 		}
 	}
+
+	fmt.Println("(Helper - ExtractCSRF):", csrf)
 
 	return csrf
 }
