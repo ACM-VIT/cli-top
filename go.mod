@@ -5,9 +5,12 @@ go 1.21
 toolchain go1.21.4
 
 require (
+	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/charmbracelet/glamour v0.6.0
 	golang.org/x/net v0.18.0
-	github.com/PuerkitoBio/goquery v1.8.1
+)
+
+require (
 	github.com/alecthomas/chroma v0.10.0 // indirect
 	github.com/andybalholm/cascadia v1.3.2 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
@@ -25,6 +28,4 @@ require (
 	github.com/yuin/goldmark v1.6.0 // indirect
 	github.com/yuin/goldmark-emoji v1.0.2 // indirect
 	golang.org/x/sys v0.14.0 // indirect
-	github.com/andybalholm/cascadia v1.3.1 // indirect
-	golang.org/x/net v0.7.0 // indirect
 )

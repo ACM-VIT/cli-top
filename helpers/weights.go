@@ -1,4 +1,4 @@
-package features
+package helpers
 
 var weights = [][]float32{
 	{

@@ -60,8 +60,8 @@ func getLoginPage() (types.Cookies, string) {
 	stringBody := string(bodyText)
 	captchaImage := helpers.Extract(stringBody)
 	fmt.Println("getLoginPage() - Captcha:", captchaImage)
-	
-	captcha := getCaptcha(captchaImage)
+
+	captcha := helpers.SolveCaptcha(captchaImage)
 
 	return cookies, captcha
 }
@@ -102,11 +102,15 @@ func performLogin(userInfo types.LogIn, cookies types.Cookies, captcha string) s
 		log.Fatal(err)
 	}
 	defer resp.Body.Close()
-	// bodyText, err := io.ReadAll(resp.Body)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	bodyText, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
 	// fmt.Printf("%s\n", bodyText)
+	if strings.Contains(string(bodyText), "Invalid Captcha") {
+		fmt.Println("Invalid Captcha")
+		return "Invalid Captcha"
+	}
 
-	return ""
+	return "Successfully Logged-In"
 }

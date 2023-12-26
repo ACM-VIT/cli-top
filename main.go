@@ -19,5 +19,4 @@ func main() {
 	loginSecrets := login.Login(userInfo.Username, userInfo.Password)
 	fmt.Println("(Main) VTOP Cookies", loginSecrets)
 	// features.Marks(userInfo.Username, loginSecrets, 0)
-
 }
