@@ -1,16 +1,18 @@
 package login
 
 import (
+	"bufio"
 	"crypto/tls"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"os/exec"
 	"strings"
 
 	"vtop-cli/helpers"
 	types "vtop-cli/types"
-	test "vtop-cli/test"
 )
 
 func getLoginPage() (types.Cookies, string) {
@@ -60,12 +62,17 @@ func getLoginPage() (types.Cookies, string) {
 
 	stringBody := string(bodyText)
 	captchaImage := helpers.Extract(stringBody)
-	fmt.Println("getLoginPage() - Captcha:", captchaImage)
+	// fmt.Println("getLoginPage() - Captcha:", captchaImage)
 	helpers.DecodeCaptchaFile("captcha.jpg", captchaImage)
 	// outfile := convertToGray("captcha.jpg")
 	// captcha := test.CaptchaParse(outfile)
 
-	captcha := test.CaptchaSolver()
+	cmd := exec.Command("imgcat", "login/captcha.jpg")
+	cmd.Run()
+
+	reader := bufio.NewReader(os.Stdin)
+	captcha, _ := reader.ReadString('\n')
+
 	fmt.Println("getCaptcha() - Captcha:", captcha)
 
 	return cookies, captcha
