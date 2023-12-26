@@ -126,6 +126,25 @@ func flattenFloat32(arr [][]float32) []float32 {
 	return flat
 }
 
+func argmax(slice []float32) int {
+	type kv struct {
+		Key   int
+		Value float32
+	}
+	var maxValue float32
+	kvs := make([]kv, len(slice))
+	for i, v := range slice {
+		kvs[i] = kv{i, v}
+		if i == 0 || v > maxValue {
+			maxValue = v
+		}
+	}
+	sort.Slice(kvs, func(i, j int) bool {
+		return kvs[i].Value > kvs[j].Value
+	})
+	return kvs[0].Key
+}
+
 func SolveCaptcha(imageURL string) string {
 	labelTxt := "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
@@ -165,28 +184,10 @@ func SolveCaptcha(imageURL string) string {
 			maxIndex := argmax(result)
 			out += string(labelTxt[maxIndex])
 		}
+		fmt.Println("(Helper - Captcha):", out)
 		return out
 	} else {
 		log.Fatal("Unsupported URL scheme")
 		return ""
 	}
-}
-
-func argmax(slice []float32) int {
-	type kv struct {
-		Key   int
-		Value float32
-	}
-	var maxValue float32
-	kvs := make([]kv, len(slice))
-	for i, v := range slice {
-		kvs[i] = kv{i, v}
-		if i == 0 || v > maxValue {
-			maxValue = v
-		}
-	}
-	sort.Slice(kvs, func(i, j int) bool {
-		return kvs[i].Value > kvs[j].Value
-	})
-	return kvs[0].Key
 }

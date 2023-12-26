@@ -29,6 +29,6 @@ func main() {
 	fmt.Println("(Main) User Info", userInfo)
 
 	loginSecrets := login.Login(userInfo.Username, userInfo.Password)
-	fmt.Println("(Main) VTOP Cookies", loginSecrets)
-	// features.Marks(userInfo.Username, loginSecrets, 0)
+	loggedinSecrets := login.HomePage(loginSecrets)
+	fmt.Println("(Main) VTOP Cookies", loggedinSecrets)
 }
