@@ -10,3 +10,9 @@ type LogIn struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
+
+type Request struct {
+	URL     string
+	Referer string
+	Cookies string
+}
