@@ -1,1 +1,9 @@
+# Ignore reference code
 ViBoot/
+
+# Ignore downloaded images
+*.jpg
+*.png
+
+# Ignore VSCode settings
+.vscode/

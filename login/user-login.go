@@ -7,6 +7,7 @@ import (
 
 func Login(regNo string, password string) types.Cookies {
 	vtopTokens, captcha := getLoginPage()
+	fmt.Println(captcha)
 
 	userInfo := types.LogIn{
 		Username: regNo,
