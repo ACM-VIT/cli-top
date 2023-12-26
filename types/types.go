@@ -16,3 +16,8 @@ type Request struct {
 	Referer string
 	Cookies string
 }
+
+type SemesterDetails struct {
+	SemNames []string
+	SemIds   []string
+}
