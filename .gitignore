@@ -4,3 +4,4 @@ captcha.png
 output.jpg
 output_image.jpg
 .vscode/
+.env
