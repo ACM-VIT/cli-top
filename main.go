@@ -6,8 +6,7 @@ import (
 	// features "vtop-cli/features"
 	"fmt"
 	// "vtop-cli/features"
-
-	test "vtop-cli/test"
+	"vtop-cli/test"
 	types "vtop-cli/types"
 )
 
