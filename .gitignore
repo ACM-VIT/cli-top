@@ -1,10 +1,12 @@
-# Ignore reference code
+# Reference code
 ViBoot/
 
-# Ignore downloaded images
+# Downloaded images
 *.jpg
 *.png
 
-# Ignore VSCode settings
+# VSCode settings
 .vscode/
+
+# Environment Files
 .env*

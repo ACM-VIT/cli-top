@@ -9,7 +9,7 @@ import (
 	"os"
 
 	// "vtop-cli/features"
-	login "vtop-cli/login"
+	"vtop-cli/test"
 	types "vtop-cli/types"
 
 	"github.com/lpernett/godotenv"
@@ -26,6 +26,7 @@ func main() {
 		Username: os.Getenv("USERNAME"),
 		Password: os.Getenv("PASSWORD"),
 	}
+
 	fmt.Println("(Main) User Info", userInfo)
 
 	loginSecrets := login.Login(userInfo.Username, userInfo.Password)

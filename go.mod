@@ -10,6 +10,8 @@ require (
 	golang.org/x/net v0.18.0
 )
 
+require github.com/otiai10/gosseract/v2 v2.4.1 // indirect
+
 require (
 	github.com/alecthomas/chroma v0.10.0 // indirect
 	github.com/andybalholm/cascadia v1.3.2 // indirect
