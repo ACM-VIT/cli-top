@@ -26,6 +26,8 @@ func main() {
 		Username: os.Getenv("USERNAME"),
 		Password: os.Getenv("PASSWORD"),
 	}
+	fmt.Println("(Main) User Info", userInfo)
+
 	loginSecrets := login.Login(userInfo.Username, userInfo.Password)
 	fmt.Println("(Main) VTOP Cookies", loginSecrets)
 	// features.Marks(userInfo.Username, loginSecrets, 0)
