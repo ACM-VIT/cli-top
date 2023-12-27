@@ -20,8 +20,8 @@ func extractImageSrc(html string) (string, error) {
 
 	src := doc.Find("#captchaBlock img").AttrOr("src", "")
 	if src == "" {
-		fmt.Println("No captcha image found")
-		return "", fmt.Errorf("no captcha image found")
+		fmt.Println("No captcha image found, retrying...")
+		return "nocaptcha", nil
 	}
 
 	return src, nil
