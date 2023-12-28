@@ -101,3 +101,22 @@ func ExtractCSRF(bodyString string) string {
 
 	return csrf
 }
+
+func ExtractCSRF2(bodyString string) string {
+
+	pattern := `var csrfValue = "([a-fA-F0-9-]+)";`
+
+	re := regexp.MustCompile(pattern)
+
+	matches := re.FindStringSubmatch(bodyString)
+	csrf := ""
+
+	if len(matches) > 1 {
+		csrfValue := matches[1]
+		csrf = csrfValue
+	}
+
+	fmt.Println("(Helper - ExtractCSRF2):", csrf)
+
+	return csrf
+}

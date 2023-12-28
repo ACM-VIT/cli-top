@@ -29,7 +29,7 @@ func main() {
 		Password: os.Getenv("PASSWORD"),
 	}
 	RegNo := os.Getenv("REGNO")
-	fmt.Println("(Main) User Info", userInfo)
+	fmt.Println("(Main) User Info", userInfo, RegNo)
 
 	loginSecrets := login.Login(userInfo.Username, userInfo.Password)
 	cookies := login.HomePage(loginSecrets)
