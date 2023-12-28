@@ -9,7 +9,8 @@ import (
 	"os"
 
 	// "vtop-cli/features"
-	ac "vtop-cli/ac"
+
+	"vtop-cli/features"
 	"vtop-cli/login"
 	types "vtop-cli/types"
 
@@ -33,8 +34,9 @@ func main() {
 	loginSecrets := login.Login(userInfo.Username, userInfo.Password)
 	cookies := login.HomePage(loginSecrets)
 	fmt.Println("(Main) VTOP Cookies", cookies)
+	features.Profile(cookies, RegNo)
 
-	ac.PrintSemDetails(RegNo, cookies)
-	ac.GetAttendance(RegNo, cookies, "")
-	fmt.Println("")
+	// ac.PrintSemDetails(RegNo, cookies)
+	// ac.GetAttendance(RegNo, cookies, "")
+	// fmt.Println("")
 }
