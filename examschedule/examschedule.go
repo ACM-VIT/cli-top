@@ -1,71 +1,67 @@
-// features/marks.go
-
-package examschedule
-
 package examschedule
 
 import (
-	"VTOP-CLI/types"
 	"bytes"
-
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/charmbracelet/glamour"
 	"golang.org/x/net/html"
 )
 
-var SemIds string
-
 type SemesterDetails struct {
 	SemNames []string
 	SemIds   []string
 }
 
-func fetchReq(regNo string, cookies types.Cookies, url string, semID string) ([]byte, error) {
-	// Create a new HTTP client
+func fetchReq(target_url string, semID string) ([]byte, error) {
 	client := &http.Client{}
 
-	// Create a new HTTP request
+	//variables that need to be set with every request
+	authID := "22BCI0001"
+	csrf := "27a145c6-69dd-4f15-9f02-65a5d8f648d0"
+	jsessionID := "0A14B27E06F45745AB0283D9DABFA449"
 
-	payload := fmt.Sprintf("verifyMenu=true&authorizedID=%s&_csrf=%s&nocache=%d", regNo, cookies.CSRF, time.Now().UnixNano())
-	//fmt.Println(payload)
-	// Create a new request with POST method and payload
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(payload)))
+	var data = strings.NewReader(fmt.Sprintf("------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"authorizedID\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"semesterSubId\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"_csrf\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J--\r\n", authID, semID, csrf))
+	req, err := http.NewRequest("POST", target_url, data)
 	if err != nil {
 		return nil, err
 	}
-
-	// Set headers or cookies if needed
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Cookie", fmt.Sprintf("SERVERID=%s; JSESSIONID=%s", cookies.SERVERID, cookies.JSESSIONID))
-
-	// Perform the request
+	req.Header.Set("authority", "vtop.vit.ac.in")
+	req.Header.Set("accept", "*/*")
+	req.Header.Set("accept-language", "en-US,en;q=0.6")
+	req.Header.Set("content-type", "multipart/form-data; boundary=----WebKitFormBoundary9yjNZXu7BBjgQK7J")
+	req.Header.Set("cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=s2", jsessionID))
+	req.Header.Set("origin", "https://vtop.vit.ac.in")
+	req.Header.Set("referer", "https://vtop.vit.ac.in/vtop/content?")
+	req.Header.Set("sec-ch-ua", `"Brave";v="119", "Chromium";v="119", "Not?A_Brand";v="24"`)
+	req.Header.Set("sec-ch-ua-mobile", "?1")
+	req.Header.Set("sec-ch-ua-platform", `"Android"`)
+	req.Header.Set("sec-fetch-dest", "empty")
+	req.Header.Set("sec-fetch-mode", "cors")
+	req.Header.Set("sec-fetch-site", "same-origin")
+	req.Header.Set("sec-gpc", "1")
+	req.Header.Set("user-agent", "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36")
+	req.Header.Set("x-requested-with", "XMLHttpRequest")
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-
-	// Read the response body
-	body, err := io.ReadAll(resp.Body)
-
+	bodyText, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-
-	return body, nil
+	return bodyText, nil
 }
-func GetSemDetails(cookies types.Cookies, regNo string) SemesterDetails {
-	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentTimeTable"
 
-	//fmt.Println(regNo, cookies)
-	bodyText, err := fetchReq(regNo, cookies, url, "")
+func GetSemDetails() SemesterDetails {
+	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentTimeTable"
+	bodyText, err := fetchReq(url, "")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -75,7 +71,6 @@ func GetSemDetails(cookies types.Cookies, regNo string) SemesterDetails {
 	if err != nil {
 		log.Fatal(err)
 	}
-	//fmt.Println(string(bodyText))
 
 	// Create a slice to store the extracted data
 	var SemNames []string
@@ -84,9 +79,8 @@ func GetSemDetails(cookies types.Cookies, regNo string) SemesterDetails {
 	var tempIds []string
 	// Find and save the semester IDs
 	findAndSaveSemIds(doc, "form-select", &tempIds)
-	//fmt.Printf("%q", tempIds)
+
 	SemIds = removeEmptyStrings(tempIds)
-	//fmt.Printf("%q", SemIds)
 
 	// fmt.Printf("%q\n", SemIds)
 
@@ -95,7 +89,6 @@ func GetSemDetails(cookies types.Cookies, regNo string) SemesterDetails {
 
 		if optionText != "" {
 			SemNames = append(SemNames, optionText)
-
 		} else {
 			// Handle the case where no <option> tag is found with the specified SemId
 			SemNames = append(SemNames, "Unknown")
@@ -115,7 +108,6 @@ func GetSemDetails(cookies types.Cookies, regNo string) SemesterDetails {
 	SemIds = reverseSemIds
 	SemNames = reverseSemNames
 
-	//fmt.Println("\nget wroking")
 	// Return the encapsulated struct
 	return SemesterDetails{
 		SemNames: SemNames,
@@ -124,12 +116,9 @@ func GetSemDetails(cookies types.Cookies, regNo string) SemesterDetails {
 
 }
 
-//payload := []byte("_csrf=154a792d-e0d1-42fb-8300-c4211db46510&semesterSubId=VL20232405&authorizedID=22BCI0272&x=" + time.Now().UTC().Format(time.RFC1123))
+func PrintSemDetails() {
+	semDetails := GetSemDetails()
 
-func PrintSemDetails(regNo string, cookies types.Cookies) {
-	semDetails := GetSemDetails(cookies, regNo)
-	//fmt.Println(len(semDetails.SemNames))
-	//fmt.Println(len(semDetails.SemIds))
 	if len(semDetails.SemIds) == 0 {
 		fmt.Println("Error fetching semester details or no semesters available.")
 		return
@@ -170,15 +159,8 @@ func generateSemDetailsMarkdownTable(semDetails SemesterDetails) string {
 }
 
 func findAndSaveSemIds(doc *goquery.Document, targetClass string, result *[]string) {
-	// Find all <option> elements within <select> tags with the specified class
-	//fmt.Println(targetClass, doc)
-	//selection := doc.Find("select.form-select option")
-	//fmt.Println("Number of elements found:", selection.Length())
-
 	doc.Find("select." + targetClass + " option").Each(func(i int, s *goquery.Selection) {
-
 		value, exists := s.Attr("value")
-		//fmt.Println(value)
 		if exists {
 			*result = append(*result, value)
 		}
@@ -212,6 +194,128 @@ func getTextContent(n *html.Node) string {
 
 	return textContent
 }
+
+func GetMarks(semID string) {
+	url := "https://vtop.vit.ac.in/vtop/examinations/doSearchExamScheduleForStudent"
+	bodyText, err := fetchReq(url, semID)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Use goquery to parse the HTML
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	subjectDetails := subjectDetails(doc)
+
+	// Find all elements with the specified class
+	class := "customTable-level1"
+	elements := findElementsByClass(doc, class)
+
+	// Check if elements were found
+	if len(elements) == 0 {
+		fmt.Println()
+		in := `# No Data Found`
+
+		out, _ := glamour.Render(in, "dark")
+		fmt.Print(out)
+		return
+	}
+
+	// Convert HTML elements to Markdown tables
+	for i, element := range elements {
+		// Convert each element to Markdown
+		markdownTable, err := convertHTMLElementToMarkdown(element)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		renderer, e := glamour.NewTermRenderer(glamour.WithStylePath("dark"), glamour.WithWordWrap(150))
+		if e != nil {
+			fmt.Println("Error rendering markdown:", err)
+			return
+		}
+		markdown, err := renderer.Render(markdownTable)
+		if err != nil {
+			fmt.Println("Error rendering Table:", err)
+			return
+		}
+
+		subjectDetail, e1 := renderer.Render(subjectDetails[i])
+		if e1 != nil {
+			fmt.Println("Error rendering SubjectDetails:", err)
+			return
+		}
+
+		fmt.Println(subjectDetail)
+		fmt.Println(markdown)
+	}
+}
+
+func subjectDetails(doc *goquery.Document) []string {
+	var details []string
+
+	// Use CSS selectors to find and extract data
+	doc.Find("tr.tableContent").Each(func(i int, s *goquery.Selection) {
+		// Skip every other iteration
+		if i%2 != 0 {
+			return
+		}
+
+		// Extract data from each column
+		td := s.Find("td")
+
+		// Check if there are enough elements in the row
+		if td.Length() >= 13 {
+			sNo := getCellValue(td, 0)
+			courseCode := getCellValue(td, 1)
+			courseTitle := getCellValue(td, 2)
+			courseType := getCellValue(td, 3)
+			classID := getCellValue(td, 4)
+			slot := getCellValue(td, 5)
+			examDate := getCellValue(td, 6)
+			examSession := getCellValue(td, 7)
+			reportingTime := getCellValue(td, 8)
+			examTime := getCellValue(td, 9)
+			venue := getCellValue(td, 10)
+			seatLocation := getCellValue(td, 11)
+			seatNo := getCellValue(td, 12)
+
+			// Add additional data fields here
+			// Example:
+			// additionalField1 := getCellValue(td, 13)
+			// additionalField2 := getCellValue(td, 14)
+
+			// Print or use the extracted data
+			detail := fmt.Sprintf("## S.No.: %s, Course Code: %s, Course Title: %s, Course Type: %s, Class ID: %s, Slot: %s, Exam Date: %s, Exam Session: %s, Reporting Time: %s, Exam Time: %s, Venue: %s, Seat Location: %s, Seat No: %s\n",
+				sNo, courseCode, courseTitle, courseType, classID, slot, examDate, examSession, reportingTime, examTime, venue, seatLocation, seatNo)
+
+			// Add additional data fields to the detail string
+			// Example:
+			// detail += fmt.Sprintf("Additional Field 1: %s, Additional Field 2: %s\n", additionalField1, additionalField2)
+
+			details = append(details, detail)
+		} else {
+			// Handle the case where there are not enough elements
+			fmt.Printf("Warning: Insufficient elements in row %d (expected at least 13, found %d)\n", i, td.Length())
+
+			// Optionally, you can add a default value or handle this case in another way
+			// For now, let's add an empty detail for rows with insufficient elements
+			details = append(details, "## Insufficient Data for this row\n")
+		}
+	})
+	return details
+}
+
+func getCellValue(td *goquery.Selection, index int) string {
+	if td.Length() > index {
+		return td.Eq(index).Text()
+	}
+	return ""
+}
+
 func convertHTMLElementToMarkdown(element *goquery.Selection) (string, error) {
 	var markdownTable strings.Builder
 	var tableStarted bool
@@ -240,9 +344,6 @@ func convertHTMLElementToMarkdown(element *goquery.Selection) (string, error) {
 
 	return markdownTable.String(), nil
 }
-
-//S.No.	Course Code	Course Title	Course Type	Class ID	Slot	Exam Date	Exam Session	Reporting Time	Exam Time	Venue	Seat Location	Seat No
-//	builder.WriteString("|-------|----------------  |---------------|-------------|------|-----------|--------------|-------------------|-----------|---------|---------------|----------|\n")
 
 func printTable(title string, data [][]string, builder *strings.Builder) {
 	builder.WriteString(fmt.Sprintf("| %-3s | %-8s | %-31s | %-3s | %-16s | %-10s | %-20s |%-5s |%-10s |%-20s |%-8s |%-8s |%-3s |\n",
@@ -279,92 +380,68 @@ func hasClass(n *html.Node, class string) bool {
 	return false
 }
 
-func examDetails(doc *goquery.Document) []string {
-	var details []string
+func Marks(sem_choice int) {
+	selectedSemId := ""
+	selectedSemName := ""
 
-	// Use CSS selectors to find and extract data
-	doc.Find("tr.tableContent").Each(func(i int, s *goquery.Selection) {
-		// Skip every other iteration
-		if i%2 != 0 {
+	if sem_choice != 0 {
+		// Validate the provided choice
+		choice := sem_choice
+		semDetails := GetSemDetails()
+
+		if choice < 1 || choice > len(semDetails.SemIds) {
+			fmt.Println("Invalid choice. Please select a valid index.")
 			return
 		}
 
-		// Extract data from each column
-		td := s.Find("td")
-		sNo := td.Eq(0).Text()
-		courseCode := td.Eq(1).Text()
-		courseTitle := td.Eq(2).Text()
-		courseType := td.Eq(3).Text()
-		classID := td.Eq(4).Text()
-		slot := td.Eq(5).Text()
-		examDate := td.Eq(6).Text()
-		examSession := td.Eq(7).Text()
-		reportingTime := td.Eq(8).Text()
-		examTime := td.Eq(9).Text()
-		venue := td.Eq(10).Text()
-		seatLocation := td.Eq(11).Text()
-		seatNo := td.Eq(12).Text()
+		// Display the selected semester details
+		selectedIndex := choice - 1
+		selectedSemId = semDetails.SemIds[selectedIndex]
+		selectedSemName = semDetails.SemNames[selectedIndex]
 
-		// Print or use the extracted data
-		detail := fmt.Sprintf("## S.No.: %s, Course Code: %s, Course Title: %s, Course Type: %s, Class ID: %s, Slot: %s, Exam Date: %s, Exam Session: %s, Reporting Time: %s, Exam Time: %s, Venue: %s, Seat Location: %s, Seat No: %s\n",
-			sNo, courseCode, courseTitle, courseType, classID, slot, examDate, examSession, reportingTime, examTime, venue, seatLocation, seatNo)
+	} else {
+		in := `# Select the semester to view the marks for:`
 
-		details = append(details, detail)
-	})
-	return details
-}
+		out, _ := glamour.Render(in, "dark")
+		fmt.Print(out)
 
-func GetExamSchedule(cookies types.Cookies, username string, semID string) {
-	url := "https://vtop.vit.ac.in/vtop/examinations/StudExamSchedule"
-	bodyText, err := fetchReq(semID, cookies, url, "")
+		PrintSemDetails()
+
+		var choice int
+		fmt.Print("\nEnter the index of the semester to view marks: ")
+		fmt.Scanln(&choice)
+
+		// Validate the choice
+		semDetails := GetSemDetails()
+		if choice < 1 || choice > len(semDetails.SemIds) {
+			fmt.Println("Invalid choice. Please select a valid index.")
+			return
+		}
+
+		// Display the selected semester details
+		selectedIndex := choice - 1
+		selectedSemId = semDetails.SemIds[selectedIndex]
+		selectedSemName = semDetails.SemNames[selectedIndex]
+
+	}
+
+	// Format the string with glamour
+	formattedSelection := fmt.Sprintf("\n# You selected SemId: %s, SemName: %s\n", selectedSemId, selectedSemName)
+
+	// Render and print the formatted string
+	renderer, err := glamour.NewTermRenderer(glamour.WithStylePath("dark"), glamour.WithWordWrap(150))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Error creating glamour renderer:", err)
 	}
 
-	// Use goquery to parse the HTML
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
+	output, err := renderer.Render(formattedSelection)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Error rendering formatted string:", err)
 	}
 
-	examDetails := examDetails(doc)
+	fmt.Print(output)
 
-	// Find all elements with the specified class
-	class := "customTable-level1"
-	elements := findElementsByClass(doc, class)
+	fmt.Println()
 
-	// Check if elements were found
-	if len(elements) == 0 {
-		fmt.Println("\n# No Data Found")
-		return
-	}
-
-	// Convert HTML elements to Markdown tables
-	for i, element := range elements {
-		// Convert each element to Markdown
-		markdownTable, err := convertHTMLElementToMarkdown(element)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		renderer, e := glamour.NewTermRenderer(glamour.WithStylePath("dark"), glamour.WithWordWrap(150))
-		if e != nil {
-			fmt.Println("Error rendering markdown:", err)
-			return
-		}
-		markdown, err := renderer.Render(markdownTable)
-		if err != nil {
-			fmt.Println("Error rendering Table:", err)
-			return
-		}
-
-		examDetail, e1 := renderer.Render(examDetails[i])
-		if e1 != nil {
-			fmt.Println("Error rendering ExamDetails:", err)
-			return
-		}
-
-		fmt.Println(examDetail)
-		fmt.Println(markdown)
-	}
+	GetMarks(selectedSemId)
 }
