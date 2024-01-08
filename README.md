@@ -1,9 +1,9 @@
 ![ACM-HEADER](https://user-images.githubusercontent.com/14032427/92643737-e6252e00-f2ff-11ea-8a51-1f1b69caba9f.png)
 
-<h1 align="center"> PROJECT TITLE </h1>
+<h1 align="center"> VTOP-CLI </h1>
 
 <p align="center"> 
-Short description about the project.
+A Command Line Interface (CLI) tool for seamless interaction with the student portal, VTOP.
 </p>
 
 <p>
@@ -15,32 +15,40 @@ Short description about the project.
     <!-- forks/stars/tech stack in the form of badges from https://shields.io/ -->
 </p>
 
----
+## Overview
 
-The overview starts here. Random text about the project, motive, how, what, why etc.
+| **Must Have**             | **Good to Have**      | **Can Have**          |
+|-----------------------|--------------------|-------------------|
+| Login (automatic)     | Digital Assignment | Grade View        |
+| Student Info          | Course Page        | Academic Calendar |
+| Spotlight             | Hostel Info        |                   |
+| Time Table            | Receipts           |                   |
+| CGPA View             |                    |                   |
+| Mark view             |                    |                   |
+| Exam Schedule         |                    |                   |
+| Attendance Calculator |                    |                   |
+| Leave Application     |                    |                   |  |
 
----
+**Tech Stack:** Go Lang
+-   Charm.sh - Glamour library to format output as Markdown and render it better
 
-## Screenshots
+**Project Management:**
 
-<!-- Add one screenshot of your project (max height: 1000px, max size: 1mb) 'if applicable' under assets folder in root of your project ![sceenshot](assets/<name of image>) -->
-<!-- if your project has multiple pictures , merge them into one image using a tool similar to figma -->
+-   Use Git (version control) for code management.
 
----
+-   Take up the issues and ask for assignment
 
-## Usage
-<!-- How To, Features, Installation etc. as subheadings in this section. example-->
+-   Work on branches, i.e., create a new branch for yourself and work on that
 
-Lets get started!
-```console
-git remote add
-git fetch
-git merge
-```
+-   When testing push to "dev" branch and check if code is compatible
 
----
+-   Pushing to the "main" branch has to be approved by one or more people responsible.
+
+
 
 ## Authors
+- [Saharsh Bhansali](https://github.com/saharshbhansali)
+- [Manav Muthanna](https://github.com/ManavMuthanna)
+- [Sarthak Gupta](https://github.com/gptsarthak)
 
-**Authors:** <!-- [author1's name](link to their github profile), [author2's name](link to their github profile) .. -->  
-**Contributors:** <!-- Generate contributors list using this link - https://contributors-img.web.app/preview -->
+## Contributors: <!-- Generate contributors list using this link - https://contributors-img.web.app/preview -->
