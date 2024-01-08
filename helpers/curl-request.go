@@ -1,10 +1,14 @@
 package helpers
 
 import (
+	"bytes"
 	"crypto/tls"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strings"
+	"time"
 	"vtop-cli/types"
 )
 
@@ -80,4 +84,39 @@ func PostRequest(params types.Request, data *strings.Reader) *http.Response {
 	defer resp.Body.Close()
 
 	return resp
+}
+
+func FetchReq(regNo string, cookies types.Cookies, url string, semID string) ([]byte, error) {
+	// Create a new HTTP client
+	client := &http.Client{}
+
+	// Create a new HTTP request
+
+	payload := fmt.Sprintf("verifyMenu=true&authorizedID=%s&_csrf=%s&nocache=%d", regNo, cookies.CSRF, time.Now().UnixNano())
+	//fmt.Println(payload)
+	// Create a new request with POST method and payload
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(payload)))
+	if err != nil {
+		return nil, err
+	}
+
+	// Set headers or cookies if needed
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Cookie", fmt.Sprintf("SERVERID=%s; JSESSIONID=%s", cookies.SERVERID, cookies.JSESSIONID))
+
+	// Perform the request
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Read the response body
+	body, err := io.ReadAll(resp.Body)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return body, nil
 }

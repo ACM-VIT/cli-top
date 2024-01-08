@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"vtop-cli/types"
+	types "vtop-cli/types"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/charmbracelet/glamour"
