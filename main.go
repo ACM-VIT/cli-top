@@ -25,7 +25,7 @@ func main() {
 	}
 
 	userInfo := types.LogIn{
-		Username: os.Getenv("USERNAME"),
+		Username: os.Getenv("VTOP_USERNAME"),
 		Password: os.Getenv("PASSWORD"),
 	}
 	RegNo := os.Getenv("REGNO")
