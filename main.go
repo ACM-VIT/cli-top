@@ -9,7 +9,9 @@ import (
 	"os"
 
 	// "vtop-cli/features"
-	login "vtop-cli/login"
+
+	"vtop-cli/features"
+	"vtop-cli/login"
 	types "vtop-cli/types"
 
 	"github.com/lpernett/godotenv"
@@ -26,9 +28,15 @@ func main() {
 		Username: os.Getenv("USERNAME"),
 		Password: os.Getenv("PASSWORD"),
 	}
-	fmt.Println("(Main) User Info", userInfo)
+	RegNo := os.Getenv("REGNO")
+	fmt.Println("(Main) User Info", userInfo, RegNo)
 
 	loginSecrets := login.Login(userInfo.Username, userInfo.Password)
-	loggedinSecrets := login.HomePage(loginSecrets)
-	fmt.Println("(Main) VTOP Cookies", loggedinSecrets)
+	cookies := login.HomePage(loginSecrets)
+	fmt.Println("(Main) VTOP Cookies", cookies)
+	features.Profile(cookies, RegNo)
+
+	// ac.PrintSemDetails(RegNo, cookies)
+	// ac.GetAttendance(RegNo, cookies, "")
+	// fmt.Println("")
 }

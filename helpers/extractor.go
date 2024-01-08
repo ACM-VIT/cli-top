@@ -20,8 +20,8 @@ func extractImageSrc(html string) (string, error) {
 
 	src := doc.Find("#captchaBlock img").AttrOr("src", "")
 	if src == "" {
-		fmt.Println("No captcha image found")
-		return "", fmt.Errorf("no captcha image found")
+		fmt.Println("No captcha image found, retrying...")
+		return "nocaptcha", nil
 	}
 
 	return src, nil
@@ -98,6 +98,25 @@ func ExtractCSRF(bodyString string) string {
 	}
 
 	fmt.Println("(Helper - ExtractCSRF):", csrf)
+
+	return csrf
+}
+
+func ExtractCSRF2(bodyString string) string {
+
+	pattern := `var csrfValue = "([a-fA-F0-9-]+)";`
+
+	re := regexp.MustCompile(pattern)
+
+	matches := re.FindStringSubmatch(bodyString)
+	csrf := ""
+
+	if len(matches) > 1 {
+		csrfValue := matches[1]
+		csrf = csrfValue
+	}
+
+	fmt.Println("(Helper - ExtractCSRF2):", csrf)
 
 	return csrf
 }

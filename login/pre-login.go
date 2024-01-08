@@ -93,11 +93,11 @@ func getLoginPage() (types.Cookies, string) {
 
 	stringBody := string(bodyText)
 	captchaImage := helpers.ExtractImage(stringBody)
-	// fmt.Println("getLoginPage() - Captcha:", captchaImage)
-	if captchaImage == "" {
-		fmt.Println("getLoginPage() - Captcha is empty")
-		return cookies, ""
+	if captchaImage == "nocaptcha" {
+		// Vtop does not always send a captcha image, so try again
+		return getLoginPage()
 	}
+	// fmt.Println("getLoginPage() - Captcha:", captchaImage)
 
 	captcha := helpers.SolveCaptcha(captchaImage)
 

@@ -1,5 +1,11 @@
 # Ignore reference code
 ViBoot/
+captcha.jpg
+captcha.png
+output.jpg
+output_image.jpg
+.vscode/
+.env
 
 # Ignore downloaded images
 *.jpg

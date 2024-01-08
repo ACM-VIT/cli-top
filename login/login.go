@@ -16,7 +16,12 @@ func performLogin(userInfo types.LogIn, cookies types.Cookies, captcha string) t
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
-	client := &http.Client{Transport: tr}
+	client := &http.Client{
+		Transport: tr,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			// Returning an error prevents automatic redirection
+			return http.ErrUseLastResponse
+		}}
 	var data = strings.NewReader(fmt.Sprintf(`_csrf=%s&username=%s&password=%s&captchaStr=%s`, cookies.CSRF, userInfo.Username, userInfo.Password, captcha))
 	req, err := http.NewRequest("POST", "https://vtop.vit.ac.in/vtop/login", data)
 	if err != nil {
@@ -55,7 +60,7 @@ func performLogin(userInfo types.LogIn, cookies types.Cookies, captcha string) t
 	// fmt.Printf("From login page, after submitting captcha:\n%s\n", bodyText)
 
 	if strings.Contains(string(bodyText), "Invalid Captcha") {
-		fmt.Println("Invalid Captcha")
+		fmt.Println("Invalid Captcha. The captcha solver can sometimes confuse between B and 8, please retry...")
 		return types.Cookies{}
 	}
 
@@ -85,7 +90,7 @@ func HomePage(vtopTokens types.Cookies) types.Cookies {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Transport: tr}
-	req, err := http.NewRequest("GET", "https://vtop.vit.ac.in/vtop/content", nil)
+	req, err := http.NewRequest("GET", "https://vtop.vit.ac.in/vtop/init/page", nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -112,7 +117,13 @@ func HomePage(vtopTokens types.Cookies) types.Cookies {
 	}
 	defer resp.Body.Close()
 
-	vtopTokens.CSRF = helpers.ExtractCSRF(helpers.ExtractBodyText(resp))
+	bodyText := helpers.ExtractBodyText(resp)
+	if strings.Contains(string(bodyText), "Session Timed Out") {
+		fmt.Println("Session Timed Out, login failed.")
+		return vtopTokens
+	}
+
+	vtopTokens.CSRF = helpers.ExtractCSRF2(bodyText)
 
 	return vtopTokens
 }
