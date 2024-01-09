@@ -204,14 +204,14 @@ func findAndSaveAtten(doc *goquery.Document) {
 
 func printTableAtten(title string, data [][]string, builder *strings.Builder) {
 
-	builder.WriteString(fmt.Sprintf("| %-5s | %-12s | %-20s | %-27s | %-16s | %-10s | %-18s |\n",
+	builder.WriteString(fmt.Sprintf("| %-5s | %-12s | %-20s | %-35s | %-16s | %-10s | %-18s |\n",
 		"S.No.", "Course Code", "Slot No.", "Faculty Name", "Classes Attended", "Percentage", "75% Alert"))
-	builder.WriteString("|-------|--------------|----------------------|-----------------------------|------------------|------------|--------------------|\n")
+	builder.WriteString("|-------|--------------|----------------------|-------------------------------------|------------------|------------|--------------------|\n")
 
 }
 
 func printFormattedRowAtten(row []string, builder *strings.Builder) {
-	builder.WriteString(fmt.Sprintf("| %-5s | %-12s | %-20s | %-27s | %-16s | %-10s | %-17s |\n",
+	builder.WriteString(fmt.Sprintf("| %-5s | %-12s | %-20s | %-35s | %-16s | %-10s | %-17s |\n",
 		row[0], strings.Split(row[2], "-")[0], strings.Split(row[3], "-")[1], strings.Split(row[4], "-")[0], row[5]+"/"+row[6], row[7], Cal75(strToInt(row[5]), strToInt(row[6]), strToInt(strings.Split(row[7], "%")[0]))))
 }
 
