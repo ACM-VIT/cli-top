@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	types "vtop-cli/types"
 
@@ -156,6 +157,9 @@ func getTextContent(n *html.Node) string {
 	return textContent
 }
 
+var weightageSum float64       // Total sum of weightage marks
+var weightagePercentageSum int // Total sum of weightage percentage
+
 func GetMarks(regNo string, cookies types.Cookies, semID string) {
 	url := "https://vtop.vit.ac.in/vtop/examinations/doStudentMarkView"
 
@@ -189,6 +193,8 @@ func GetMarks(regNo string, cookies types.Cookies, semID string) {
 	// Convert HTML elements to Markdown tables
 	for i, element := range elements {
 		// Convert each element to Markdown
+		weightageSum = 0
+		weightagePercentageSum = 0
 		markdownTable, err := convertHTMLElementToMarkdown(element)
 		if err != nil {
 			log.Fatal(err)
@@ -213,7 +219,24 @@ func GetMarks(regNo string, cookies types.Cookies, semID string) {
 
 		fmt.Println(subjectDetail)
 		fmt.Println(markdown)
+		formattedWeightageSum := fmt.Sprintf("%.1f", weightageSum)
+		// calculate  percentage
+		percentage := float64(weightageSum) / float64(weightagePercentageSum) * 100
+		fmt.Println(cal50(formattedWeightageSum, percentage))
 	}
+}
+
+// Formats the color of the result
+func cal50(formattedWeightageSum string, percentage float64) string {
+	result := ""
+	green := fmt.Sprintf("You scored: "+"\033[32m"+"%s/%d"+"\033[0m"+"\t", formattedWeightageSum, weightagePercentageSum)
+	red := fmt.Sprintf("You scored: "+"\033[31m"+"%s/%d"+"\033[0m"+"\t", formattedWeightageSum, weightagePercentageSum)
+	if percentage >= 50 {
+		result = green
+	} else {
+		result = red
+	}
+	return result
 }
 
 func subjectDetails(doc *goquery.Document) []string {
@@ -281,6 +304,17 @@ func printTable(title string, data [][]string, builder *strings.Builder) {
 }
 
 func printFormattedRow(row []string, builder *strings.Builder) {
+	weightage, err := strconv.ParseFloat(row[6], 3)
+	if err != nil {
+		fmt.Print("Error converting weightage to float:", err)
+	}
+	weightagePercentage, err := strconv.ParseInt(row[3], 10, 64)
+	if err != nil {
+		fmt.Print("Error converting weightage Percentage to int")
+	}
+
+	weightageSum += weightage
+	weightagePercentageSum += int(weightagePercentage)
 	builder.WriteString(fmt.Sprintf("| %-5s | %-31s | %-7s | %-10s | %-7s | %-10s | %-13s |\n",
 		row[0], row[1], row[2], row[3], row[4], row[5], row[6]))
 }

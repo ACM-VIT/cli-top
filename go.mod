@@ -2,8 +2,6 @@ module vtop-cli
 
 go 1.21
 
-toolchain go1.21.4
-
 require (
 	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/charmbracelet/glamour v0.6.0
