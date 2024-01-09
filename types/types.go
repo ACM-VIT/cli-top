@@ -9,6 +9,7 @@ type Cookies struct {
 type LogIn struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+	RegNo    string `json:"RegNo"`
 }
 
 type Request struct {
