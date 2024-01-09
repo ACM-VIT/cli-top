@@ -23,6 +23,7 @@ func FetchReq(regNo string, cookies types.Cookies, url string, payload string, m
 	if err != nil {
 		return nil, err
 	}
+
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)

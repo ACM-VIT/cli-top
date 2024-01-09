@@ -223,13 +223,13 @@ func GetFacultyDetails(regNo string, cookies types.Cookies, classID string) stri
 		log.Fatal(err)
 	}
 
-	// doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(resp)))
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(resp)))
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	fmt.Print(string(resp))
-	return ""
+	return doc
 
 }
 
