@@ -30,14 +30,15 @@ func main() {
 	defer resp.Body.Close()
 
 	// Print the response body or process it further
-	parseAndPrintHumanReadable(resp.Body)
+	parseAndPrintLastFiveLines(resp.Body)
+
 }
 
 func prepareFormData(authorizedID string) url.Values {
 	formData := url.Values{}
 	formData.Set("verifyMenu", "true")
 	formData.Set("authorizedID", authorizedID)
-	formData.Set("_csrf", "37249a38-9cde-4e10-a3e8-b0f899e369ce")
+	formData.Set("_csrf", "d1df2cc7-5312-4814-b46b-8d3f97993b89")
 	formData.Set("nocache", fmt.Sprintf("@%d", time.Now().UnixNano()/int64(time.Millisecond)))
 	return formData
 }
@@ -54,7 +55,7 @@ func prepareRequest(formData url.Values) (*http.Request, error) {
 
 	// Set headers (unchanged)
 	req.Header.Set("Host", "vtop.vit.ac.in")
-	req.Header.Set("Cookie", "JSESSIONID=D233CAAD6D85248E4D1C09BA04295F13; SERVERID=s2")
+	req.Header.Set("Cookie", "JSESSIONID=19E7CBF0444AA84507E9364A7E1F4396; SERVERID=s2")
 	req.Header.Set("Sec-Ch-Ua", `"Not_A Brand";v="8", "Chromium";v="120"`)
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
@@ -74,7 +75,7 @@ func prepareRequest(formData url.Values) (*http.Request, error) {
 	return req, nil
 }
 
-func parseAndPrintHumanReadable(body io.Reader) {
+func parseAndPrintLastFiveLines(body io.Reader) {
 	doc, err := goquery.NewDocumentFromReader(body)
 	if err != nil {
 		log.Fatal("Error parsing HTML:", err)
@@ -85,14 +86,15 @@ func parseAndPrintHumanReadable(body io.Reader) {
 	fmt.Println("Student Accommodation Information:")
 
 	// Extract and print data from the specified HTML structure
-	doc.Find("div.table-responsive table.table").Each(func(i int, tableSelection *goquery.Selection) {
-		tableSelection.Find("tbody tr").Each(func(j int, rowSelection *goquery.Selection) {
-			// Extract and print data from each row
-			header := rowSelection.Find("td[style*='font-weight:bold;']").Text()
-			value := rowSelection.Find("td[style*='background-color']").Text()
+	table := doc.Find("div.table-responsive table.table tbody tr")
+	lastFiveRows := table.Slice(-5, table.Length())
 
-			// Format the output with clear spacing and indentation
-			fmt.Printf("%-25s: %s\n", strings.TrimSpace(header), strings.TrimSpace(value))
-		})
+	lastFiveRows.Each(func(j int, rowSelection *goquery.Selection) {
+		// Extract and print data from each row
+		header := rowSelection.Find("td[style*='font-weight:bold;']").Text()
+		value := rowSelection.Find("td[style*='background-color']").Text()
+
+		// Format the output with clear spacing and indentation
+		fmt.Printf("%-25s: %s\n", strings.TrimSpace(header), strings.TrimSpace(value))
 	})
 }
