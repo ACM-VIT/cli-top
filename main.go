@@ -1,25 +1,43 @@
+// main.go
+
 package main
 
 import (
+	// features "vtop-cli/features"
 	"fmt"
-	"log"
+	"os"
+	//"vtop-cli/ac"
 
-	"github.com/otiai10/gosseract/v2"
+	 "vtop-cli/features"
+
+	//"vtop-cli/features"
+	"vtop-cli/login"
+	types "vtop-cli/types"
 )
 
 func main() {
-	client := gosseract.NewClient()
-	defer client.Close()
-	client.SetLanguage("eng")
-	imagePath := "output_image.png"
-	err := client.SetImage(imagePath)
+	// Load .env file
+	err := godotenv.Load()
 	if err != nil {
-		log.Fatalf("Error setting image: %v", err)
+		log.Fatal("Error loading .env file")
 	}
-	text, err := client.Text()
-	if err != nil {
-		log.Fatalf("Error performing OCR: %v", err)
+
+	userInfo := types.LogIn{
+		Username: os.Getenv("VTOP_USERNAME"),
+		Password: os.Getenv("PASSWORD"),
+    RegNo: ""
 	}
-	fmt.Println("OCR Result:")
-	fmt.Println(text)
+	
+	fmt.Println("(Main) User Info", userInfo)
+
+  loginSecrets := login.Login(userInfo.Username, userInfo.Password)
+  cookies, tmp := login.HomePage(loginSecrets) 
+  userInfo.RegNo = tmp
+  fmt.Println("(Main) VTOP Cookies", cookies)
+  features.Profile(cookies, userInfo.RegNo)
+  
+	features.PrintSemDetails(RegNo, cookies)
+	//features.GetAttendance(RegNo, cookies, "")
+	//features.GetGrade(RegNo, cookies, "")
+	features.GetTimeTable(RegNo, cookies, "")
 }
