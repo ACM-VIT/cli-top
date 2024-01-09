@@ -164,9 +164,10 @@ func findAndSaveTimeTable(doc *goquery.Document) {
 			}
 			for i := 0; i < len(timeL[0])-1; i++ {
 				if timeL[0][i] != "Lunch" && timeL[0][i] != "-" && timeL[1][i] != "Lunch" && timeL[1][i] != "-" {
-					fmt.Printf("%s to %s\n", timeL[0][i], timeL[1][i])
+					output_.WriteString(fmt.Sprintf("%s to %s\n", timeL[0][i], timeL[1][i]))
 				}
 			}
+			break
 			fmt.Println()
 			
 		}
