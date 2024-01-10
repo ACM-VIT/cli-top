@@ -1,28 +1,14 @@
-from datetime import datetime, timedelta
+# Define the days and slots
+days = [1, 2, 3, 4, 5]
+slots = ["08:00", "09:00", "10:00", "11:00", "12:00"]
+letters = ["A1", "F1", "D1", "B1", "G1"]
 
-def generate_schedule():
-    days = 5  # Monday to Friday
-    start_time = datetime.strptime("08:00", "%H:%M")
-    end_time = datetime.strptime("12:00", "%H:%M")
+# Initialize an empty dictionary
+schedule = {}
 
-    # Define the slots
-    slots = ["A", "B", "C", "D", "E", "F", "G"]
+# Iterate over the days and slots
+for i, day in enumerate(days):
+   schedule[(day, slots[i])] = letters[i]
 
-    schedule_dict = {}
-
-    for day in range(1, days + 1):
-        current_time = start_time
-        while current_time <= end_time:
-            for slot in slots:
-                key = (day, current_time.strftime("%H:%M"))
-                value = f"{slot}{day}"
-                schedule_dict[key] = value
-
-                # Increment time by 1 hour
-                current_time += timedelta(hours=1)
-
-    return schedule_dict
-
-# Example usage:
-schedule = generate_schedule()
+# Print the dictionary
 print(schedule)
