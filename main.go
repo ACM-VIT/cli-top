@@ -9,7 +9,7 @@ import (
 	"os"
 
 	// "vtop-cli/features"
-
+	"vtop-cli/cmd"
 	"vtop-cli/features"
 	"vtop-cli/login"
 	types "vtop-cli/types"
@@ -19,6 +19,7 @@ import (
 
 func main() {
 	// Load .env file
+	cmd.Execute()
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -27,7 +28,7 @@ func main() {
 	userInfo := types.LogIn{
 		Username: os.Getenv("VTOP_USERNAME"),
 		Password: os.Getenv("PASSWORD"),
-		RegNo:    "",
+		RegNo: os.Getenv("REGNO"),
 	}
 
 	// fmt.Println("(Main) User Info", userInfo)
