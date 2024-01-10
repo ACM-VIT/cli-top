@@ -1,4 +1,4 @@
-package main
+package features
 
 import (
 	"fmt"
@@ -12,9 +12,9 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-func main() {
+func HostelInfo(RegNo string) {
 	// Prepare form data
-	formData := prepareFormData("22BCT0355")
+	formData := prepareFormData(RegNo)
 
 	// Prepare the request
 	req, err := prepareRequest(formData)
@@ -31,14 +31,13 @@ func main() {
 
 	// Print the response body or process it further
 	parseAndPrintLastFiveLines(resp.Body)
-
 }
 
 func prepareFormData(authorizedID string) url.Values {
 	formData := url.Values{}
 	formData.Set("verifyMenu", "true")
 	formData.Set("authorizedID", authorizedID)
-	formData.Set("_csrf", "d1df2cc7-5312-4814-b46b-8d3f97993b89")
+	formData.Set("_csrf", "dede22ee-eb64-415e-93a4-0231d249b088")
 	formData.Set("nocache", fmt.Sprintf("@%d", time.Now().UnixNano()/int64(time.Millisecond)))
 	return formData
 }
@@ -55,7 +54,7 @@ func prepareRequest(formData url.Values) (*http.Request, error) {
 
 	// Set headers (unchanged)
 	req.Header.Set("Host", "vtop.vit.ac.in")
-	req.Header.Set("Cookie", "JSESSIONID=19E7CBF0444AA84507E9364A7E1F4396; SERVERID=s2")
+	req.Header.Set("Cookie", "JSESSIONID=D2AEB43242BA5B6DAB752B87893CF4DE; SERVERID=s2")
 	req.Header.Set("Sec-Ch-Ua", `"Not_A Brand";v="8", "Chromium";v="120"`)
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
@@ -83,7 +82,9 @@ func parseAndPrintLastFiveLines(body io.Reader) {
 	}
 
 	// Find and print data from the HTML
-	fmt.Println("Student Accommodation Information:")
+	fmt.Println("+-----------------------------+------------------------------------------------------+")
+	fmt.Println("| Student Accommodation Info  |                                                      |")
+	fmt.Println("+-----------------------------+------------------------------------------------------+")
 
 	// Extract and print data from the specified HTML structure
 	table := doc.Find("div.table-responsive table.table tbody tr")
@@ -91,10 +92,12 @@ func parseAndPrintLastFiveLines(body io.Reader) {
 
 	lastFiveRows.Each(func(j int, rowSelection *goquery.Selection) {
 		// Extract and print data from each row
-		header := rowSelection.Find("td[style*='font-weight:bold;']").Text()
-		value := rowSelection.Find("td[style*='background-color']").Text()
+		header := rowSelection.Find("td").Eq(0).Text()
+		value := rowSelection.Find("td").Eq(1).Text()
 
 		// Format the output with clear spacing and indentation
-		fmt.Printf("%-25s: %s\n", strings.TrimSpace(header), strings.TrimSpace(value))
+		fmt.Printf("| %-27s | %-52s |\n", strings.TrimSpace(header), strings.TrimSpace(value))
 	})
+
+	fmt.Println("+-----------------------------+------------------------------------------------------+")
 }
