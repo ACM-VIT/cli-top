@@ -27,7 +27,7 @@ func getCGPA(authorizedID string) (string, error) {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Transport: tr}
-	var data = strings.NewReader(fmt.Sprintf("_csrf=bc1781f8-4641-4109-ac61-57df04d7efe2&authorizedID=%s&history=&form=undefined&control=history&x=Wed, 20 Dec 2023 14:12:17 GMT", authorizedID))
+	var data = strings.NewReader(fmt.Sprintf("_csrf=bdb6bf5c-dc8c-413e-a9ef-6581de3aa967&authorizedID=%s&history=&form=undefined&control=history&x=Wed, 20 Dec 2023 14:12:17 GMT", authorizedID))
 	req, err := http.NewRequest("POST", "https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeHistory", data)
 	if err != nil {
 		return "", err
@@ -38,7 +38,7 @@ func getCGPA(authorizedID string) (string, error) {
 	req.Header.Set("accept", "*/*")
 	req.Header.Set("accept-language", "en-US,en;q=0.9")
 	req.Header.Set("content-type", "application/x-www-form-urlencoded; charset=UTF-8")
-	req.Header.Set("cookie", "JSESSIONID=1C41722CD77F85496FB685C1D58F8701; SERVERID=s1")
+	req.Header.Set("cookie", "JSESSIONID=7FBB4E62A9DC8A4B8968DEF7C25EFF36; SERVERID=s2")
 	req.Header.Set("origin", "https://vtop.vit.ac.in")
 	req.Header.Set("priority", "u=1, i")
 	req.Header.Set("referer", "https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeHistory")

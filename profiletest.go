@@ -31,7 +31,6 @@ func main() {
 
 	// Print the response body or process it further
 	parseAndPrintLastFiveLines(resp.Body)
-
 }
 
 func prepareFormData(authorizedID string) url.Values {
@@ -83,7 +82,9 @@ func parseAndPrintLastFiveLines(body io.Reader) {
 	}
 
 	// Find and print data from the HTML
-	fmt.Println("Student Accommodation Information:")
+	fmt.Println("+-----------------------------+------------------------------------------------------+")
+	fmt.Println("| Student Accommodation Info  |                                                      |")
+	fmt.Println("+-----------------------------+------------------------------------------------------+")
 
 	// Extract and print data from the specified HTML structure
 	table := doc.Find("div.table-responsive table.table tbody tr")
@@ -91,10 +92,12 @@ func parseAndPrintLastFiveLines(body io.Reader) {
 
 	lastFiveRows.Each(func(j int, rowSelection *goquery.Selection) {
 		// Extract and print data from each row
-		header := rowSelection.Find("td[style*='font-weight:bold;']").Text()
-		value := rowSelection.Find("td[style*='background-color']").Text()
+		header := rowSelection.Find("td").Eq(0).Text()
+		value := rowSelection.Find("td").Eq(1).Text()
 
 		// Format the output with clear spacing and indentation
-		fmt.Printf("%-25s: %s\n", strings.TrimSpace(header), strings.TrimSpace(value))
+		fmt.Printf("| %-27s | %-52s |\n", strings.TrimSpace(header), strings.TrimSpace(value))
 	})
+
+	fmt.Println("+-----------------------------+------------------------------------------------------+")
 }
