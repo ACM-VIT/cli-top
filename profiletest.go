@@ -37,7 +37,7 @@ func prepareFormData(authorizedID string) url.Values {
 	formData := url.Values{}
 	formData.Set("verifyMenu", "true")
 	formData.Set("authorizedID", authorizedID)
-	formData.Set("_csrf", "dede22ee-eb64-415e-93a4-0231d249b088")
+	formData.Set("_csrf", "df6d37ef-6e12-4d85-bc3a-4132953f0e1e")
 	formData.Set("nocache", fmt.Sprintf("@%d", time.Now().UnixNano()/int64(time.Millisecond)))
 	return formData
 }
@@ -54,7 +54,7 @@ func prepareRequest(formData url.Values) (*http.Request, error) {
 
 	// Set headers (unchanged)
 	req.Header.Set("Host", "vtop.vit.ac.in")
-	req.Header.Set("Cookie", "JSESSIONID=D2AEB43242BA5B6DAB752B87893CF4DE; SERVERID=s2")
+	req.Header.Set("Cookie", "JSESSIONID=2F755A5CE11E8EAA8DF054862294A0F1; SERVERID=s1")
 	req.Header.Set("Sec-Ch-Ua", `"Not_A Brand";v="8", "Chromium";v="120"`)
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
