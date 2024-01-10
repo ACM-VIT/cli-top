@@ -1,4 +1,4 @@
-package main
+package features
 
 import (
 	"fmt"
@@ -12,9 +12,9 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-func main() {
+func HostelInfo(RegNo string) {
 	// Prepare form data
-	formData := prepareFormData("22BCT0355")
+	formData := prepareFormData(RegNo)
 
 	// Prepare the request
 	req, err := prepareRequest(formData)
