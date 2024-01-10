@@ -120,3 +120,16 @@ func ExtractCSRF2(bodyString string) string {
 
 	return csrf
 }
+
+func ExtractRegNo(bodyString string) (string, error) {
+	// Define a regular expression to match the assignment of id variable
+	re := regexp.MustCompile(`let id\s*=\s*"(.*?)";`)
+
+	// Find the first match
+	match := re.FindStringSubmatch(bodyString)
+	if len(match) != 2 {
+		return "", fmt.Errorf("unable to extract id from HTML")
+	}
+
+	return match[1], nil
+}
