@@ -20,35 +20,43 @@ Array:
 Give me python code to do this
 """
 
-days = [1, 2, 3, 4, 5]
-slots = ["08:00", "09:00", "10:00", "11:00", "12:00"]
+def main(num: str, offset: int):
+    days = [1, 2, 3, 4, 5]
+    slots = ["08:00", "09:00", "10:00", "11:00", "12:00"]
 
-# Define the original schedule
-lookup = [
-  ["A1", "B1", "C1", "D1", "E1"],
-  ["F1", "G1", "A1", "B1", "C1"],
-  ["D1", "E1", "F1", "G1", "A1"],
-  ["B1", "C1", "D1", "E1", "F1"],
-  ["G1", "A1", "--", "B1", "C1"]
-]
+    # Define the original schedule
+    lookup = [
+        ["A1", "B1", "C1", "D1", "E1"],
+        ["F1", "G1", "A1", "B1", "C1"],
+        ["D1", "E1", "F1", "G1", "A1"],
+        ["B1", "C1", "D1", "E1", "F1"],
+        ["G1", "A1", "--", "B1", "C1"]
+    ]
 
-keys = []
-for i in days:
-    row = []
-    for j in slots:
-        row.append((i, j))
-    keys.append(row)
-# print(keys)
+    keys = []
+    for i in days:
+        row = []
+        for j in slots:
+            if offset == 6:
+                j = str(int(j[:2]) + offset) + ":00"
+            row.append((i, j))
+        keys.append(row)
+    # print(keys)
 
-transposed_lookup = list(map(list, zip(*lookup)))
-# print(transposed_lookup)
+    transposed_lookup = list(map(list, zip(*lookup)))
+    # print(transposed_lookup)
 
-schedule = {}
-for ix in range(5):
-    day, slot = keys[ix], transposed_lookup[ix]
-    for id in range(5):
-        schedule[day[id]] = slot[id] 
+    schedule = {}
+    for ix in range(5):
+        day, slot = keys[ix], transposed_lookup[ix]
+        for id in range(5):
+            schedule[day[id]] = slot[id].replace("1", num)
 
-print("{")
-[print(f"\t{key}: {schedule[key]},") for key in schedule]
-print("}")
+    print("{")
+    [print(f"\t{key}: '{schedule[key]}',") for key in schedule]
+    print("}")
+
+# Morning schedule
+main("1", 0)
+# Evening schedule
+main("2", 6)
