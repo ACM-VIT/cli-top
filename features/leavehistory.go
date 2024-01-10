@@ -1,4 +1,4 @@
-package main
+package features
 
 import (
 	"crypto/tls"
@@ -12,8 +12,8 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
-func main() {
-	leaveStatus, err := getLeaveStatus("22BCT0355")
+func LeaveHistory(RegNo string) {
+	leaveStatus, err := getLeaveStatus(RegNo)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -1,4 +1,4 @@
-package Features
+package features
 
 import (
 	"crypto/tls"
@@ -12,8 +12,8 @@ import (
 	"strings"
 )
 
-func main() {
-	cgpaData, err := getCGPA("22BCT0355")
+func CgpaView(RegNo string) {
+	cgpaData, err := getCGPA(RegNo)
 	if err != nil {
 		log.Fatal(err)
 	}
