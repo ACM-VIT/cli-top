@@ -38,9 +38,10 @@ func main() {
 	// fmt.Println("(Main) Registration Number", userInfo.RegNo)
 	fmt.Println("(Main) VTOP Cookies", cookies)
 	features.Profile(cookies, userInfo.RegNo)
-	features.HostelInfo(userInfo.RegNo)
-	features.CgpaView(userInfo.RegNo)
-	features.LeaveHistory(userInfo.RegNo)
+	// features.HostelInfo(userInfo.RegNo, cookies)
+	// features.CgpaView(userInfo.RegNo, cookies)
+	// features.CgpaView(userInfo.RegNo)
+	features.LeaveHistory(userInfo.RegNo, cookies)
 
 	// ac.PrintSemDetails(RegNo, cookies)
 	// ac.GetAttendance(RegNo, cookies, "")
