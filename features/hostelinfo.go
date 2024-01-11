@@ -8,16 +8,17 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"vtop-cli/types"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
-func HostelInfo(RegNo string) {
+func HostelInfo(RegNo string, cookies types.Cookies) {
 	// Prepare form data
-	formData := prepareFormData(RegNo)
+	formData := prepareFormData(RegNo,cookies)
 
 	// Prepare the request
-	req, err := prepareRequest(formData)
+	req, err := prepareRequest(formData,cookies)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -33,16 +34,16 @@ func HostelInfo(RegNo string) {
 	parseAndPrintLastFiveLines(resp.Body)
 }
 
-func prepareFormData(authorizedID string) url.Values {
+func prepareFormData(authorizedID string, cookies types.Cookies) url.Values {
 	formData := url.Values{}
 	formData.Set("verifyMenu", "true")
 	formData.Set("authorizedID", authorizedID)
-	formData.Set("_csrf", "dede22ee-eb64-415e-93a4-0231d249b088")
+	formData.Set("_csrf", cookies.CSRF)
 	formData.Set("nocache", fmt.Sprintf("@%d", time.Now().UnixNano()/int64(time.Millisecond)))
 	return formData
 }
 
-func prepareRequest(formData url.Values) (*http.Request, error) {
+func prepareRequest(formData url.Values, cookies types.Cookies) (*http.Request, error) {
 	req, err := http.NewRequest(
 		"POST",
 		"https://vtop.vit.ac.in/vtop/studentsRecord/StudentProfileAllView",
@@ -54,7 +55,7 @@ func prepareRequest(formData url.Values) (*http.Request, error) {
 
 	// Set headers (unchanged)
 	req.Header.Set("Host", "vtop.vit.ac.in")
-	req.Header.Set("Cookie", "JSESSIONID=D2AEB43242BA5B6DAB752B87893CF4DE; SERVERID=s2")
+	req.Header.Set("Cookie", fmt.Sprintf("SERVERID=%s; JSESSIONID=%s", cookies.SERVERID, cookies.JSESSIONID))
 	req.Header.Set("Sec-Ch-Ua", `"Not_A Brand";v="8", "Chromium";v="120"`)
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")

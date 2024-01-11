@@ -10,10 +10,12 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	"vtop-cli/types"
 )
 
-func CgpaView(RegNo string) {
-	cgpaData, err := getCGPA(RegNo)
+func CgpaView(RegNo string, cookies types.Cookies) {
+	cgpaData, err := getCGPA(RegNo,cookies)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -22,12 +24,12 @@ func CgpaView(RegNo string) {
 	writeSpecificTableUsingTableWriter(cgpaData)
 }
 
-func getCGPA(authorizedID string) (string, error) {
+func getCGPA(authorizedID string, cookies types.Cookies) (string, error) {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Transport: tr}
-	var data = strings.NewReader(fmt.Sprintf("_csrf=df6d37ef-6e12-4d85-bc3a-4132953f0e1e&authorizedID=%s&history=&form=undefined&control=history&x=Wed, 20 Dec 2023 14:12:17 GMT", authorizedID))
+	var data = strings.NewReader(fmt.Sprintf("_csrf=%s&authorizedID=%s&history=&form=undefined&control=history&x=Wed, 20 Dec 2023 14:12:17 GMT",cookies.CSRF, authorizedID))
 	req, err := http.NewRequest("POST", "https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeHistory", data)
 	if err != nil {
 		return "", err
@@ -38,7 +40,8 @@ func getCGPA(authorizedID string) (string, error) {
 	req.Header.Set("accept", "*/*")
 	req.Header.Set("accept-language", "en-US,en;q=0.9")
 	req.Header.Set("content-type", "application/x-www-form-urlencoded; charset=UTF-8")
-	req.Header.Set("cookie", "JSESSIONID=2F755A5CE11E8EAA8DF054862294A0F1	; SERVERID=s1")
+	// req.Header.Set("cookie", "JSESSIONID=2F755A5CE11E8EAA8DF054862294A0F1	; SERVERID=s1")
+	req.Header.Set("Cookie", fmt.Sprintf("SERVERID=%s; JSESSIONID=%s", cookies.SERVERID, cookies.JSESSIONID))
 	req.Header.Set("origin", "https://vtop.vit.ac.in")
 	req.Header.Set("priority", "u=1, i")
 	req.Header.Set("referer", "https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeHistory")
