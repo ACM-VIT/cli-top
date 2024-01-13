@@ -3,7 +3,7 @@ package features
 import (
 	"fmt"
 	"io"
-	// "time"
+	"time"
 	"bytes"
 	// "log"
 	"net/http"
@@ -20,9 +20,16 @@ func FetchReq2(regNo string, cookies types.Cookies, url string) ([]byte, error) 
 	client := &http.Client{}
 
 	// Create a new HTTP request
+	// currentTime := time.Now()
+
+	// Format the time according to the desired format
+	// formattedTime := currentTime.UTC().Format("02 Jan 2006 15:04:05 MST")
+	// fmt.Println(ime.Now().UnixNano())
+	fmt.Println(time.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT"))
+
 
 	// payload := fmt.Sprintf("verifyMenu=true&authorizedID=%s&_csrf=%s&nocache=%d", regNo, cookies.CSRF, time.Now().UnixNano())
-	payload := fmt.Sprintf("_csrf=%s&authorizedID=%s&history=&form=undefined&control=history&x=Sat, 13 Jan 2024 10:09:54 GMT",cookies.CSRF,regNo)
+	payload := fmt.Sprintf("_csrf=%s&authorizedID=%s&history=&form=undefined&control=history&x=%s)",cookies.CSRF,regNo,time.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT"))
 	fmt.Println()
 
 	//fmt.Println(payload)
