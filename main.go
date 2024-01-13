@@ -9,6 +9,7 @@ import (
 	"os"
 
 	// "vtop-cli/features"
+
 	"vtop-cli/cmd"
 	"vtop-cli/features"
 	"vtop-cli/login"
@@ -28,7 +29,7 @@ func main() {
 	userInfo := types.LogIn{
 		Username: os.Getenv("VTOP_USERNAME"),
 		Password: os.Getenv("PASSWORD"),
-		RegNo: os.Getenv("REGNO"),
+		RegNo:    os.Getenv("REGNO"),
 	}
 
 	// fmt.Println("(Main) User Info", userInfo)
