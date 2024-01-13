@@ -38,8 +38,11 @@ func main() {
 	// fmt.Println("(Main) Registration Number", userInfo.RegNo)
 	fmt.Println("(Main) VTOP Cookies", cookies)
 	features.Profile(cookies, userInfo.RegNo)
-	features.PrintHostelInfo(userInfo.RegNo, cookies, "https://vtop.vit.ac.in/vtop/studentsRecord/StudentProfileAllView" )
-	features.PrintCgpa(userInfo.RegNo, cookies, "https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeHistory")
+	// features.PrintHostelInfo(userInfo.RegNo, cookies, "https://vtop.vit.ac.in/vtop/studentsRecord/StudentProfileAllView" )
+	// features.PrintCgpa(userInfo.RegNo, cookies, "https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeHistory")
+	// features.PrintLeaveHistory(userInfo.RegNo, cookies, "https://vtop.vit.ac.in/vtop/hostels/student/leave/6")
+	features.FetchReq2(userInfo.RegNo, cookies, "https://vtop.vit.ac.in/vtop/hostels/student/leave/6")
+
 	// features.PrintRawHostelInfo1(userInfo.RegNo, cookies)
 	// features.PrintRawLeaveHistory(userInfo.RegNo, cookies)
 	// features.HostelInfo(userInfo.RegNo, cookies)
