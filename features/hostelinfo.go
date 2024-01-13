@@ -66,8 +66,8 @@ func PrintHostelInfo(regNo string, cookies types.Cookies, url string) {
 		return
 	}
 
-	fmt.Println("+-----------------------------+------------------------------------------------------+")
-	fmt.Println("| Student Accommodation Info  |                                                      |")
+	// fmt.Println("+-----------------------------+------------------------------------------------------+")
+	fmt.Println("Student Accommodation Info")
 	fmt.Println("+-----------------------------+------------------------------------------------------+")
 
 	table := doc.Find("div.table-responsive table.table tbody tr")
