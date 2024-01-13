@@ -239,62 +239,113 @@ func getTextContent(n *html.Node) string {
 }
 
 func GetExamSchedule(regNo string, cookies types.Cookies, semId string) {
-
 	url := "https://vtop.vit.ac.in/vtop/examinations/doSearchExamScheduleForStudent"
+	selID := Marks(regNo, cookies, 0)
 
-	sel_id := Marks(regNo, cookies, 0)
-	//fmt.Println(sel_id)
-	bodyText, err := fetchReq2(regNo, cookies, url, sel_id)
+	bodyText, err := fetchReq2(regNo, cookies, url, selID)
 	if err != nil {
 		log.Fatal(err)
 	}
-	// fmt.Println("bodyText", bodyText)
-	bodyString := string(bodyText)
-	fmt.Println(bodyString)
-
+	//fmt.Println(string(bodyText))
 	// Use goquery to parse the HTML
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(bodyString))
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(doc)
 
-	// var temp[] string
-	// var Atten[] string
-	findAndSaveAtten(doc)
-	// fmt.Printf("%q", tempIds)
-	// Atten = RemoveEmptyStrings(temp)
-	// fmt.Printf("%q", Atten)
-	// subjectDetails := subjectDetails(doc)
-	// fmt.Println("hi")
-	// fmt.Println(subjectDetails)
+	// Find and save the exam schedule
+	examSchedule, err := findAndSaveAtten(doc)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Generate Markdown table text
+	markdownTable := generateExamScheduleMarkdownTable(examSchedule)
+	//findAndSaveAtten(doc)
+	// Render Markdown using glamour
+	rendered, err := glamour.Render(markdownTable, "dark")
+	if err != nil {
+		fmt.Println("Error rendering Markdown:", err)
+		return
+	}
+
+	// // Print the rendered Markdown
+	fmt.Println(rendered)
 }
 
-func findAndSaveAtten(doc *goquery.Document) {
-	var markdownTable strings.Builder
-	targetID := "customTable"
-	fmt.Println(targetID)
-	table := doc.Find("table")
-	fmt.Println("table", table)
+func findAndSaveAtten(doc *goquery.Document) ([][]string, error) {
+	var examSchedule [][]string
 
-	// error in finding and accessing the correct element from the html recieved
+	targetID := "customTable"
+	//fmt.Println(targetID)
+	table := doc.Find("table")
 
 	if table.Length() > 0 {
-		printTable("Header", nil, &markdownTable)
 		table.Find("tr").Each(func(i int, rowSelection *goquery.Selection) {
-			row := []string{} // Initialize a new slice for each row
+			if i == 0 {
+				// Skip the first row (header row)
+				return
+			}
+
+			var row []string
 			rowSelection.Find("td").Each(func(j int, cell *goquery.Selection) {
 				text := strings.TrimSpace(cell.Text())
 				row = append(row, text)
 			})
-			//fmt.Println("hi table")
-			//fmt.Println(row)
-			printFormattedRow(row, &markdownTable)
+
+			// Check if the length of the row is sufficient
+			if len(row) >= 13 {
+				// Access elements in the row slice
+
+				//fmt.Printf("Row[%d]: %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s\n", i, row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10], row[11], row[12])
+			} else {
+				// Handle the case where the row length is insufficient
+				//fmt.Printf("Insufficient data in row[%d]: %v\n", i, row)
+			}
+
+			// Render the row based on conditions
+			// if i == 1 {
+			// 	// This is the subheading row
+			// 	fmt.Println("\nSubheading Row:")
+			// 	for _, col := range row {
+			// 		fmt.Printf("%-15s", col)
+			// 	}
+			// 	fmt.Println()
+			// } else {
+			// 	// This is an actual class and timing row
+			// 	fmt.Println("\nClass and Timing Row:")
+			// 	for _, col := range row {
+			// 		fmt.Printf("%-15s", col)
+			// 	}
+			// 	fmt.Println()
+			// }
+
+			// Append the row to examSchedule
+			examSchedule = append(examSchedule, row)
 		})
 	} else {
-		fmt.Println("Table with ID 'customTable' not found")
+		return nil, fmt.Errorf("Table with ID '%s' not found", targetID)
 	}
-	fmt.Println(markdownTable.String())
+
+	return examSchedule, nil
+}
+
+func generateExamScheduleMarkdownTable(examSchedule [][]string) string {
+	var buf bytes.Buffer
+
+	// Table header
+	//buf.WriteString("| S.No | Course Code | Course Title | Course Type | Class ID | Slot | Exam Date | Exam Session | Reporting Time | Exam Time | Venue | Seat Location | Seat No |\n")
+	//buf.WriteString("|------|--------------|---------------|-------------|----------|------|------------|---------------|-----------------|-----------|-------|----------------|---------|\n")
+
+	// Iterate through exam schedule and generate rows
+	for _, row := range examSchedule {
+		if len(row) >= 13 {
+			// Table row
+			fmt.Printf("%-6s | %-15s | %-45s | %-14s | %-18s | %-11s | %-15s | %-18s | %-18s | %-19s | %-9s | %-20s | %-9s\n", row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10], row[11], row[12])
+		}
+	}
+
+	return buf.String()
 }
 
 func subjectDetails(doc *goquery.Document) []string {
@@ -336,11 +387,6 @@ func printTable(title string, data [][]string, builder *strings.Builder) {
 	builder.WriteString(fmt.Sprintf("| %-5s | %-8s | %-18s | %-5s | %-10s | %-10s | %-10s |%-5s |%-14s |%-14s |%-5s |%-5s |%-5s |\n",
 		"S.No", "Course Code", "Course Title", "Course Type", "	Class ID", "Slot", "Exam Date", "Exam Session", "Reporting Time", "Exam Time", "Venue", "Seat Location", "Seat No"))
 	builder.WriteString("|-------|----------------|---------------|-------------|------|-----------|--------------|-------------------|-----------|---------|---------------|----------|\n")
-}
-
-func printFormattedRow(row []string, builder *strings.Builder) {
-	builder.WriteString(fmt.Sprintf("| %-5s | %-8s | %-18s | %-5s | %-10s | %-10s | %-10s |%-5s |%-14s |%-14s |%-5s |%-5s |%-5s |\n",
-		row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10], row[11], row[12]))
 }
 
 func strToInt(str string) int {
@@ -420,7 +466,7 @@ func Marks(regNo string, cookies types.Cookies, sem_choice int) string {
 	PrintSemDetails(regNo, cookies)
 
 	var choice int
-	fmt.Print("\nEnter the index of the semester to view attendance: ")
+	fmt.Print("\nEnter the index of the semester to view examschedule: ")
 	fmt.Scanln(&choice)
 	semDet := GetSemDetails(cookies, regNo)
 
@@ -450,6 +496,7 @@ func Marks(regNo string, cookies types.Cookies, sem_choice int) string {
 	if err != nil {
 		log.Fatal("Error rendering formatted string:", err)
 	}
+	//glamour.WithWordWrap(150)
 
 	fmt.Print(output)
 	//fmt.Print(helpers.ExtractBodyText(*http.Response))
@@ -491,3 +538,62 @@ func Marks(regNo string, cookies types.Cookies, sem_choice int) string {
 
 // 	return markdownTable.String(), nil
 // }
+
+/*
+		// Convert HTML elements to Markdown tables
+		for i, element := range elements {
+			// Convert each element to Markdown
+			markdownTable, err := convertHTMLElementToMarkdown(element)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			renderer, e := glamour.NewTermRenderer(glamour.WithStylePath("dark"), glamour.WithWordWrap(150))
+			if e != nil {
+				fmt.Println("Error rendering markdown:", err)
+				return
+			}
+			markdown, err := renderer.Render(markdownTable)
+			if err != nil {
+				fmt.Println("Error rendering Table:", err)
+				return
+			}
+
+			subjectDetail, e1 := renderer.Render(subjectDetails[i])
+			if e1 != nil {
+				fmt.Println("Error rendering SubjectDetails:", err)
+				return
+			}
+
+			fmt.Println(subjectDetail)
+			fmt.Println(markdown)
+		}
+	}
+*/
+/*
+func convertHTMLElementToMarkdown(element *goquery.Selection) (string, error) {
+	var markdownTable strings.Builder
+	var tableStarted bool
+
+	// Find and print data rows excluding rows with class "tableHeader-level1"
+	element.Find("tbody tr").Each(func(_ int, rowSelection *goquery.Selection) {
+		// Check if the row has the specified class
+		if !rowSelection.HasClass("tableHeader-level1") {
+			if !tableStarted {
+				printTable("Header", nil, &markdownTable) // Print header only once
+				tableStarted = true
+			}
+
+			row := []string{}
+			rowSelection.Find("td").Each(func(_ int, cellSelection *goquery.Selection) {
+				// Extract and append cell text to the markdownTable string
+				text := strings.TrimSpace(cellSelection.Text())
+				row = append(row, text)
+			})
+			printFormattedRow(row, &markdownTable)
+		}
+	})
+
+	return markdownTable.String(), nil
+}
+*/

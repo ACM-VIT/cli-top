@@ -11,6 +11,7 @@ import (
 	// "vtop-cli/features"
 
 	"vtop-cli/es"
+	features "vtop-cli/features"
 	"vtop-cli/login"
 	types "vtop-cli/types"
 
@@ -29,14 +30,13 @@ func main() {
 		Password: os.Getenv("PASSWORD"),
 	}
 	RegNo := os.Getenv("REGNO")
-	fmt.Println("(Main) User Info", userInfo, RegNo)
+	//fmt.Println("(Main) User Info", userInfo, RegNo)
 
 	loginSecrets := login.Login(userInfo.Username, userInfo.Password)
 	cookies := login.HomePage(loginSecrets)
 	fmt.Println("(Main) VTOP Cookies", cookies)
-	// features.Profile(cookies, RegNo)
+	features.Profile(cookies, RegNo)
 
-	es.PrintSemDetails(RegNo, cookies)
 	es.GetExamSchedule(RegNo, cookies, "2")
 	// es.GetAttendance(RegNo, cookies, "")
 	// fmt.Println("")
