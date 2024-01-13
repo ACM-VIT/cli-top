@@ -38,6 +38,7 @@ func main() {
 	// fmt.Println("(Main) Registration Number", userInfo.RegNo)
 	fmt.Println("(Main) VTOP Cookies", cookies)
 	features.Profile(cookies, userInfo.RegNo)
+	features.PrintHostelInfo(userInfo.RegNo, cookies, "https://vtop.vit.ac.in/vtop/studentsRecord/StudentProfileAllView" )
 	// features.PrintRawHostelInfo1(userInfo.RegNo, cookies)
 	// features.PrintRawLeaveHistory(userInfo.RegNo, cookies)
 	// features.HostelInfo(userInfo.RegNo, cookies)
