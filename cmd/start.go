@@ -1,29 +1,27 @@
 package cmd
 
 import (
-    "fmt"
-    "os"
-    "io/ioutil"
-    "log"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
 
-
-    "github.com/spf13/cobra"
-    "github.com/fatih/color"
+	"github.com/fatih/color"
+	"github.com/spf13/cobra"
 )
 
 func startfn(cmd *cobra.Command, args []string) {
 
-    red := color.New(color.FgRed)
-    blue := color.New(color.FgBlue)
-    filePath := "logo.txt"
+	red := color.New(color.FgRed)
+	blue := color.New(color.FgBlue)
+	filePath := "logo.txt"
 
-    
-    content, err := ioutil.ReadFile(filePath)
-    if err != nil {
-        log.Fatal(err)
-    }
+	content, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    contentStr := string(content)
+	contentStr := string(content)
 	ctlen := len(contentStr)
 	mid := (ctlen / 2)
 
@@ -32,21 +30,21 @@ func startfn(cmd *cobra.Command, args []string) {
 
 	red.Print(fhlf)
 	blue.Println(sndhlf)
-    red.Println("Welcome to VTOP-CLI(CLITOP)!")
-    red.Println("refer to help by typing --help for help or --list for available commands")
+	red.Println("Welcome to VTOP-CLI(CLITOP)!")
+	red.Println("refer to help by typing --help for help or --list for available commands")
 }
 
-var homeCmd = &cobra.Command{
-    Use:   "vtop-cli",
-    Short: "A simple CLI tool for vtop",
-  
-    Run:   startfn,
+var rootCmd = &cobra.Command{
+	Use:   "vtop-cli",
+	Short: "A simple CLI tool for vtop",
+
+	Run: startfn,
 }
 
 func Execute() {
-    homeCmd.SetArgs(os.Args[1:])
-    if err := homeCmd.Execute(); err != nil {
-        fmt.Println(err)
-        os.Exit(1)
-    }
+	rootCmd.SetArgs(os.Args[1:])
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
