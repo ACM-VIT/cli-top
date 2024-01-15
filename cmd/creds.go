@@ -19,15 +19,25 @@ var credCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		username := promptInput("Enter your username: ")
 		password := promptPassword("Enter your password: ")
-		fmt.Printf("Logging in with username: %s and password: %s\n", username, password)
+		key := GenerateAESKey()
+
+		encryptedPassword, err := encryptPassword(password, key)
+		if err != nil {
+			fmt.Println("Error encrypting password:", err)
+			return
+		}
+
+		fmt.Printf("Logging in with username: %s\n", username)
 		viper.Set("VTOP_USERNAME", "\""+username+"\"")
-		viper.Set("PASSWORD", "\""+password+"\"")
+		viper.Set("PASSWORD", "\""+encryptedPassword+"\"")
+		viper.Set("KEY", "\""+key+"\"")
+
 		if err := viper.WriteConfigAs(".env"); err != nil {
 			fmt.Println("Error writing to .env file:", err)
 			return
 		}
 
-		fmt.Println("Username and password stored in .env file successfully.")
+		fmt.Println("Username and encrypted password stored in .env file successfully.")
 	},
 }
 
@@ -51,7 +61,6 @@ func promptPassword(prompt string) string {
 }
 
 func init() {
-
 	credCmd.Flags().StringP("username", "u", "", "Enter VTOP username")
 	credCmd.Flags().StringP("password", "p", "", "Enter VTOP password")
 	credCmd.Flags().StringP("regno", "r", "", "Enter VIT registration number")
@@ -59,5 +68,4 @@ func init() {
 	viper.SetConfigFile(".env")
 	viper.ReadInConfig()
 	rootCmd.AddCommand(credCmd)
-
 }
