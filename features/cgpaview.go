@@ -1,62 +1,27 @@
 package features
 
 import (
-	"bytes"
+	// "bytes"
 	"fmt"
-	"io"
+	// "io"
 	"log"
-	"net/http"
+	// "net/http"
 	// "net/url"
 	"strings"
-	"time"
+	// "time"
 	"vtop-cli/types"
 	// "github.com/charmbracelet/glamour"
 	"github.com/olekukonko/tablewriter"
 
-
+	"vtop-cli/helpers"
 	"github.com/PuerkitoBio/goquery"
 	// "golang.org/x/net/html"
 )
 
-func FetchReq1(regNo string, cookies types.Cookies, url string) ([]byte, error) {
-	// Create a new HTTP client
-	client := &http.Client{}
 
-	// Create a new HTTP request
-
-	payload := fmt.Sprintf("verifyMenu=true&authorizedID=%s&_csrf=%s&nocache=%d", regNo, cookies.CSRF, time.Now().UnixNano())
-	//fmt.Println(payload)
-	// Create a new request with POST method and payload
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(payload)))
-	if err != nil {
-		return nil, err
-	}
-
-	// Set headers or cookies if needed
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Cookie", fmt.Sprintf("SERVERID=%s; JSESSIONID=%s", cookies.SERVERID, cookies.JSESSIONID))
-
-	// Perform the request
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	// Read the response body
-	body, err := io.ReadAll(resp.Body)
-
-	if err != nil {
-		return nil, err
-	}
-
-	// fmt.Println("response body:",string(body))
-
-	return body, nil
-}
 
 func PrintCgpa(regNo string, cookies types.Cookies, url string) {
-	body, err := FetchReq1(regNo, cookies, url)
+	body, err := helpers.FetchReq(regNo, cookies, "https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeHistory","")
 	if err != nil {
 		log.Fatal("Error fetching CGPA data:", err)
 		return
