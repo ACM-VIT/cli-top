@@ -27,14 +27,17 @@ func main() {
 	userInfo := types.LogIn{
 		Username: os.Getenv("VTOP_USERNAME"),
 		Password: os.Getenv("PASSWORD"),
+		RegNo:    "",
 	}
-	RegNo := os.Getenv("REGNO")
-	fmt.Println("(Main) User Info", userInfo, RegNo)
+
+	// fmt.Println("(Main) User Info", userInfo)
 
 	loginSecrets := login.Login(userInfo.Username, userInfo.Password)
-	cookies := login.HomePage(loginSecrets)
+	cookies, tmp := login.HomePage(loginSecrets)
+	userInfo.RegNo = tmp
+	// fmt.Println("(Main) Registration Number", userInfo.RegNo)
 	fmt.Println("(Main) VTOP Cookies", cookies)
-	features.Profile(cookies, RegNo)
+	features.Profile(cookies, userInfo.RegNo)
 
 	// ac.PrintSemDetails(RegNo, cookies)
 	// ac.GetAttendance(RegNo, cookies, "")
