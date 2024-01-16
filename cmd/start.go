@@ -146,6 +146,7 @@ func Execute() {
 	rootCmd.AddCommand(marksCmd)
 	rootCmd.AddCommand(gradeCmd)
 	rootCmd.AddCommand(attendanceCmd)
+	rootCmd.AddCommand(timeTableCmd)
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
@@ -189,3 +190,11 @@ var attendanceCmd = &cobra.Command{
 	},
 }
 
+var timeTableCmd = &cobra.Command{
+	Use:   "timetable",
+	Short: "Show Time Table of a particular semester",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetTimeTable(regNo, cookies, "")
+	},
+}
