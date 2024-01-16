@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -27,8 +28,8 @@ var credCmd = &cobra.Command{
 			return
 		}
 
-		fmt.Printf("Logging in with username: %s\n", username)
-		viper.Set("VTOP_USERNAME", "\""+username+"\"")
+		fmt.Printf("Logging in with username: %s\n", strings.ToUpper(username))
+		viper.Set("VTOP_USERNAME", "\""+strings.ToUpper(username)+"\"")
 		viper.Set("PASSWORD", "\""+encryptedPassword+"\"")
 		viper.Set("KEY", "\""+key+"\"")
 
