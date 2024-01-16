@@ -157,6 +157,7 @@ func GetSemDetailsAtten(cookies types.Cookies, regNo string) SemesterDetails {
 
 func GetAttendance(regNo string, cookies types.Cookies, semId string) {
 
+	PrintSemDetails(regNo,cookies)
 	url := "https://vtop.vit.ac.in/vtop/processViewStudentAttendance"
 
 	sel_id := Attendance(regNo, cookies, 0)
