@@ -42,7 +42,7 @@ func GetGrade(regNo string, cookies types.Cookies, semId string) {
 }
 
 func Grade(regNo string, cookies types.Cookies, sem_choice int) string {
-
+	PrintSemDetails(regNo,cookies)
 	selectedSemId := ""
 	selectedSemName := ""
 
