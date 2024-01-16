@@ -73,10 +73,10 @@ func startfn(cmd *cobra.Command, args []string) {
 	}
 }
 
-func vtop_login() types.Cookies {
+func vtop_login() (types.Cookies, string) {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatal("Error loading .env file, please enter your credentials using the \"login\" command.")
 	}
 
 	userInfo := types.LogIn{
@@ -95,21 +95,22 @@ func vtop_login() types.Cookies {
 	cookies, tmp := login.HomePage(loginSecrets)
 	userInfo.RegNo = tmp
 	fmt.Println(userInfo.RegNo)
-	saveCookiesToFile(cookies, userInfo)
+	saveCookiesToFile(cookies, userInfo, key)
 	if err != nil {
 		fmt.Println("Error saving cookies:", err)
 	}
 	fmt.Println("(Main) VTOP Cookies", cookies)
-	return cookies
+	return cookies, userInfo.RegNo
 }
 
-func saveCookiesToFile(cookies types.Cookies, userInfo types.LogIn) {
+func saveCookiesToFile(cookies types.Cookies, userInfo types.LogIn, Key string) {
 	viper.Set("CSRF", "\""+cookies.CSRF+"\"")
 	viper.Set("JSESSIONID", "\""+cookies.JSESSIONID+"\"")
 	viper.Set("SERVERID", "\""+cookies.SERVERID+"\"")
 	viper.Set("REGNO", "\""+userInfo.RegNo+"\"")
 	viper.Set("VTOP_USERNAME", "\""+userInfo.Username+"\"")
 	viper.Set("PASSWORD", "\""+userInfo.Password+"\"")
+	viper.Set("KEY", "\""+Key+"\"")
 	if err := viper.WriteConfigAs(".env"); err != nil {
 		fmt.Println("Error writing to .env file:", err)
 	}
@@ -119,18 +120,17 @@ func saveCookiesToFile(cookies types.Cookies, userInfo types.LogIn) {
 func readCookiesFromFile() (types.Cookies, string) {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatal("Error loading .env file, please enter your credentials using the \"login\" command.")
 	}
 	cookies := types.Cookies{
 		SERVERID:   os.Getenv("SERVERID"),
 		CSRF:       os.Getenv("CSRF"),
 		JSESSIONID: os.Getenv("JSESSIONID"),
 	}
-	cookies, regno := login.HomePage(cookies)
-	if regno == "" {
-		cookies = vtop_login()
+	cookies, regNo := login.HomePage(cookies)
+	if regNo == "" {
+		cookies, regNo = vtop_login()
 	}
-	regNo := os.Getenv("REGNO")
 	return cookies, regNo
 }
 
