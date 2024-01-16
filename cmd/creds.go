@@ -2,12 +2,10 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 var username = "k"
@@ -19,7 +17,7 @@ var credCmd = &cobra.Command{
 	Short: "VTOP username and password to be entered",
 	Run: func(cmd *cobra.Command, args []string) {
 		username := promptInput("Enter your username: ")
-		password := promptPassword("Enter your password: ")
+		password := promptInput("Enter your password: ")
 		key := GenerateAESKey()
 
 		encryptedPassword, err := encryptPassword(password, key)
@@ -47,18 +45,6 @@ func promptInput(prompt string) string {
 	var input string
 	fmt.Scanln(&input)
 	return input
-}
-
-func promptPassword(prompt string) string {
-	fmt.Print(prompt)
-	bytePassword, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-	if err != nil {
-		fmt.Println("\nError reading password:", err)
-		os.Exit(1)
-	}
-	fmt.Println() // Print a new line after password input
-	password := string(bytePassword)
-	return password
 }
 
 func init() {
