@@ -147,6 +147,9 @@ func Execute() {
 	rootCmd.AddCommand(gradeCmd)
 	rootCmd.AddCommand(attendanceCmd)
 	rootCmd.AddCommand(timeTableCmd)
+	rootCmd.AddCommand(receiptCmd)
+	rootCmd.AddCommand(hostelCmd)
+	rootCmd.AddCommand(cgpaCmd)
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
@@ -190,11 +193,41 @@ var attendanceCmd = &cobra.Command{
 	},
 }
 
+
+
+
+var receiptCmd = &cobra.Command{
+	Use:   "receipt",
+	Short: "Show Receipt Details of a user",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetReceipt(regNo, cookies)
+	},
+}
+
 var timeTableCmd = &cobra.Command{
 	Use:   "timetable",
 	Short: "Show Time Table of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.GetTimeTable(regNo, cookies, "")
+	},
+}
+
+
+var hostelCmd = &cobra.Command{
+	Use:   "hostel",
+	Short: "Show Hostel Details of a user",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.PrintHostelInfo(regNo, cookies, "")
+	},
+}
+var cgpaCmd = &cobra.Command{
+	Use:   "cgpa",
+	Short: "Show CGPA details",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.PrintCgpa(regNo, cookies,"")
 	},
 }
