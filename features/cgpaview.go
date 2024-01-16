@@ -9,12 +9,11 @@ import (
 	// "net/url"
 	"strings"
 	// "time"
+	"vtop-cli/helpers"
 	"vtop-cli/types"
 	// "github.com/charmbracelet/glamour"
-	"github.com/olekukonko/tablewriter"
-
-	"vtop-cli/helpers"
 	"github.com/PuerkitoBio/goquery"
+	"github.com/olekukonko/tablewriter"
 	// "golang.org/x/net/html"
 )
 
