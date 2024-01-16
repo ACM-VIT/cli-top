@@ -122,7 +122,6 @@ func HomePage(vtopTokens types.Cookies) (types.Cookies , string)  {
 		fmt.Println("Session Timed Out, login failed.")
 		return vtopTokens,""
 	}
-	
 
 	vtopTokens.CSRF = helpers.ExtractCSRF2(bodyText)
 	

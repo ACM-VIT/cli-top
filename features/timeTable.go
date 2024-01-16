@@ -8,10 +8,14 @@ import (
 	"log"
 	//"math"
 	//"net/http"
-	//"strconv"
+	"strconv"
 	"strings"
+	"sort"
 	//"time"
+	
 	types "vtop-cli/types"
+
+	//"os/exec"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/charmbracelet/glamour"
@@ -20,7 +24,7 @@ import (
 
 
 
-func GetTimeTable(regNo string, cookies types.Cookies, semId string) {
+func GetTimeTable(regNo string, cookies types.Cookies, semId string, schedule string) {
 
 	url := "https://vtop.vit.ac.in/vtop/processViewTimeTable"
 
@@ -36,8 +40,10 @@ func GetTimeTable(regNo string, cookies types.Cookies, semId string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	
-	findAndSaveTimeTable(doc)
+	//fmt.Println("schedule = ")
+	//fmt.Println(schedule)
+	//findTimeDay(schedule)
+	findAndSaveTimeTable(doc,schedule)
 	
 }
 
@@ -71,42 +77,173 @@ func Timetable(regNo string, cookies types.Cookies, sem_choice int) string {
 		log.Fatal("Error creating glamour renderer:", err)
 	}
 
-	output, err := renderer.Render(formattedSelection)
+	outputL, err := renderer.Render(formattedSelection)
 	if err != nil {
 		log.Fatal("Error rendering formatted string:", err)
 	}
+	
+	fmt.Print(outputL)
 
-	fmt.Print(output)
-
-	fmt.Println()
+	//fmt.Println()
 
 	return selectedSemId
 
 }
 
-//  func findAndSaveTimeTable(doc *goquery.Document) {
-//  	var markdownTable strings.Builder
-//  	targetID := "timeTableStyle"
-//  	table := doc.Find("table#" + targetID)
-//  	if table.Length() > 0 {
-//  		//printTableTimeTable("Header", nil, &markdownTable)
-//  		table.Find("tbody tr").Each(func(i int, rowSelection *goquery.Selection) {
-//  			row := []string{} // Initialize a new slice for each row
-//  			rowSelection.Find("td").Each(func(j int, cell *goquery.Selection) {
-//  				text := strings.TrimSpace(cell.Text())
-//  				row = append(row, text)
-//  			})
-//  			//fmt.Println("hi table")
-//  			//fmt.Println(row)
-//  			printFormattedRowTimeTable(row, &markdownTable)
-//  		})
-//  	} else {
-//  		fmt.Println("Table with ID 'timeTableStyle' not found")
-//  	}
-//  	fmt.Println(markdownTable.String())
-//  }
+type KeyStruct struct {
+	Group int
+	Time  string
+}
 
-func findAndSaveTimeTable(doc *goquery.Document) {
+
+func parsePythonDict(schedule string) map[KeyStruct][]string {
+	pythonDict := make(map[KeyStruct][]string)
+
+	// Removing unnecessary characters and splitting the schedule string
+	schedule = strings.ReplaceAll(schedule, "{", "")
+	schedule = strings.ReplaceAll(schedule, "}", "")
+	entries := strings.Split(schedule, "],")
+
+	// Iterating through entries to populate the pythonDict
+	for _, entry := range entries {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+
+		parts := strings.Split(entry, ": [")
+		if len(parts) != 2 {
+			continue
+		}
+
+		keyPart := strings.TrimSpace(parts[0])
+		valuePart := strings.TrimSpace(parts[1])
+
+		// Extracting group and time from keyPart
+		var group int
+		var time string
+		fmt.Sscanf(keyPart, "(%d, '%s')", &group, &time)
+
+		// Creating KeyStruct
+		key := KeyStruct{Group: group, Time: strings.TrimSuffix(time, "')")}
+
+		// Extracting values and populating pythonDict
+		values := strings.Split(strings.Trim(valuePart, "[]"), ", ")
+
+		// Removing single quotes and any trailing ')'
+		for i := range values {
+			values[i] = strings.TrimSuffix(strings.Trim(values[i], "'"), "')")
+		}
+
+		pythonDict[key] = values
+	}
+
+	return pythonDict
+}
+
+
+
+func checkTime(goMap map[int][][]string , pythonDict map[KeyStruct][]string){
+	
+
+
+var sortedKeys []int
+for key := range goMap {
+    sortedKeys = append(sortedKeys, key)
+}
+sort.Ints(sortedKeys)
+
+for _, key := range sortedKeys {
+    // Access the value using the key
+    value := goMap[key]
+
+    // Print the day outside the inner loop
+	fmt.Print("\033[1m")
+    switch key {
+    case 1:
+        fmt.Println("Monday\n")
+    case 2:
+        fmt.Println("Tuesday\n")
+    case 3:
+        fmt.Println("Wednesday\n")
+    case 4:
+        fmt.Println("Thursday\n")
+    case 5:
+        fmt.Println("Friday\n")
+    case 6:
+        fmt.Println("Saturday\n")
+    case 7:
+        fmt.Println("Sunday\n")
+    }
+	fmt.Print("\033[0m")
+
+    // Create a new slice to store the printInfo for the current day
+    var printInfoDay []string
+
+    for _, row := range value {
+        for i := range row {
+            if row[i] != "null" {
+                slot := strings.Split(row[i], "-")[0]
+                courseCode := strings.Split(row[i], "-")[1]
+                venue := strings.Split(row[i], "-")[3]
+
+                for keyPy, valuePy := range pythonDict {
+                    if key == keyPy.Group {
+                        for j := range valuePy {
+                            if valuePy[j] == slot {
+                                // Store information in the slice
+                                hour, _ := strconv.Atoi(strings.Split(keyPy.Time, ":")[0])
+                                min, _ := strconv.Atoi(strings.Split(keyPy.Time, ":")[1])
+                                if (slot[0]) == 'L' {
+                                    // For 'L' slots, adjust the time
+                                    min += 100
+                                    for min >= 60 {
+                                        min -= 60
+                                        hour++
+                                    }
+                                } else {
+                                    // For other slots, adjust the time
+                                    min += 50
+                                    for min >= 60 {
+                                        min -= 60
+                                        hour++
+                                    }
+                                }
+                                end := fmt.Sprintf("%d:%02d", hour, min)
+
+                                info := fmt.Sprintf("%s to %s\t| %s\t\t| %s\t| %s\t\t ", keyPy.Time, end, slot, courseCode, venue)
+                                printInfoDay = append(printInfoDay, info)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Print the timetable for the current day
+    for _, info := range printInfoDay {
+        fmt.Println(info)
+    }
+    fmt.Println() // Add a newline to separate tables
+}
+
+}
+
+
+
+
+func findAndSaveTimeTable(doc *goquery.Document, schedule string) {
+
+	//fmt.Println("printing inside func")
+	//fmt.Println(schedule)
+	pythonDict := parsePythonDict(schedule)
+	//fmt.Println(pythonDict)
+	
+	
+
+
+
     targetID := "timeTableStyle"
     table := doc.Find("table#" + targetID)
     if table.Length() > 0 {
@@ -114,6 +251,7 @@ func findAndSaveTimeTable(doc *goquery.Document) {
         timeL := [][]string{} ; timeTh := [][]string{}
         var indices []int  // Move the indices declaration outside the inner scope
         table.Find("tbody tr").Each(func(i int, rowSelection *goquery.Selection) {
+			
             row := []string{} // Initialize a new slice for each row
             timeLab := []string{}
 			timeTheory := []string{}
@@ -122,15 +260,17 @@ func findAndSaveTimeTable(doc *goquery.Document) {
                 if exists && bgcolor == "#CCFF33" {
                     text := strings.TrimSpace(cell.Text())
                     row = append(row, text)
-					fmt.Println(j)
-                    indices = append(indices, j)
+					
+                    indices = append(indices, j-2)
                 } else if exists && bgcolor == "#99CCFF" {
                     text := strings.TrimSpace(cell.Text())
                     timeLab = append(timeLab, text)
                 }else if exists && bgcolor == "##CCCCFF" {
                     text := strings.TrimSpace(cell.Text())
                     timeTheory = append(timeTheory, text)
-                }
+                }else{
+					row = append(row,"null")
+				}
             })
             if len(row) > 0 {
                 rows = append(rows, row)
@@ -142,153 +282,96 @@ func findAndSaveTimeTable(doc *goquery.Document) {
                 timeTh = append(timeTh, timeTheory)
             }
         })
-
+		
         // Print sub-rows after all rows have been processed
+		subject := [][]string{}
+		//var count int
+		count:=0
         for i, subRow := range rows {
-            fmt.Printf("Sub-Row %d:\n", i+1)
-            fmt.Println(subRow)
-            fmt.Println()
+			//count = 0
+            //fmt.Printf("Sub-Row %d:\n", i+1)
+            //fmt.Println(subRow)
+			if i>3 && i<14 {
+				subject = append(subject,subRow)
+				count+=1
+			}
+            //fmt.Println()
         }
         
-        fmt.Println(timeL)
+		var subjectDayWise map[int][][]string
+		subjectDayWise = make(map[int][][]string)
 
-        
+		// Divide the subject array into groups of 2 subarrays
+		groupSize := 2
+		key := 1
 
-		for _, timings := range timeL {
-			// Filter out "Lunch" and "-"
-			filteredL := []string{}
-			for _, time := range timings {
-				if time != "Lunch" && time != "-" {
-					filteredL = append(filteredL, time)
-				}
+		for i, subRow := range subject {
+			subjectDayWise[key] = append(subjectDayWise[key], subRow)
+
+			// Check if the current group is complete
+			if (i+1)%groupSize == 0 {
+				key++
 			}
-			for i := 0; i < len(timeL[0])-1; i++ {
-				if timeL[0][i] != "Lunch" && timeL[0][i] != "-" && timeL[1][i] != "Lunch" && timeL[1][i] != "-" {
-					output_.WriteString(fmt.Sprintf("%s to %s\n", timeL[0][i], timeL[1][i]))
-				}
-			}
-			break
-			fmt.Println()
-			
 		}
-		// fmt.Println("theory")
-		// for _, timingsTh := range timeTh {
-		// 	// Filter out "Lunch" and "-"
-		// 	filteredTh := []string{}
-		// 	for _, timeTh := range timingsTh {
-		// 		if timeTh != "Lunch" && timeTh != "-" {
-		// 			filteredTh = append(filteredTh, timeTh)
-		// 		}
-		// 	}
-		// 	for _, indexTh := range indices {
-		// 		//fmt.Println(index,len(filtered))
-		// 		if indexTh < len(filteredTh) {
-		// 			//fmt.Println(index)
-		// 			fmt.Print(filteredTh[indexTh-2]+" to ")
-		// 		} 
-		// 		fmt.Println(" ")
-		// 	}
+		checkTime(subjectDayWise,pythonDict)
+
+
+        var outputL strings.Builder
+		
+
+			var filteredL [][]string
+
+			for _, subArray := range timeL {
+				var filteredSubL []string
+				for _, item := range subArray {
+					if item != "Lunch" && item != "-" {
+						filteredSubL = append(filteredSubL, item)
+					}
+				}
+				filteredL = append(filteredL, filteredSubL)
+			}
 			
-		// }
-
-
-    } else {
+			for i := 0; i < len(filteredL[0])-1; i=i+2 {
+				
+				start := fmt.Sprintf("%s", filteredL[0][i]) // Convert to string
+				end := fmt.Sprintf("%s", filteredL[1][i+1]) // Convert to string
+				//fmt.Println(start,end)
+				outputL.WriteString(fmt.Sprintf("%s to %s\n", start, end))
+			}
+		
+		//fmt.Println(filteredL)
+		//fmt.Println(outputL.String())
+		//fmt.Println()
+			
+	 }else {
         fmt.Println("Table with ID 'timeTableStyle' not found")
     }
 }
 
-// func removeDuplicates(nums []int) []int {
-//     encountered := map[int]bool{}
-//     result := []int{}
 
-//     for v := range nums {
-//         if encountered[nums[v]] == false {
-//             encountered[nums[v]] = true
-//             result = append(result, nums[v])
-//         }
-//     }
+// Utility function to get the index of a slot (e.g., F1 -> 1)
+func getSlotIndex(slotName string) int {
+	if len(slotName) > 1 {
+		return int(slotName[1] - '0')
+	}
+	return 0
+}
 
-//     return result
-// }
-
-
-
-// func findAndSaveTimeTable(doc *goquery.Document) {
-//     var markdownTable strings.Builder
-//     targetID := "timeTableStyle"
-//     table := doc.Find("table#" + targetID)
-//     if table.Length() > 0 {
-//         // Transpose the table data
-//         var columnData [][]string
-//         table.Find("tbody tr").Each(func(i int, rowSelection *goquery.Selection) {
-//             rowSelection.Find("td").Each(func(j int, cell *goquery.Selection) {
-//                 bgcolor, exists := cell.Attr("bgcolor")
-//                 if exists && bgcolor == "#CCFF33" {
-//                     text := strings.TrimSpace(cell.Text())
-//                     if len(columnData) <= j {
-//                         columnData = append(columnData, []string{text})
-//                     } else {
-//                         columnData[j] = append(columnData[j], text)
-//                     }
-//                 }
-//             })
-//         })
-
-//         // Build the string in markdown table format
-//         for _, column := range columnData {
-//             for _, data := range column {
-//                 markdownTable.WriteString("| " + data + " ")
-//             }
-//             markdownTable.WriteString("|\n")
-//         }
-//     } else {
-//         fmt.Println("Table with ID 'timeTableStyle' not found")
-//     }
-
-//     fmt.Println(markdownTable.String())
-// }
-
-// func findAndSaveTimeTable(doc *goquery.Document) {
-//     var markdownTable strings.Builder
-//     targetID := "timeTableStyle"
-//     table := doc.Find("table#" + targetID)
-//     if table.Length() > 0 {
-//         // Initialize columnData to hold the transposed data
-//         columnData := [][]string{}
-
-//         // Loop through each row
-//         table.Find("tbody tr").Each(func(i int, rowSelection *goquery.Selection) {
-//             // Loop through each cell (td) in the row
-//             rowSelection.Find("td").Each(func(j int, cell *goquery.Selection) {
-//                 bgcolor, exists := cell.Attr("bgcolor")
-//                 text := strings.TrimSpace(cell.Text())
-
-//                 if exists && bgcolor == "#CCFF33" {
-//                     // If the column index exceeds the number of columns in columnData, add a new column
-//                     for len(columnData) <= j {
-//                         columnData = append(columnData, []string{})
-//                     }
-
-//                     // Store data in the appropriate column
-//                     columnData[j] = append(columnData[j], text)
-//                 }
-//             })
-//         })
-
-//         // Print the transposed data (column-wise)
-//         for _, column := range columnData {
-//             for _, data := range column {
-//                 markdownTable.WriteString("| " + data + " ")
-//             }
-//             markdownTable.WriteString("|\n")
-//         }
-//     } else {
-//         fmt.Println("Table with ID 'timeTableStyle' not found")
-//     }
-
-//     fmt.Println(markdownTable.String())
-// }
-
+func separateArray(arr []int) [][]int {
+	var result [][]int
+	start := 0
+	for i := 1; i < len(arr); i++ {
+		if arr[i] < arr[i-1] {
+			result = append(result, arr[start:i])
+			start = i
+		}
+	}
+	// Add the remaining elements if any
+	if start < len(arr) {
+		result = append(result, arr[start:])
+	}
+	return result
+}
 
 
 func printTableTimeTable(title string, data [][]string, builder *strings.Builder) {
@@ -304,26 +387,11 @@ func printTableTimeTable(title string, data [][]string, builder *strings.Builder
 }
 
 func printFormattedRowTimeTable(row []string, builder *strings.Builder) {
-	
-		//  builder.WriteString(fmt.Sprintf("| %-5s | %-11s | %-10s | %-15s | %-3s | %-3s | %-3s | %-3s | %-6s | %-6s | %-6s | %-6s | %-6s |\n",
-	 	//  row[0], row[1], row[2], row[3], row[4],row[5], row[6], row[7],row[9],row[10],row[11],row[12],row[13]))
-		//  builder.WriteString("|-------------|------------|-----------|------------|------------|------------|------------|------------|------------|------------|------------|------------|------------|\n")
-		// for i := 0; i < 3; i++ {
-		// 	if i < len(row[0]) {
-		// 		builder.WriteString(fmt.Sprintf("| %-5s |\n", row[0][i]))
-		// 	} else {
-		// 		// Handle the case if the index is out of range
-		// 		builder.WriteString("|      |\n") // Print an empty cell or handle it as needed
-		// 	}
-		// }
 		
 		builder.WriteString(fmt.Sprintf("| %-5s |\n",row[0]))
 		//fmt.Println("hi")
 }
 
-func printDay(row []string, builder *strings.Builder){
 
-
-}
 
 
