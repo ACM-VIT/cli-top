@@ -144,9 +144,8 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	rootCmd.AddCommand(profileCmd)
 	rootCmd.AddCommand(marksCmd)
-	rootCmd.AddCommand(cgpaCmd)
-	rootCmd.AddCommand(hostelCmd)
-
+	rootCmd.AddCommand(gradeCmd)
+	rootCmd.AddCommand(attendanceCmd)
 	rootCmd.AddCommand(receiptCmd)
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil {
@@ -173,23 +172,24 @@ var marksCmd = &cobra.Command{
 	},
 }
 
-var cgpaCmd = &cobra.Command{
-	Use:   "cgpa",
-	Short: "Show CGPA details",
+var gradeCmd = &cobra.Command{
+	Use:   "grade",
+	Short: "Show Grade Details of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.PrintCgpa(regNo, cookies,"")
+		features.GetGrade(regNo, cookies, "")
 	},
 }
 
-var hostelCmd = &cobra.Command{
-	Use:   "hostel",
-	Short: "Show hostel Details",
+var attendanceCmd = &cobra.Command{
+	Use:   "attendance",
+	Short: "Show Attendance Details of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.PrintHostelInfo(regNo, cookies,"")
+		features.GetAttendance(regNo, cookies, "")
 	},
 }
+
 
 var receiptCmd = &cobra.Command{
 	Use:   "receipt",
