@@ -144,6 +144,9 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	rootCmd.AddCommand(profileCmd)
 	rootCmd.AddCommand(marksCmd)
+	rootCmd.AddCommand(gradeCmd)
+	rootCmd.AddCommand(attendanceCmd)
+	rootCmd.AddCommand(timeTableCmd)
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
@@ -166,5 +169,32 @@ var marksCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.Marks(regNo, cookies, 0)
+	},
+}
+
+var gradeCmd = &cobra.Command{
+	Use:   "grade",
+	Short: "Show Grade Details of a particular semester",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetGrade(regNo, cookies, "")
+	},
+}
+
+var attendanceCmd = &cobra.Command{
+	Use:   "attendance",
+	Short: "Show Attendance Details of a particular semester",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetAttendance(regNo, cookies, "")
+	},
+}
+
+var timeTableCmd = &cobra.Command{
+	Use:   "timetable",
+	Short: "Show Time Table of a particular semester",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetTimeTable(regNo, cookies, "")
 	},
 }

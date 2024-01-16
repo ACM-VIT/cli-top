@@ -85,7 +85,7 @@ func Login(regNo string, password string) types.Cookies {
 	return vtopTokens
 }
 
-func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
+func HomePage(vtopTokens types.Cookies) (types.Cookies , string)  {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -120,14 +120,21 @@ func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
 	bodyText := helpers.ExtractBodyText(resp)
 	if strings.Contains(string(bodyText), "Session Timed Out") {
 		fmt.Println("Session Timed Out, login failed.")
-		return vtopTokens, ""
+		return vtopTokens,""
 	}
 
 	vtopTokens.CSRF = helpers.ExtractCSRF2(bodyText)
+	
 	RegNo, err := helpers.ExtractRegNo(bodyText)
 	if err != nil {
-		log.Fatal(err)
+		// Handle the error
+		fmt.Println("Error:", err)
+		// You might want to return or log the error, or take other appropriate actions
+	} else {
+		// Use the result string
+		fmt.Println("(Helper - ExtractRegNo):", RegNo)
+		// Continue with your code using the extracted ID
 	}
 
-	return vtopTokens, RegNo
+	return vtopTokens,RegNo
 }
