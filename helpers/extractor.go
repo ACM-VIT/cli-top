@@ -120,7 +120,6 @@ func ExtractCSRF2(bodyString string) string {
 
 	return csrf
 }
-
 func ExtractRegNo(bodyString string) (string, error) {
 	// Define a regular expression to match the assignment of id variable
 	re := regexp.MustCompile(`let id\s*=\s*"(.*?)";`)
