@@ -84,7 +84,14 @@ func vtop_login() types.Cookies {
 		Password: os.Getenv("PASSWORD"),
 	}
 
-	loginSecrets := login.Login(userInfo.Username, userInfo.Password)
+	key := os.Getenv("KEY")
+
+	password, err := decryptPassword(userInfo.Password, key)
+	if err != nil {
+		fmt.Println("Error decrypting password:", err)
+	}
+
+	loginSecrets := login.Login(userInfo.Username, password)
 	cookies, tmp := login.HomePage(loginSecrets)
 	userInfo.RegNo = tmp
 	fmt.Println(userInfo.RegNo)
