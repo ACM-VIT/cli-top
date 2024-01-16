@@ -3,6 +3,7 @@ package features
 import (
 	"bytes"
 	"fmt"
+
 	// "io"
 	"log"
 	// "net/http"
@@ -12,6 +13,7 @@ import (
 	"vtop-cli/types"
 	// "github.com/charmbracelet/glamour"
 	"vtop-cli/helpers"
+
 	"github.com/PuerkitoBio/goquery"
 	// "golang.org/x/net/html"
 )

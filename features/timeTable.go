@@ -8,11 +8,12 @@ import (
 	"log"
 	//"math"
 	//"net/http"
+	"sort"
 	"strconv"
 	"strings"
-	"sort"
+
 	//"time"
-	
+
 	types "vtop-cli/types"
 
 	//"os/exec"
