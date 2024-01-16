@@ -101,3 +101,35 @@ func ExtractCSRF(bodyString string) string {
 
 	return csrf
 }
+
+func ExtractCSRF2(bodyString string) string {
+
+	pattern := `var csrfValue = "([a-fA-F0-9-]+)";`
+
+	re := regexp.MustCompile(pattern)
+
+	matches := re.FindStringSubmatch(bodyString)
+	csrf := ""
+
+	if len(matches) > 1 {
+		csrfValue := matches[1]
+		csrf = csrfValue
+	}
+
+	fmt.Println("(Helper - ExtractCSRF2):", csrf)
+
+	return csrf
+}
+
+func ExtractRegNo(bodyString string) (string, error) {
+	// Define a regular expression to match the assignment of id variable
+	re := regexp.MustCompile(`let id\s*=\s*"(.*?)";`)
+
+	// Find the first match
+	match := re.FindStringSubmatch(bodyString)
+	if len(match) != 2 {
+		return "", fmt.Errorf("unable to extract id from HTML")
+	}
+
+	return match[1], nil
+}
