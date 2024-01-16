@@ -1,11 +1,12 @@
 package gradeView
 
 import (
-	"VTOP-CLI/types"
 	"bytes"
 	"fmt"
 	"io"
 	"log"
+	"vtop-cli/types"
+
 	//"math"
 	"net/http"
 	"strconv"

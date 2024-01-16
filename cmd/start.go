@@ -144,6 +144,7 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	rootCmd.AddCommand(profileCmd)
 	rootCmd.AddCommand(marksCmd)
+	rootCmd.AddCommand(receiptCmd)
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
@@ -168,3 +169,13 @@ var marksCmd = &cobra.Command{
 		features.Marks(regNo, cookies, 0)
 	},
 }
+
+var receiptCmd = &cobra.Command{
+	Use:   "receipt",
+	Short: "Show Receipt Details of a user",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetReceipt(regNo, cookies)
+	},
+}
+

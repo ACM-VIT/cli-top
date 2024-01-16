@@ -1,7 +1,6 @@
 package attendancecalculator
 
 import (
-	"VTOP-CLI/types"
 	"bytes"
 	"fmt"
 	"io"
@@ -11,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"vtop-cli/types"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/charmbracelet/glamour"
