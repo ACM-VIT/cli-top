@@ -144,6 +144,9 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	rootCmd.AddCommand(profileCmd)
 	rootCmd.AddCommand(marksCmd)
+	rootCmd.AddCommand(cgpaCmd)
+	rootCmd.AddCommand(hostelCmd)
+
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
@@ -166,5 +169,23 @@ var marksCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.Marks(regNo, cookies, 0)
+	},
+}
+
+var cgpaCmd = &cobra.Command{
+	Use:   "cgpa",
+	Short: "Show CGPA details",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.PrintCgpa(regNo, cookies,"")
+	},
+}
+
+var hostelCmd = &cobra.Command{
+	Use:   "hostel",
+	Short: "Show hostel Details",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.PrintHostelInfo(regNo, cookies,"")
 	},
 }
