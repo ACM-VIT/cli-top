@@ -41,7 +41,7 @@ func startfn(cmd *cobra.Command, args []string) {
 	blue.Println(sndhlf)
 	red.Println("Welcome to VTOP-CLI!")
 	red.Println("refer to help by typing --help for help or --list for available commands")
-	fileName := ".env"
+	fileName := "vtop.env"
 
 	// Get the current working directory
 	currentDir, err := os.Getwd()
@@ -111,7 +111,7 @@ func saveCookiesToFile(cookies types.Cookies, userInfo types.LogIn, Key string) 
 	viper.Set("VTOP_USERNAME", "\""+userInfo.Username+"\"")
 	viper.Set("PASSWORD", "\""+userInfo.Password+"\"")
 	viper.Set("KEY", "\""+Key+"\"")
-	if err := viper.WriteConfigAs(".env"); err != nil {
+	if err := viper.WriteConfigAs("vtop.env"); err != nil {
 		fmt.Println("Error writing to .env file:", err)
 	}
 	return
