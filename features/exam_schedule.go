@@ -221,9 +221,9 @@ func FindOptionWithTagValue(doc *goquery.Document, targetValue string) string {
 	return doc.Find("option[value='" + targetValue + "']").Text()
 }
 
-func GetExamSchedule(regNo string, cookies types.Cookies, semId string) {
+func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choice int) {
 	url := "https://vtop.vit.ac.in/vtop/examinations/doSearchExamScheduleForStudent"
-	selID := Marks0(regNo, cookies, 0)
+	selID := Marks0(regNo, cookies, sem_choice)
 
 	bodyText, err := fetchReq20(regNo, cookies, url, selID)
 	if err != nil {
@@ -315,8 +315,13 @@ func Marks0(regNo string, cookies types.Cookies, sem_choice int) string {
 	PrintSemDetails0(regNo, cookies)
 
 	var choice int
-	fmt.Print("\nEnter the index of the semester to view examschedule: ")
-	fmt.Scanln(&choice)
+	if sem_choice == 0 { 
+		PrintSemDetails(regNo,cookies)
+		fmt.Print("\nEnter the index of the semester to view exam schedule: ")
+		fmt.Scanln(&choice)
+	}else {
+		choice = sem_choice
+	}
 	semDet := GetSemDetails0(cookies, regNo)
 
 	if choice < 1 || choice > len(semDet.SemIds) {

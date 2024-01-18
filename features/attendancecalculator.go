@@ -88,8 +88,6 @@ func fetchReq2(regNo string, cookies types.Cookies, url string, semID string) ([
 	return body, nil
 }
 
-//payload := []byte("_csrf=154a792d-e0d1-42fb-8300-c4211db46510&semesterSubId=VL20232405&authorizedID=22BCI0272&x=" + time.Now().UTC().Format(time.RFC1123))
-
 func GetSemDetailsAtten(cookies types.Cookies, regNo string) SemesterDetails {
 	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentAttendance"
 
@@ -150,25 +148,16 @@ func GetSemDetailsAtten(cookies types.Cookies, regNo string) SemesterDetails {
 		SemNames: SemNames,
 		SemIds:   SemIds,
 	}
-
 }
 
-
-
-func GetAttendance(regNo string, cookies types.Cookies, semId string) {
-
-	PrintSemDetails(regNo,cookies)
+func GetAttendance(regNo string, cookies types.Cookies, semId string, sem_choice int) {
 	url := "https://vtop.vit.ac.in/vtop/processViewStudentAttendance"
 
-	sel_id := Attendance(regNo, cookies, 0)
-	//fmt.Println(sel_id)
+	sel_id := Attendance(regNo, cookies, sem_choice)
 	bodyText, err := fetchReq2(regNo, cookies, url, sel_id)
 	if err != nil {
 		log.Fatal(err)
 	}
-	//fmt.Println("bodyText" , bodyText)
-	//bodyString := string(bodyText)
-	//fmt.Println(bodyString)
 
 	// Use goquery to parse the HTML
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
@@ -176,7 +165,6 @@ func GetAttendance(regNo string, cookies types.Cookies, semId string) {
 		log.Fatal(err)
 	}
 	findAndSaveAtten(doc)
-
 }
 
 func findAndSaveAtten(doc *goquery.Document) {
@@ -200,8 +188,6 @@ func findAndSaveAtten(doc *goquery.Document) {
 	}
 	fmt.Println(markdownTable.String())
 }
-
-
 
 func printTableAtten(title string, data [][]string, builder *strings.Builder) {
 
@@ -252,17 +238,20 @@ func Cal75(att int, tot int, perc int) string {
 	return ret
 }
 
-
 func Attendance(regNo string, cookies types.Cookies, sem_choice int) string {
-
 	selectedSemId := ""
 	selectedSemName := ""
-
 	var choice int
-	fmt.Print("\nEnter the index of the semester to view attendance: ")
-	fmt.Scanln(&choice)
-	semDet := GetSemDetailsAtten(cookies, regNo)
+	
+	if sem_choice == 0 { 
+		PrintSemDetails(regNo,cookies)
+		fmt.Print("\nEnter the index of the semester to view attendance: ")
+		fmt.Scanln(&choice)
+	}else {
+		choice = sem_choice
+	}
 
+	semDet := GetSemDetailsAtten(cookies, regNo)
 	if choice < 1 || choice > len(semDet.SemIds) {
 		fmt.Println("Invalid choice.")
 	} else {

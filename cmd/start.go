@@ -18,6 +18,7 @@ import (
 
 var cookies types.Cookies
 var userInfo types.LogIn
+var semesterFlag int
 
 func startfn(cmd *cobra.Command, args []string) {
 
@@ -142,6 +143,7 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
+	rootCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	rootCmd.AddCommand(profileCmd)
 	rootCmd.AddCommand(marksCmd)
 	rootCmd.AddCommand(gradeCmd)
@@ -172,7 +174,7 @@ var marksCmd = &cobra.Command{
 	Short: "Show Marks Details of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.Marks(regNo, cookies, 0)
+		features.Marks(regNo, cookies, semesterFlag)
 	},
 }
 
@@ -181,7 +183,7 @@ var gradeCmd = &cobra.Command{
 	Short: "Show Grade Details of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.GetGrade(regNo, cookies, "")
+		features.GetGrade(regNo, cookies, "", semesterFlag)
 	},
 }
 
@@ -190,7 +192,7 @@ var attendanceCmd = &cobra.Command{
 	Short: "Show Attendance Details of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.GetAttendance(regNo, cookies, "")
+		features.GetAttendance(regNo, cookies, "", semesterFlag)
 	},
 }
 
@@ -208,7 +210,7 @@ var timeTableCmd = &cobra.Command{
 	Short: "Show Time Table of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.GetTimeTable(regNo, cookies, "")
+		features.GetTimeTable(regNo, cookies, "", semesterFlag)
 	},
 }
 
@@ -220,6 +222,7 @@ var hostelCmd = &cobra.Command{
 		features.PrintHostelInfo(regNo, cookies, "")
 	},
 }
+
 var cgpaCmd = &cobra.Command{
 	Use:   "cgpa",
 	Short: "Show CGPA details",
@@ -234,6 +237,6 @@ var examScheduleCmd = &cobra.Command{
 	Short: "Show Exam Schedule",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.GetExamSchedule(regNo, cookies, "")
+		features.GetExamSchedule(regNo, cookies, "", semesterFlag)
 	},
 }
