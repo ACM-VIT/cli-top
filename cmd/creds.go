@@ -31,7 +31,7 @@ var credCmd = &cobra.Command{
 		viper.Set("PASSWORD", "\""+encryptedPassword+"\"")
 		viper.Set("KEY", "\""+key+"\"")
 
-		if err := viper.WriteConfigAs("vtop.env"); err != nil {
+		if err := viper.WriteConfigAs("vtop-config.env"); err != nil {
 			fmt.Println("Error writing to .env file:", err)
 			return
 		}
@@ -52,7 +52,7 @@ func init() {
 	credCmd.Flags().StringP("password", "p", "", "Enter VTOP password")
 	credCmd.Flags().StringP("regno", "r", "", "Enter VIT registration number")
 	viper.SetConfigType("env")
-	viper.SetConfigFile("vtop.env")
+	viper.SetConfigFile("vtop-config.env")
 	viper.ReadInConfig()
 	rootCmd.AddCommand(credCmd)
 }
