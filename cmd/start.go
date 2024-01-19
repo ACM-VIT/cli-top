@@ -2,12 +2,11 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
-	"path/filepath"
 	"vtop-cli/features"
 	"vtop-cli/login"
+	"vtop-cli/logo"
 	"vtop-cli/types"
 
 	"github.com/fatih/color"
@@ -21,59 +20,15 @@ var userInfo types.LogIn
 var semesterFlag int
 
 func startfn(cmd *cobra.Command, args []string) {
-
 	red := color.New(color.FgRed)
-	blue := color.New(color.FgBlue)
-	filePath := "logo.txt"
-
-	content, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	contentStr := string(content)
-	ctlen := len(contentStr)
-	mid := (ctlen / 2)
-
-	fhlf := contentStr[:mid]
-	sndhlf := contentStr[mid:]
-
-	red.Print(fhlf)
-	blue.Println(sndhlf)
+	
+	// Call the function to print the logo directly from the logo package
+	logo.PrintLogo()
+ 
 	red.Println("Welcome to VTOP-CLI!")
-	red.Println("refer to help by typing --help for help or --list for available commands")
-	fileName := "vtop-config.env"
-
-	// Get the current working directory
-	currentDir, err := os.Getwd()
-	if err != nil {
-		fmt.Println("Error getting current directory:", err)
-		return
-	}
-
-	// Construct the full path to the file
-	filePath = filepath.Join(currentDir, fileName)
-	fmt.Println(filePath)
-
-	// Check if the file exists
-	if _, err := os.Stat(filePath); err == nil {
-		fmt.Println("File exists:", filePath)
-		err := godotenv.Load("vtop-config.env")
-		if err != nil {
-			log.Fatal("Error loading .env file")
-		}
-		fmt.Println(os.Getenv("PASSWORD"))
-		if os.Getenv("VTOP_USERNAME") != "" && os.Getenv("PASSWORD") != "" {
-			vtop_login()
-		}
-	} else if os.IsNotExist(err) {
-		fmt.Println("File does not exist:", filePath)
-		fmt.Println("Please login using the \"login\" command")
-	} else {
-		fmt.Println("Error checking file existence:", err)
-	}
-}
-
+	red.Println("Refer to help by typing --help for help or --list for available commands")
+ }
+ 
 func vtop_login() (types.Cookies, string) {
 	err := godotenv.Load("vtop-config.env")
 	if err != nil {
