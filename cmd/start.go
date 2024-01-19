@@ -18,6 +18,7 @@ import (
 
 var cookies types.Cookies
 var userInfo types.LogIn
+var semesterFlag int
 
 func startfn(cmd *cobra.Command, args []string) {
 
@@ -41,7 +42,7 @@ func startfn(cmd *cobra.Command, args []string) {
 	blue.Println(sndhlf)
 	red.Println("Welcome to VTOP-CLI!")
 	red.Println("refer to help by typing --help for help or --list for available commands")
-	fileName := ".env"
+	fileName := "vtop-config.env"
 
 	// Get the current working directory
 	currentDir, err := os.Getwd()
@@ -57,7 +58,7 @@ func startfn(cmd *cobra.Command, args []string) {
 	// Check if the file exists
 	if _, err := os.Stat(filePath); err == nil {
 		fmt.Println("File exists:", filePath)
-		err := godotenv.Load()
+		err := godotenv.Load("vtop-config.env")
 		if err != nil {
 			log.Fatal("Error loading .env file")
 		}
@@ -74,7 +75,7 @@ func startfn(cmd *cobra.Command, args []string) {
 }
 
 func vtop_login() (types.Cookies, string) {
-	err := godotenv.Load()
+	err := godotenv.Load("vtop-config.env")
 	if err != nil {
 		log.Fatal("Error loading .env file, please enter your credentials using the \"login\" command.")
 	}
@@ -111,14 +112,14 @@ func saveCookiesToFile(cookies types.Cookies, userInfo types.LogIn, Key string) 
 	viper.Set("VTOP_USERNAME", "\""+userInfo.Username+"\"")
 	viper.Set("PASSWORD", "\""+userInfo.Password+"\"")
 	viper.Set("KEY", "\""+Key+"\"")
-	if err := viper.WriteConfigAs(".env"); err != nil {
+	if err := viper.WriteConfigAs("vtop-config.env"); err != nil {
 		fmt.Println("Error writing to .env file:", err)
 	}
 	return
 }
 
 func readCookiesFromFile() (types.Cookies, string) {
-	err := godotenv.Load()
+	err := godotenv.Load("vtop-config.env")
 	if err != nil {
 		log.Fatal("Error loading .env file, please enter your credentials using the \"login\" command.")
 	}
@@ -142,6 +143,7 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
+	rootCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	rootCmd.AddCommand(profileCmd)
 	rootCmd.AddCommand(marksCmd)
 	rootCmd.AddCommand(gradeCmd)
@@ -150,6 +152,7 @@ func Execute() {
 	rootCmd.AddCommand(receiptCmd)
 	rootCmd.AddCommand(hostelCmd)
 	rootCmd.AddCommand(cgpaCmd)
+	rootCmd.AddCommand(examScheduleCmd)
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
@@ -171,7 +174,7 @@ var marksCmd = &cobra.Command{
 	Short: "Show Marks Details of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.Marks(regNo, cookies, 0)
+		features.Marks(regNo, cookies, semesterFlag)
 	},
 }
 
@@ -180,7 +183,7 @@ var gradeCmd = &cobra.Command{
 	Short: "Show Grade Details of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.GetGrade(regNo, cookies, "")
+		features.GetGrade(regNo, cookies, "", semesterFlag)
 	},
 }
 
@@ -189,12 +192,9 @@ var attendanceCmd = &cobra.Command{
 	Short: "Show Attendance Details of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.GetAttendance(regNo, cookies, "")
+		features.GetAttendance(regNo, cookies, "", semesterFlag)
 	},
 }
-
-
-
 
 var receiptCmd = &cobra.Command{
 	Use:   "receipt",
@@ -210,10 +210,9 @@ var timeTableCmd = &cobra.Command{
 	Short: "Show Time Table of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.GetTimeTable(regNo, cookies, "")
+		features.GetTimeTable(regNo, cookies, "", semesterFlag)
 	},
 }
-
 
 var hostelCmd = &cobra.Command{
 	Use:   "hostel",
@@ -223,11 +222,21 @@ var hostelCmd = &cobra.Command{
 		features.PrintHostelInfo(regNo, cookies, "")
 	},
 }
+
 var cgpaCmd = &cobra.Command{
 	Use:   "cgpa",
 	Short: "Show CGPA details",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.PrintCgpa(regNo, cookies,"")
+		features.PrintCgpa(regNo, cookies, "")
+	},
+}
+
+var examScheduleCmd = &cobra.Command{
+	Use:   "examSchedule",
+	Short: "Show Exam Schedule",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetExamSchedule(regNo, cookies, "", semesterFlag)
 	},
 }

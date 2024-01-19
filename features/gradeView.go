@@ -1,31 +1,19 @@
 package features
 
 import (
-	//"VTOP-CLI/types"
-	//"bytes"
 	"fmt"
-	//"io"
 	"log"
-	//"math"
-	//"net/http"
-	//"strconv"
 	"strings"
-	//"time"
 	types "vtop-cli/types"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/charmbracelet/glamour"
-	//"golang.org/x/net/html"
 )
 
-
-
-func GetGrade(regNo string, cookies types.Cookies, semId string) {
-
+func GetGrade(regNo string, cookies types.Cookies, semId string, sem_choice int) {
 	url := "https://vtop.vit.ac.in/vtop/examinations/examGradeView/doStudentGradeView"
 
-	sel_id := Grade(regNo, cookies, 0)
-	//fmt.Println(sel_id)
+	sel_id := Grade(regNo, cookies, sem_choice)
 	bodyText, err := fetchReq2(regNo, cookies, url, sel_id)
 	if err != nil {
 		log.Fatal(err)
@@ -42,13 +30,17 @@ func GetGrade(regNo string, cookies types.Cookies, semId string) {
 }
 
 func Grade(regNo string, cookies types.Cookies, sem_choice int) string {
-	PrintSemDetails(regNo,cookies)
 	selectedSemId := ""
 	selectedSemName := ""
-
+	
 	var choice int
-	fmt.Print("\nEnter the index of the semester to view grade: ")
-	fmt.Scanln(&choice)
+	if sem_choice == 0 { 
+		PrintSemDetails(regNo,cookies)
+		fmt.Print("\nEnter the index of the semester to view grade: ")
+		fmt.Scanln(&choice)
+	}else {
+		choice = sem_choice
+	}
 	semDet := GetSemDetailsAtten(cookies, regNo)
 
 	if choice < 1 || choice > len(semDet.SemIds) {

@@ -75,7 +75,6 @@ func GetSemDetails(cookies types.Cookies, regNo string) SemesterDetails {
 		SemNames: SemNames,
 		SemIds:   SemIds,
 	}
-
 }
 
 func PrintSemDetails(regNo string, cookies types.Cookies) {
