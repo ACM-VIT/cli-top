@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
+	// "io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -24,14 +24,15 @@ func startfn(cmd *cobra.Command, args []string) {
 
 	red := color.New(color.FgRed)
 	blue := color.New(color.FgBlue)
-	filePath := "logo.txt"
+	// filePath := "logo.txt"
 
-	content, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// content, err := ioutil.ReadFile(filePath)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	contentStr := string(content)
+	// contentStr := string(content)
+	contentStr := logo()
 	ctlen := len(contentStr)
 	mid := (ctlen / 2)
 
@@ -52,7 +53,7 @@ func startfn(cmd *cobra.Command, args []string) {
 	}
 
 	// Construct the full path to the file
-	filePath = filepath.Join(currentDir, fileName)
+	filePath := filepath.Join(currentDir, fileName)
 	fmt.Println(filePath)
 
 	// Check if the file exists
