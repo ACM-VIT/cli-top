@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 	"vtop-cli/features"
+	"vtop-cli/helpers"
 	"vtop-cli/login"
-	"vtop-cli/logo"
 	"vtop-cli/types"
 
 	"github.com/fatih/color"
@@ -23,7 +23,7 @@ func startfn(cmd *cobra.Command, args []string) {
 	red := color.New(color.FgRed)
 	
 	// Call the function to print the logo directly from the logo package
-	logo.PrintLogo()
+	helpers.PrintLogo()
  
 	red.Println("Welcome to VTOP-CLI!")
 	red.Println("Refer to help by typing --help for help or --list for available commands")
