@@ -112,7 +112,7 @@ func findAndSaveGrade(doc *goquery.Document) {
 	fmt.Println(markdownTable.String())
 	doc.Find("span[style='font-size: 18px; font-weight: bold;']").Each(func(i int, s *goquery.Selection) {
 		gpa := s.Text()
-		fmt.Println("\x1b[32;1mGreen\x1b[0m : Course not included in GPA/CGPA\n")
+		fmt.Println("\x1b[32;1mCourse not included in GPA/CGPA\x1b[0m\n")
 		fmt.Println(gpa)
 	})
 }
