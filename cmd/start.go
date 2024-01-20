@@ -43,7 +43,7 @@ func startfn(cmd *cobra.Command, args []string) {
 	blue.Println(sndhlf)
 	red.Println("Welcome to CLI-TOP!")
 	red.Println("refer to help by typing --help for help or --list for available commands")
-	fileName := "vtop-config.env"
+	fileName := "cli-top-config.env"
 
 	// Get the current working directory
 	currentDir, err := os.Getwd()
@@ -59,7 +59,7 @@ func startfn(cmd *cobra.Command, args []string) {
 	// Check if the file exists
 	if _, err := os.Stat(filePath); err == nil {
 		fmt.Println("File exists:", filePath)
-		err := godotenv.Load("vtop-config.env")
+		err := godotenv.Load("cli-top-config.env")
 		if err != nil {
 			log.Fatal("Error loading .env file")
 		}
@@ -76,7 +76,7 @@ func startfn(cmd *cobra.Command, args []string) {
 }
 
 func vtop_login() (types.Cookies, string) {
-	err := godotenv.Load("vtop-config.env")
+	err := godotenv.Load("cli-top-config.env")
 	if err != nil {
 		log.Fatal("Error loading .env file, please enter your credentials using the \"login\" command.")
 	}
@@ -113,14 +113,14 @@ func saveCookiesToFile(cookies types.Cookies, userInfo types.LogIn, Key string) 
 	viper.Set("VTOP_USERNAME", "\""+userInfo.Username+"\"")
 	viper.Set("PASSWORD", "\""+userInfo.Password+"\"")
 	viper.Set("KEY", "\""+Key+"\"")
-	if err := viper.WriteConfigAs("vtop-config.env"); err != nil {
+	if err := viper.WriteConfigAs("cli-top-config.env"); err != nil {
 		fmt.Println("Error writing to .env file:", err)
 	}
 	return
 }
 
 func readCookiesFromFile() (types.Cookies, string) {
-	err := godotenv.Load("vtop-config.env")
+	err := godotenv.Load("cli-top-config.env")
 	if err != nil {
 		log.Fatal("Error loading .env file, please enter your credentials using the \"login\" command.")
 	}
