@@ -1,7 +1,6 @@
 package helpers
 
 import (
-	"cli-top/debug"
 	"cli-top/types"
 	"fmt"
 	"io"
