@@ -60,14 +60,12 @@ func startfn(cmd *cobra.Command, args []string) {
 	if debug.Debug {
 		fmt.Println(filePath)
 	}
-	// broken
 
 	// Check if the file exists
 	if _, err := os.Stat(filePath); err == nil {
 		if debug.Debug {
 			fmt.Println("File exists:", filePath)
 		}
-		// broken
 
 		err := godotenv.Load("cli-top-config.env")
 		if err != nil {
@@ -76,7 +74,6 @@ func startfn(cmd *cobra.Command, args []string) {
 		if debug.Debug {
 			fmt.Println(os.Getenv("PASSWORD"))
 		}
-		// broken
 
 		if os.Getenv("VTOP_USERNAME") != "" && os.Getenv("PASSWORD") != "" {
 			vtop_login()
@@ -113,7 +110,6 @@ func vtop_login() (types.Cookies, string) {
 	if debug.Debug {
 		fmt.Println(userInfo.RegNo)
 	}
-	// broken
 
 	saveCookiesToFile(cookies, userInfo, key)
 	if err != nil {
@@ -122,7 +118,6 @@ func vtop_login() (types.Cookies, string) {
 	if debug.Debug {
 		fmt.Println("(Main) VTOP Cookies", cookies)
 	}
-	// broken
 
 	return cookies, userInfo.RegNo
 }
@@ -156,12 +151,6 @@ func readCookiesFromFile() (types.Cookies, string) {
 		cookies, regNo = vtop_login()
 	}
 
-	if debugFlag {
-		debug.Debug = true
-		fmt.Println("Debug mode on")
-	}
-	// broken
-
 	return cookies, regNo
 }
 
@@ -170,13 +159,19 @@ var rootCmd = &cobra.Command{
 	Short: "A simple CLI tool for vtop",
 
 	Run: func(cmd *cobra.Command, args []string) {
+
+		if debugFlag {
+			debug.Debug = true
+			fmt.Println("Debug mode on")
+		}
+
 		startfn(cmd, args)
 	},
 }
 
 func Execute() {
 	rootCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
-	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", true, "Print Debug Messages")
+	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
 	rootCmd.AddCommand(profileCmd)
 	rootCmd.AddCommand(marksCmd)
 	rootCmd.AddCommand(gradeCmd)

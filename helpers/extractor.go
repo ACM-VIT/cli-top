@@ -103,7 +103,6 @@ func ExtractCSRF(bodyString string) string {
 	if debug.Debug {
 		fmt.Println("(Helper - ExtractCSRF):", csrf)
 	}
-	// broken
 
 	return csrf
 }
@@ -125,7 +124,6 @@ func ExtractCSRF2(bodyString string) string {
 	if debug.Debug {
 		fmt.Println("(Helper - ExtractCSRF2):", csrf)
 	}
-	// broken
 
 	return csrf
 }

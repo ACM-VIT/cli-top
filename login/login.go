@@ -136,7 +136,6 @@ func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
 	if debug.Debug {
 		fmt.Println("(Helper - ExtractRegNo):", RegNo)
 	}
-	// broken
 
 	return vtopTokens, RegNo
 }
