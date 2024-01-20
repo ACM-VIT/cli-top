@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"cli-top/debug"
 	"cli-top/types"
 	"fmt"
 	"io"
@@ -20,7 +21,9 @@ func extractImageSrc(html string) (string, error) {
 
 	src := doc.Find("#captchaBlock img").AttrOr("src", "")
 	if src == "" {
-		fmt.Println("No captcha image found, retrying...")
+		if debug.Debug {
+			fmt.Println("No captcha image found, retrying...")
+		}
 		return "nocaptcha", nil
 	}
 
@@ -99,7 +102,9 @@ func ExtractCSRF(bodyString string) string {
 		}
 	}
 
-	fmt.Println("(Helper - ExtractCSRF):", csrf)
+	if debug.Debug {
+		fmt.Println("(Helper - ExtractCSRF):", csrf)
+	}
 
 	return csrf
 }
@@ -118,7 +123,9 @@ func ExtractCSRF2(bodyString string) string {
 		csrf = csrfValue
 	}
 
-	fmt.Println("(Helper - ExtractCSRF2):", csrf)
+	if debug.Debug {
+		fmt.Println("(Helper - ExtractCSRF2):", csrf)
+	}
 
 	return csrf
 }
