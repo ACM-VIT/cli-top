@@ -120,7 +120,9 @@ func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
 
 	bodyText := helpers.ExtractBodyText(resp)
 	if strings.Contains(string(bodyText), "Session Timed Out") {
-		fmt.Println("Session Timed Out, login failed.")
+		if debug.Debug {
+			fmt.Println("Session Timed Out, login failed.")
+		}
 		return vtopTokens, ""
 	}
 
