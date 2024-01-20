@@ -58,7 +58,7 @@ func fetchReq2(regNo string, cookies types.Cookies, url string, semID string) ([
 
 	// Create a new HTTP request
 
-	payload := fmt.Sprintf("authorizedID=%s&_csrf=%s&semesterSubId=%s&x=%s", regNo, cookies.CSRF, semID, time.Now().UTC().Format(time.RFC1123)) //fmt.Println(payload)
+	payload := fmt.Sprintf("authorizedID=%s&_csrf=%s&semesterSubId=%s&x=%s", regNo, cookies.CSRF, semID, time.Now().UTC().Format(time.RFC1123)) 
 	//fmt.Println(payload)
 	// Create a new request with POST method and payload
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(payload)))
