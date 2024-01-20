@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"cli-top/debug"
 	"cli-top/types"
 	"fmt"
 	"io"
@@ -99,7 +100,10 @@ func ExtractCSRF(bodyString string) string {
 		}
 	}
 
-	fmt.Println("(Helper - ExtractCSRF):", csrf)
+	if debug.Debug {
+		fmt.Println("(Helper - ExtractCSRF):", csrf)
+	}
+	// broken
 
 	return csrf
 }
@@ -118,7 +122,10 @@ func ExtractCSRF2(bodyString string) string {
 		csrf = csrfValue
 	}
 
-	fmt.Println("(Helper - ExtractCSRF2):", csrf)
+	if debug.Debug {
+		fmt.Println("(Helper - ExtractCSRF2):", csrf)
+	}
+	// broken
 
 	return csrf
 }
