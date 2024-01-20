@@ -1,14 +1,14 @@
 package login
 
 import (
+	"cli-top/helpers"
+	types "cli-top/types"
 	"crypto/tls"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"strings"
-	"vtop-cli/helpers"
-	types "vtop-cli/types"
 )
 
 func performLogin(userInfo types.LogIn, cookies types.Cookies, captcha string) types.Cookies {
@@ -85,7 +85,7 @@ func Login(regNo string, password string) types.Cookies {
 	return vtopTokens
 }
 
-func HomePage(vtopTokens types.Cookies) (types.Cookies , string)  {
+func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -120,11 +120,11 @@ func HomePage(vtopTokens types.Cookies) (types.Cookies , string)  {
 	bodyText := helpers.ExtractBodyText(resp)
 	if strings.Contains(string(bodyText), "Session Timed Out") {
 		fmt.Println("Session Timed Out, login failed.")
-		return vtopTokens,""
+		return vtopTokens, ""
 	}
 
 	vtopTokens.CSRF = helpers.ExtractCSRF2(bodyText)
-	
+
 	RegNo, err := helpers.ExtractRegNo(bodyText)
 	if err != nil {
 		// Handle the error
@@ -136,5 +136,5 @@ func HomePage(vtopTokens types.Cookies) (types.Cookies , string)  {
 		// Continue with your code using the extracted ID
 	}
 
-	return vtopTokens,RegNo
+	return vtopTokens, RegNo
 }

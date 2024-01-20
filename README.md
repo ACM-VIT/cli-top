@@ -1,6 +1,6 @@
 ![ACM-HEADER](https://user-images.githubusercontent.com/14032427/92643737-e6252e00-f2ff-11ea-8a51-1f1b69caba9f.png)
 
-<h1 align="center"> VTOP-CLI </h1>
+<h1 align="center"> cli-top </h1>
 
 <p align="center"> 
 A Command Line Interface (CLI) tool for seamless interaction with the student portal, VTOP.

@@ -17,4 +17,4 @@ output_image.jpg
 *.env
 
 # Ignore Binary
-vtop-cli
+cli-top

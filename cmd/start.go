@@ -2,13 +2,13 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
+	// "io/ioutil"
+	"cli-top/features"
+	"cli-top/login"
+	"cli-top/types"
 	"log"
 	"os"
 	"path/filepath"
-	"vtop-cli/features"
-	"vtop-cli/login"
-	"vtop-cli/types"
 
 	"github.com/fatih/color"
 	"github.com/lpernett/godotenv"
@@ -24,14 +24,15 @@ func startfn(cmd *cobra.Command, args []string) {
 
 	red := color.New(color.FgRed)
 	blue := color.New(color.FgBlue)
-	filePath := "logo.txt"
+	// filePath := "logo.txt"
 
-	content, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// content, err := ioutil.ReadFile(filePath)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	contentStr := string(content)
+	// contentStr := string(content)
+	contentStr := logo()
 	ctlen := len(contentStr)
 	mid := (ctlen / 2)
 
@@ -40,7 +41,7 @@ func startfn(cmd *cobra.Command, args []string) {
 
 	red.Print(fhlf)
 	blue.Println(sndhlf)
-	red.Println("Welcome to VTOP-CLI!")
+	red.Println("Welcome to CLI-TOP!")
 	red.Println("refer to help by typing --help for help or --list for available commands")
 	fileName := "vtop-config.env"
 
@@ -52,7 +53,7 @@ func startfn(cmd *cobra.Command, args []string) {
 	}
 
 	// Construct the full path to the file
-	filePath = filepath.Join(currentDir, fileName)
+	filePath := filepath.Join(currentDir, fileName)
 	fmt.Println(filePath)
 
 	// Check if the file exists
@@ -136,7 +137,7 @@ func readCookiesFromFile() (types.Cookies, string) {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "vtop-cli",
+	Use:   "cli-top",
 	Short: "A simple CLI tool for vtop",
 
 	Run: startfn,
@@ -197,7 +198,7 @@ var attendanceCmd = &cobra.Command{
 }
 
 var receiptCmd = &cobra.Command{
-	Use:   "receipt",
+	Use:   "receipts",
 	Short: "Show Receipt Details of a user",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
@@ -233,7 +234,7 @@ var cgpaCmd = &cobra.Command{
 }
 
 var examScheduleCmd = &cobra.Command{
-	Use:   "examSchedule",
+	Use:   "exams",
 	Short: "Show Exam Schedule",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()

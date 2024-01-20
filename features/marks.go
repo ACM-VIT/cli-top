@@ -4,11 +4,11 @@ package features
 
 import (
 	"bytes"
+	types "cli-top/types"
 	"fmt"
 	"log"
 	"strconv"
 	"strings"
-	types "vtop-cli/types"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/charmbracelet/glamour"

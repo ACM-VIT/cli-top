@@ -1,13 +1,13 @@
 package helpers
 
 import (
+	"cli-top/types"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"regexp"
 	"strings"
-	"vtop-cli/types"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -50,7 +50,9 @@ func ExtractCookies(resp *http.Response) types.Cookies {
 		secrets[cookie.Name] = cookie.Value
 	}
 
-	fmt.Println("(Helper - ExtractCookies):", secrets)
+	if Debug {
+		fmt.Println("(Helper - ExtractCookies):", secrets)
+	}
 
 	cookies := types.Cookies{
 		SERVERID:   secrets["SERVERID"],
