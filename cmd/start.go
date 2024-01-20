@@ -198,7 +198,7 @@ var attendanceCmd = &cobra.Command{
 }
 
 var receiptCmd = &cobra.Command{
-	Use:   "receipt",
+	Use:   "receipts",
 	Short: "Show Receipt Details of a user",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
@@ -234,7 +234,7 @@ var cgpaCmd = &cobra.Command{
 }
 
 var examScheduleCmd = &cobra.Command{
-	Use:   "examSchedule",
+	Use:   "exams",
 	Short: "Show Exam Schedule",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
