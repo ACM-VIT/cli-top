@@ -1,11 +1,11 @@
 package helpers
 
 import (
+	"cli-top/ac"
+	"cli-top/types"
 	"fmt"
 	"log"
 	"strings"
-	"vtop-cli/ac"
-	"vtop-cli/types"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/charmbracelet/glamour"

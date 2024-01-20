@@ -1,12 +1,12 @@
 package features
 
 import (
+	types "cli-top/types"
 	"fmt"
 	"log"
 	"sort"
 	"strconv"
 	"strings"
-	types "vtop-cli/types"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/charmbracelet/glamour"

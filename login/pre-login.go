@@ -1,14 +1,14 @@
 package login
 
 import (
+	"cli-top/helpers"
+	types "cli-top/types"
 	"crypto/tls"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"strings"
-	"vtop-cli/helpers"
-	types "vtop-cli/types"
 )
 
 func getSessionServer() types.Cookies {

@@ -9,18 +9,16 @@ import (
 	// "net/url"
 	"strings"
 	// "time"
-	"vtop-cli/helpers"
-	"vtop-cli/types"
+	"cli-top/helpers"
+	"cli-top/types"
 	// "github.com/charmbracelet/glamour"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/olekukonko/tablewriter"
 	// "golang.org/x/net/html"
 )
 
-
-
 func PrintCgpa(regNo string, cookies types.Cookies, url string) {
-	body, err := helpers.FetchReq(regNo, cookies, "https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeHistory","")
+	body, err := helpers.FetchReq(regNo, cookies, "https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeHistory", "")
 	if err != nil {
 		log.Fatal("Error fetching CGPA data:", err)
 		return

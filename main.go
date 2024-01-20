@@ -3,11 +3,11 @@
 package main
 
 import (
-	// features "vtop-cli/features"
+	// features "cli-top/features"
 
-	// "vtop-cli/features"
+	// "cli-top/features"
 
-	"vtop-cli/cmd"
+	"cli-top/cmd"
 )
 
 func main() {

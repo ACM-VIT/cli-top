@@ -2,13 +2,13 @@ package features
 
 import (
 	"bytes"
+	"cli-top/types"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"strings"
 	"time"
-	"vtop-cli/types"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/charmbracelet/glamour"

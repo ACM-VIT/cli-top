@@ -2,6 +2,7 @@ package ac
 
 import (
 	"bytes"
+	"cli-top/types"
 	"fmt"
 	"io"
 	"log"
@@ -10,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"vtop-cli/types"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/charmbracelet/glamour"
@@ -58,7 +58,7 @@ func fetchReq2(regNo string, cookies types.Cookies, url string, semID string) ([
 
 	// Create a new HTTP request
 
-	payload := fmt.Sprintf("authorizedID=%s&_csrf=%s&semesterSubId=%s&x=%s", regNo, cookies.CSRF, semID, time.Now().UTC().Format(time.RFC1123)) 
+	payload := fmt.Sprintf("authorizedID=%s&_csrf=%s&semesterSubId=%s&x=%s", regNo, cookies.CSRF, semID, time.Now().UTC().Format(time.RFC1123))
 	//fmt.Println(payload)
 	// Create a new request with POST method and payload
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(payload)))

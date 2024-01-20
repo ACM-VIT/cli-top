@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"bytes"
+	"cli-top/types"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -9,7 +10,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-	"vtop-cli/types"
 )
 
 func GetRequest(params types.Request) *http.Response {

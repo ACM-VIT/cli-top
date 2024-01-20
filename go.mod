@@ -1,4 +1,4 @@
-module vtop-cli
+module cli-top
 
 go 1.21
 
