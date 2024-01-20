@@ -19,6 +19,7 @@ import (
 var cookies types.Cookies
 var userInfo types.LogIn
 var semesterFlag int
+var debugFlag bool
 
 func startfn(cmd *cobra.Command, args []string) {
 
@@ -133,6 +134,13 @@ func readCookiesFromFile() (types.Cookies, string) {
 	if regNo == "" {
 		cookies, regNo = vtop_login()
 	}
+
+	// if debugFlag {
+	// 	debug.Debug = true
+	// 	fmt.Println("Debug mode on")
+	// }
+	// broken
+
 	return cookies, regNo
 }
 
@@ -140,11 +148,14 @@ var rootCmd = &cobra.Command{
 	Use:   "cli-top",
 	Short: "A simple CLI tool for vtop",
 
-	Run: startfn,
+	Run: func(cmd *cobra.Command, args []string) {
+		startfn(cmd, args)
+	},
 }
 
 func Execute() {
 	rootCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", true, "Print Debug Messages")
 	rootCmd.AddCommand(profileCmd)
 	rootCmd.AddCommand(marksCmd)
 	rootCmd.AddCommand(gradeCmd)
