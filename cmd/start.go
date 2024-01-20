@@ -174,7 +174,7 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
 	rootCmd.AddCommand(profileCmd)
 	rootCmd.AddCommand(marksCmd)
-	rootCmd.AddCommand(gradeCmd)
+	rootCmd.AddCommand(gradesCmd)
 	rootCmd.AddCommand(attendanceCmd)
 	rootCmd.AddCommand(timeTableCmd)
 	rootCmd.AddCommand(receiptCmd)
@@ -206,12 +206,12 @@ var marksCmd = &cobra.Command{
 	},
 }
 
-var gradeCmd = &cobra.Command{
-	Use:   "grade",
+var gradesCmd = &cobra.Command{
+	Use:   "grades",
 	Short: "Show Grade Details of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.GetGrade(regNo, cookies, "", semesterFlag)
+		features.GetGrades(regNo, cookies, "", semesterFlag)
 	},
 }
 
