@@ -78,13 +78,8 @@ func Timetable(regNo string, cookies types.Cookies, sem_choice int) string {
 
 }
 
-type KeyStruct struct {
-	Group int
-	Time  string
-}
-
-func parsePythonDict(schedule string) map[KeyStruct][]string {
-	pythonDict := make(map[KeyStruct][]string)
+func parsePythonDict(schedule string) map[types.KeyStruct][]string {
+	pythonDict := make(map[types.KeyStruct][]string)
 
 	// Removing unnecessary characters and splitting the schedule string
 	schedule = strings.ReplaceAll(schedule, "{", "")
@@ -112,7 +107,7 @@ func parsePythonDict(schedule string) map[KeyStruct][]string {
 		fmt.Sscanf(keyPart, "(%d, '%s')", &group, &time)
 
 		// Creating KeyStruct
-		key := KeyStruct{Group: group, Time: strings.TrimSuffix(time, "')")}
+		key := types.KeyStruct{Group: group, Time: strings.TrimSuffix(time, "')")}
 
 		// Extracting values and populating pythonDict
 		values := strings.Split(strings.Trim(valuePart, "[]"), ", ")
@@ -128,7 +123,7 @@ func parsePythonDict(schedule string) map[KeyStruct][]string {
 	return pythonDict
 }
 
-func checkTime(goMap map[int][][]string, pythonDict map[KeyStruct][]string) {
+func checkTime(goMap map[int][][]string, pythonDict map[types.KeyStruct][]string) {
 
 	var sortedKeys []int
 	for key := range goMap {
