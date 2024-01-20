@@ -130,11 +130,12 @@ func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
 		// Handle the error
 		fmt.Println("Error:", err)
 		// You might want to return or log the error, or take other appropriate actions
-	} else {
-		// Use the result string
-		fmt.Println("(Helper - ExtractRegNo):", RegNo)
-		// Continue with your code using the extracted ID
-	}
+	} 
+
+	// Use the result string
+	// fmt.Println("(Helper - ExtractRegNo):", RegNo)
+	// Continue with your code using the extracted ID
+	
 
 	return vtopTokens, RegNo
 }
