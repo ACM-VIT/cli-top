@@ -10,7 +10,7 @@ import (
 	"github.com/charmbracelet/glamour"
 )
 
-func GetGrade(regNo string, cookies types.Cookies, semId string, sem_choice int) {
+func GetGrades(regNo string, cookies types.Cookies, semId string, sem_choice int) {
 	url := "https://vtop.vit.ac.in/vtop/examinations/examGradeView/doStudentGradeView"
 
 	sel_id := Grade(regNo, cookies, sem_choice)
