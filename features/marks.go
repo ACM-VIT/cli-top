@@ -297,9 +297,9 @@ func convertHTMLElementToMarkdown(element *goquery.Selection) (string, error) {
 }
 
 func printTable(title string, data [][]string, builder *strings.Builder) {
-	builder.WriteString(fmt.Sprintf("| %-5s | %-31s | %-7s | %-10s | %-7s | %-10s | %-13s |\n",
+	builder.WriteString(fmt.Sprintf("| %-5s | %-45s | %-7s | %-10s | %-7s | %-10s | %-13s |\n",
 		"Index", "Title", "MaxMark", "Weightage%", "Status", "ScoredMark", "WeightageMark"))
-	builder.WriteString("|-------|---------------------------------|---------|------------|---------|------------|---------------|\n")
+	builder.WriteString("|-------|---------------------------------------------|---------|------------|---------|------------|---------------|\n")
 }
 
 func printFormattedRow(row []string, builder *strings.Builder) {
@@ -314,7 +314,7 @@ func printFormattedRow(row []string, builder *strings.Builder) {
 
 	weightageSum += weightage
 	weightagePercentageSum += int(weightagePercentage)
-	builder.WriteString(fmt.Sprintf("| %-5s | %-31s | %-7s | %-10s | %-7s | %-10s | %-13s |\n",
+	builder.WriteString(fmt.Sprintf("| %-5s | %-45s | %-7s | %-10s | %-7s | %-10s | %-13s |\n",
 		row[0], row[1], row[2], row[3], row[4], row[5], row[6]))
 }
 

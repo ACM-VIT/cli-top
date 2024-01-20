@@ -44,8 +44,8 @@ func startfn(cmd *cobra.Command, args []string) {
 
 	red.Print(fhlf)
 	blue.Println(sndhlf)
-	red.Println("Welcome to CLI-TOP!")
-	red.Println("refer to help by typing --help for help or --list for available commands")
+	red.Println("Welcome to CLI-TOP!\n")
+	red.Println("Use \"cli-top help\" or \"cli-top --list\" to show available commands\nUse \"cli-top [command] --help\" for more information about a command.\n")
 	fileName := "cli-top-config.env"
 
 	// Get the current working directory
