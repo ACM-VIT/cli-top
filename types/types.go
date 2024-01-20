@@ -22,3 +22,8 @@ type SemesterDetails struct {
 	SemNames []string
 	SemIds   []string
 }
+
+type KeyStruct struct {
+	Group int
+	Time  string
+}

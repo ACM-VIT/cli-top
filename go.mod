@@ -1,8 +1,6 @@
-module vtop-cli
+module cli-top
 
 go 1.21
-
-toolchain go1.21.4
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.1

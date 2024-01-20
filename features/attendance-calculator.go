@@ -1,8 +1,9 @@
 package features
 
 import (
-	//"VTOP-CLI/types"
+	//"cli-top/types"
 	"bytes"
+	types "cli-top/types"
 	"fmt"
 	"io"
 	"log"
@@ -11,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	types "vtop-cli/types"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/charmbracelet/glamour"
@@ -215,7 +215,7 @@ func strToInt(str string) int {
 func Cal75(att int, tot int, perc int) string {
 	var ret string
 	if perc == 75 {
-		ret = fmt.Sprintf("\033[32m"+"Can skip 0 class"+"\033[0m"+"\t")
+		ret = fmt.Sprintf("\033[32m" + "Can skip 0 class" + "\033[0m" + "\t")
 	} else if perc < 75 {
 		for i := 1; i < att; i++ {
 			if math.Ceil((float64(att+i)/float64(tot+i))*100) <= 75 {
@@ -223,16 +223,15 @@ func Cal75(att int, tot int, perc int) string {
 			}
 		}
 	} else {
-		ret = fmt.Sprintf("\033[32m"+"Can skip 0 class"+"\033[0m"+"\t")
+		ret = fmt.Sprintf("\033[32m" + "Can skip 0 class" + "\033[0m" + "\t")
 		for i := 1; i < att; i++ {
 			if math.Ceil((float64(att)/float64(tot+i))*100) >= 75 {
 
 				ret = fmt.Sprintf("\033[32m"+"Can skip %d class"+"\033[0m"+"\t", i)
-				
+
 			}
-			
+
 		}
-		
 
 	}
 	return ret
@@ -242,12 +241,12 @@ func Attendance(regNo string, cookies types.Cookies, sem_choice int) string {
 	selectedSemId := ""
 	selectedSemName := ""
 	var choice int
-	
-	if sem_choice == 0 { 
-		PrintSemDetails(regNo,cookies)
+
+	if sem_choice == 0 {
+		PrintSemDetails(regNo, cookies)
 		fmt.Print("\nEnter the index of the semester to view attendance: ")
 		fmt.Scanln(&choice)
-	}else {
+	} else {
 		choice = sem_choice
 	}
 
