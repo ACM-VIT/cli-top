@@ -292,13 +292,13 @@ func generateExamScheduleMarkdownTable(examSchedule [][]string) string {
 			if len(row) >= 13 {
 				if row[0] == "1" {
 					title := examSchedule[0]
-					fmt.Printf("| %-5s | %-11s | %-45s | %-11s | %-11s | %-14s | %-19s | %-6s | %-7s | %-8s |\n", title[0], title[1][7:], title[2], title[5], title[6], title[8], title[9], title[10], title[11][:4], title[12])
-					fmt.Printf("|%-7s|%-13s|%-47s|%-13s|%-13s|%-16s|%-21s|%-8s|%-9s|%-10s|\n", strings.Repeat("-", 7),
+					fmt.Printf("| %-5s | %-11s | %-45s | %-11s | %-11s | %-14s | %-19s | %-7s | %-7s | %-8s |\n", title[0], title[1][7:], title[2], title[5], title[6], title[8], title[9], title[10], title[11][:4], title[12])
+					fmt.Printf("|%-7s|%-13s|%-47s|%-13s|%-13s|%-16s|%-21s|%-9s|%-9s|%-10s|\n", strings.Repeat("-", 7),
 						strings.Repeat("-", 13), strings.Repeat("-", 47), strings.Repeat("-", 13), strings.Repeat("-", 13), strings.Repeat("-", 16), strings.Repeat("-", 21),
-						strings.Repeat("-", 8), strings.Repeat("-", 9), strings.Repeat("-", 10))
+						strings.Repeat("-", 9), strings.Repeat("-", 9), strings.Repeat("-", 10))
 				}
 				// Table row
-				fmt.Printf("| %-5s | %-11s | %-45s | %-11s | %-11s | %-14s | %-19s | %-6s | %-7s | %-8s |\n", row[0], row[1], row[2], row[5], row[6], row[8], row[9], row[10], row[11], row[12])
+				fmt.Printf("| %-5s | %-11s | %-45s | %-11s | %-11s | %-14s | %-19s | %-7s | %-7s | %-8s |\n", row[0], row[1], row[2], row[5], row[6], row[8], row[9], row[10], row[11], row[12])
 			} else {
 				fmt.Println()
 				fmt.Println(row)
