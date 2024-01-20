@@ -156,10 +156,10 @@ func readCookiesFromFile() (types.Cookies, string) {
 		cookies, regNo = vtop_login()
 	}
 
-	// if debugFlag {
-	// 	debug.Debug = true
-	// 	fmt.Println("Debug mode on")
-	// }
+	if debugFlag {
+		debug.Debug = true
+		fmt.Println("Debug mode on")
+	}
 	// broken
 
 	return cookies, regNo
