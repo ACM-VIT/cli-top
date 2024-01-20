@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"cli-top/debug"
 	"cli-top/types"
 	"fmt"
 	"io"
@@ -50,9 +51,9 @@ func ExtractCookies(resp *http.Response) types.Cookies {
 		secrets[cookie.Name] = cookie.Value
 	}
 
-	if Debug {
-		fmt.Println("(Helper - ExtractCookies):", secrets)
-	}
+	// if debug.Debug {
+	// 	fmt.Println("(Helper - ExtractCookies):", secrets)
+	// }
 
 	cookies := types.Cookies{
 		SERVERID:   secrets["SERVERID"],
@@ -99,7 +100,9 @@ func ExtractCSRF(bodyString string) string {
 		}
 	}
 
-	fmt.Println("(Helper - ExtractCSRF):", csrf)
+	if debug.Debug {
+		fmt.Println("(Helper - ExtractCSRF):", csrf)
+	}
 
 	return csrf
 }
@@ -118,7 +121,9 @@ func ExtractCSRF2(bodyString string) string {
 		csrf = csrfValue
 	}
 
-	fmt.Println("(Helper - ExtractCSRF2):", csrf)
+	if debug.Debug {
+		fmt.Println("(Helper - ExtractCSRF2):", csrf)
+	}
 
 	return csrf
 }

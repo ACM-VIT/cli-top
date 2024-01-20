@@ -1,6 +1,7 @@
 package login
 
 import (
+	"cli-top/debug"
 	"cli-top/helpers"
 	types "cli-top/types"
 	"crypto/tls"
@@ -130,10 +131,10 @@ func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
 		// Handle the error
 		fmt.Println("Error:", err)
 		// You might want to return or log the error, or take other appropriate actions
-	} else {
-		// Use the result string
+	}
+
+	if debug.Debug {
 		fmt.Println("(Helper - ExtractRegNo):", RegNo)
-		// Continue with your code using the extracted ID
 	}
 
 	return vtopTokens, RegNo
