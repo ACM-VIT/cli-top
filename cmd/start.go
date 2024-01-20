@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"fmt"
+
 	// "io/ioutil"
+	"cli-top/debug"
 	"cli-top/features"
 	"cli-top/login"
 	"cli-top/types"
@@ -55,16 +57,27 @@ func startfn(cmd *cobra.Command, args []string) {
 
 	// Construct the full path to the file
 	filePath := filepath.Join(currentDir, fileName)
-	fmt.Println(filePath)
+	if debug.Debug {
+		fmt.Println(filePath)
+	}
+	// broken
 
 	// Check if the file exists
 	if _, err := os.Stat(filePath); err == nil {
-		fmt.Println("File exists:", filePath)
+		if debug.Debug {
+			fmt.Println("File exists:", filePath)
+		}
+		// broken
+
 		err := godotenv.Load("cli-top-config.env")
 		if err != nil {
 			log.Fatal("Error loading .env file")
 		}
-		fmt.Println(os.Getenv("PASSWORD"))
+		if debug.Debug {
+			fmt.Println(os.Getenv("PASSWORD"))
+		}
+		// broken
+
 		if os.Getenv("VTOP_USERNAME") != "" && os.Getenv("PASSWORD") != "" {
 			vtop_login()
 		}
@@ -97,12 +110,20 @@ func vtop_login() (types.Cookies, string) {
 	loginSecrets := login.Login(userInfo.Username, password)
 	cookies, tmp := login.HomePage(loginSecrets)
 	userInfo.RegNo = tmp
-	fmt.Println(userInfo.RegNo)
+	if debug.Debug {
+		fmt.Println(userInfo.RegNo)
+	}
+	// broken
+
 	saveCookiesToFile(cookies, userInfo, key)
 	if err != nil {
 		fmt.Println("Error saving cookies:", err)
 	}
-	fmt.Println("(Main) VTOP Cookies", cookies)
+	if debug.Debug {
+		fmt.Println("(Main) VTOP Cookies", cookies)
+	}
+	// broken
+
 	return cookies, userInfo.RegNo
 }
 

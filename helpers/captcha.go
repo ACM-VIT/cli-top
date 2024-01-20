@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"cli-top/debug"
 	"encoding/base64"
 	"fmt"
 	"image"
@@ -184,9 +185,10 @@ func SolveCaptcha(imageURL string) string {
 			maxIndex := argmax(result)
 			out += string(labelTxt[maxIndex])
 		}
-		// if debug.Debug {
-		// 	fmt.Println("(Helper - Captcha):", out)
-		// }
+
+		if debug.Debug {
+			fmt.Println("(Helper - Captcha):", out)
+		}
 		// broken
 
 		return out
