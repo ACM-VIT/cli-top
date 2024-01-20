@@ -50,7 +50,9 @@ func ExtractCookies(resp *http.Response) types.Cookies {
 		secrets[cookie.Name] = cookie.Value
 	}
 
-	fmt.Println("(Helper - ExtractCookies):", secrets)
+	if Debug {
+		fmt.Println("(Helper - ExtractCookies):", secrets)
+	}
 
 	cookies := types.Cookies{
 		SERVERID:   secrets["SERVERID"],
