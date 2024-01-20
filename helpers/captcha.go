@@ -184,7 +184,11 @@ func SolveCaptcha(imageURL string) string {
 			maxIndex := argmax(result)
 			out += string(labelTxt[maxIndex])
 		}
-		fmt.Println("(Helper - Captcha):", out)
+		// if debug.Debug {
+		// 	fmt.Println("(Helper - Captcha):", out)
+		// }
+		// broken
+
 		return out
 	} else {
 		log.Fatal("Unsupported URL scheme")
