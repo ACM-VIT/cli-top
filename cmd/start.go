@@ -41,7 +41,7 @@ func startfn(cmd *cobra.Command, args []string) {
 
 	red.Print(fhlf)
 	blue.Println(sndhlf)
-	red.Println("Welcome to VTOP-CLI!")
+	red.Println("Welcome to CLI-TOP!")
 	red.Println("refer to help by typing --help for help or --list for available commands")
 	fileName := "vtop-config.env"
 
@@ -137,7 +137,7 @@ func readCookiesFromFile() (types.Cookies, string) {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "vtop-cli",
+	Use:   "cli-top",
 	Short: "A simple CLI tool for vtop",
 
 	Run: startfn,
