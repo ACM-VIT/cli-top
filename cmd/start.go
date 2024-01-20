@@ -3,12 +3,12 @@ package cmd
 import (
 	"fmt"
 	// "io/ioutil"
+	"cli-top/features"
+	"cli-top/login"
+	"cli-top/types"
 	"log"
 	"os"
 	"path/filepath"
-	"vtop-cli/features"
-	"vtop-cli/login"
-	"vtop-cli/types"
 
 	"github.com/fatih/color"
 	"github.com/lpernett/godotenv"

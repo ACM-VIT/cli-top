@@ -10,17 +10,16 @@ import (
 	// "net/url"
 	"strings"
 	// "time"
-	"vtop-cli/types"
+	"cli-top/types"
 	// "github.com/charmbracelet/glamour"
-	"vtop-cli/helpers"
+	"cli-top/helpers"
 
 	"github.com/PuerkitoBio/goquery"
 	// "golang.org/x/net/html"
 )
 
-
 func PrintHostelInfo(regNo string, cookies types.Cookies, url string) {
-	body, err := helpers.FetchReq(regNo, cookies,  "https://vtop.vit.ac.in/vtop/studentsRecord/StudentProfileAllView","")
+	body, err := helpers.FetchReq(regNo, cookies, "https://vtop.vit.ac.in/vtop/studentsRecord/StudentProfileAllView", "")
 	if err != nil {
 		log.Fatal("Error fetching HTML:", err)
 		return

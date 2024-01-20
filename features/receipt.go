@@ -2,11 +2,11 @@ package features
 
 import (
 	"bytes"
+	"cli-top/types"
 	"log"
 	"os"
 	"strconv"
 	"strings"
-	"vtop-cli/types"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/olekukonko/tablewriter"

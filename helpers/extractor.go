@@ -1,13 +1,13 @@
 package helpers
 
 import (
+	"cli-top/types"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"regexp"
 	"strings"
-	"vtop-cli/types"
 
 	"github.com/PuerkitoBio/goquery"
 )

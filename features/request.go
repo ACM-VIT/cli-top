@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"vtop-cli/types"
+	"cli-top/types"
 )
 
 func fetchReq(regNo string, cookies types.Cookies, target_url string, semID string) ([]byte, error) {
