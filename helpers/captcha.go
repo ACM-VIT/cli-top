@@ -189,7 +189,6 @@ func SolveCaptcha(imageURL string) string {
 		if debug.Debug {
 			fmt.Println("(Helper - Captcha):", out)
 		}
-		// broken
 
 		return out
 	} else {
