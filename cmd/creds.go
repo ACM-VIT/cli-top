@@ -48,9 +48,9 @@ func promptInput(prompt string) string {
 }
 
 func init() {
-	credCmd.Flags().StringP("username", "u", "", "Enter VTOP username")
-	credCmd.Flags().StringP("password", "p", "", "Enter VTOP password")
-	credCmd.Flags().StringP("regno", "r", "", "Enter VIT registration number")
+	credCmd.Flags().String("username", "", "Enter VTOP username")
+	credCmd.Flags().String("password", "", "Enter VTOP password")
+	credCmd.Flags().String("regno", "", "Enter VIT registration number")
 	viper.SetConfigType("env")
 	viper.SetConfigFile("cli-top-config.env")
 	viper.ReadInConfig()
