@@ -22,6 +22,8 @@ var cookies types.Cookies
 var userInfo types.LogIn
 var semesterFlag int
 var debugFlag bool
+var versionFlag bool
+var updateFlag bool
 
 func startfn(cmd *cobra.Command, args []string) {
 
@@ -44,8 +46,8 @@ func startfn(cmd *cobra.Command, args []string) {
 
 	red.Print(fhlf)
 	blue.Println(sndhlf)
-	red.Println("Welcome to CLI-TOP!")
-	red.Println("refer to help by typing --help for help or --list for available commands")
+	red.Println("Welcome to CLI-TOP!\n ")
+	red.Println("Use \"cli-top help\" or \"cli-top --list\" to show available commands\nUse \"cli-top [command] --help\" for more information about a command.\n ")
 	fileName := "cli-top-config.env"
 
 	// Get the current working directory
@@ -57,9 +59,6 @@ func startfn(cmd *cobra.Command, args []string) {
 
 	// Construct the full path to the file
 	filePath := filepath.Join(currentDir, fileName)
-	if debug.Debug {
-		fmt.Println(filePath)
-	}
 
 	// Check if the file exists
 	if _, err := os.Stat(filePath); err == nil {
@@ -107,9 +106,6 @@ func vtop_login() (types.Cookies, string) {
 	loginSecrets := login.Login(userInfo.Username, password)
 	cookies, tmp := login.HomePage(loginSecrets)
 	userInfo.RegNo = tmp
-	if debug.Debug {
-		fmt.Println(userInfo.RegNo)
-	}
 
 	saveCookiesToFile(cookies, userInfo, key)
 	if err != nil {
@@ -137,6 +133,10 @@ func saveCookiesToFile(cookies types.Cookies, userInfo types.LogIn, Key string) 
 }
 
 func readCookiesFromFile() (types.Cookies, string) {
+	if debugFlag {
+		debug.Debug = true
+		fmt.Println("Debug mode on")
+	}
 	err := godotenv.Load("cli-top-config.env")
 	if err != nil {
 		log.Fatal("Error loading .env file, please enter your credentials using the \"login\" command.")
@@ -165,6 +165,16 @@ var rootCmd = &cobra.Command{
 			fmt.Println("Debug mode on")
 		}
 
+		if versionFlag {
+			fmt.Println("Version:", debug.Version)
+			return
+		}
+
+		if updateFlag {
+			features.CheckUpdate()
+			return
+		}
+
 		startfn(cmd, args)
 	},
 }
@@ -172,6 +182,8 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	rootCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
+	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
+	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
 	rootCmd.AddCommand(profileCmd)
 	rootCmd.AddCommand(marksCmd)
 	rootCmd.AddCommand(gradesCmd)
