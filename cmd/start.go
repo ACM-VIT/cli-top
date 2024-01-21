@@ -22,6 +22,8 @@ var cookies types.Cookies
 var userInfo types.LogIn
 var semesterFlag int
 var debugFlag bool
+var versionFlag bool
+var updateFlag bool
 
 func startfn(cmd *cobra.Command, args []string) {
 
@@ -44,8 +46,8 @@ func startfn(cmd *cobra.Command, args []string) {
 
 	red.Print(fhlf)
 	blue.Println(sndhlf)
-	red.Println("Welcome to CLI-TOP!\n")
-	red.Println("Use \"cli-top help\" or \"cli-top --list\" to show available commands\nUse \"cli-top [command] --help\" for more information about a command.\n")
+	red.Println("Welcome to CLI-TOP!\n ")
+	red.Println("Use \"cli-top help\" or \"cli-top --list\" to show available commands\nUse \"cli-top [command] --help\" for more information about a command.\n ")
 	fileName := "cli-top-config.env"
 
 	// Get the current working directory
@@ -163,6 +165,16 @@ var rootCmd = &cobra.Command{
 			fmt.Println("Debug mode on")
 		}
 
+		if versionFlag {
+			fmt.Println("Version:", debug.Version)
+			return
+		}
+
+		if updateFlag {
+			features.CheckUpdate()
+			return
+		}
+
 		startfn(cmd, args)
 	},
 }
@@ -170,6 +182,8 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	rootCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
+	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
+	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
 	rootCmd.AddCommand(profileCmd)
 	rootCmd.AddCommand(marksCmd)
 	rootCmd.AddCommand(gradesCmd)
