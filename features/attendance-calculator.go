@@ -219,23 +219,23 @@ func Cal75(att int, tot int) string {
 	//fmt.Println(perc)
 
 	if perc == 75 {
-		ret = fmt.Sprintf("\033[32mCan skip 0 class\033[0m")
-		fmt.Printf(ret)
+	
+			}	ret = fmt.Sprintf("\033[32mCan skip 0 class\033[0m"+"\t")
+		//fmt.Printf(ret)
 	} else if perc < 75 {
-		for i := 1;i<tot ; i++ {
+		for i := 1; i<(tot*2) ; i++ {
 			newPerc := float64(att+i) / float64(tot+i) * 100
 			// fmt.Println(newPerc)
 			if math.Ceil(newPerc) >= 75 {
-				ret = fmt.Sprintf("\033[31mAttend %d class\033[0m",i)
-				fmt.Printf(ret)
+				ret = fmt.Sprintf("\033[31mAttend %d class\033[0m"+"\t",i)
+				//fmt.Printf(ret)
 				break
-			}
 		}
 	} else {
 		for i := 1; i < tot; i++ {
 			if math.Ceil((float64(att)/float64(tot+i))*100) >= 75 {
-				ret = fmt.Sprintf("\033[32mCan skip %d class\033[0m", i)
-				fmt.Printf(ret)
+				ret = fmt.Sprintf("\033[32mCan skip %d class\033[0m"+"\t", i)
+				//fmt.Printf(ret)
 			}
 		}
 	}
