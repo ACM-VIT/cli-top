@@ -99,16 +99,21 @@ func errorCheck(cookies types.Cookies) bool {
 	}
 
 	if strings.Contains(string(bodyText), "Invalid Captcha") {
-		fmt.Println("\nInvalid Captcha. The captcha solver can sometimes confuse between B and 8, please retry...\n")
+		fmt.Println("\nInvalid Captcha. The captcha solver can sometimes confuse between B and 8, please retry...")
 		return true
 	}
 	if strings.Contains(string(bodyText), "Invalid LoginId/Password") {
-		fmt.Println("\nInvalid Password. Please check your password and try again...\n")
+		fmt.Println("\nInvalid LoginId/Password. Please check your cli-top config and try again...")
+		return true
+	}
+
+	if strings.Contains(string(bodyText), "Invalid Username/Password") {
+		fmt.Println("\nInvalid Username/Password. Please check your cli-top config and try again...")
 		return true
 	}
 
 	if strings.Contains(string(bodyText), "Maximum Fail Attempts") {
-		fmt.Println("\nNumber Of Maximum Fail Attempts Reached.Use Forgot Password on VTOP to reset your password.\n")
+		fmt.Println("\nNumber Of Maximum Fail Attempts Reached. Use Forgot Password on VTOP to reset your password.")
 		return true
 	}
 
@@ -164,6 +169,7 @@ func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
 	defer resp.Body.Close()
 
 	bodyText := helpers.ExtractBodyText(resp)
+
 	if strings.Contains(string(bodyText), "Session Timed Out") {
 		if debug.Debug {
 			fmt.Println("Session Timed Out, login failed. Retrying...")

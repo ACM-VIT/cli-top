@@ -3,10 +3,6 @@
 package main
 
 import (
-	// features "cli-top/features"
-
-	// "cli-top/features"
-
 	"cli-top/cmd"
 )
 
