@@ -57,9 +57,6 @@ func startfn(cmd *cobra.Command, args []string) {
 
 	// Construct the full path to the file
 	filePath := filepath.Join(currentDir, fileName)
-	if debug.Debug {
-		fmt.Println(filePath)
-	}
 
 	// Check if the file exists
 	if _, err := os.Stat(filePath); err == nil {
@@ -107,9 +104,6 @@ func vtop_login() (types.Cookies, string) {
 	loginSecrets := login.Login(userInfo.Username, password)
 	cookies, tmp := login.HomePage(loginSecrets)
 	userInfo.RegNo = tmp
-	if debug.Debug {
-		fmt.Println(userInfo.RegNo)
-	}
 
 	saveCookiesToFile(cookies, userInfo, key)
 	if err != nil {
@@ -137,6 +131,10 @@ func saveCookiesToFile(cookies types.Cookies, userInfo types.LogIn, Key string) 
 }
 
 func readCookiesFromFile() (types.Cookies, string) {
+	if debugFlag {
+		debug.Debug = true
+		fmt.Println("Debug mode on")
+	}
 	err := godotenv.Load("cli-top-config.env")
 	if err != nil {
 		log.Fatal("Error loading .env file, please enter your credentials using the \"login\" command.")
