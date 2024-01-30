@@ -37,7 +37,7 @@ func GetReceipt(regNo string, cookies types.Cookies) {
 		}
 
 		// Extract data from each cell in the row
-		row := []string{strconv.Itoa(i + 1)}
+		row := []string{strconv.Itoa(i)}
 		rowSelection.Find("td").Each(func(j int, cellSelection *goquery.Selection) {
 			// Exclude the VIEW column
 			if j < 4 {
