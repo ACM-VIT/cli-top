@@ -192,13 +192,20 @@ func Execute() {
 	rootCmd.AddCommand(hostelCmd)
 	rootCmd.AddCommand(cgpaCmd)
 	rootCmd.AddCommand(examScheduleCmd)
+	SemSelect()
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 }
-
+func SemSelect(){
+			marksCmd.Flags().IntVarP(&semesterFlag, "semester", "s", 1, "Specify the semester")
+			gradesCmd.Flags().IntVarP(&semesterFlag, "semester", "s", 1, "Specify the semester")
+			attendanceCmd.Flags().IntVarP(&semesterFlag, "semester", "s", 1, "Specify the semester")
+			timeTableCmd.Flags().IntVarP(&semesterFlag, "semester", "s", 1, "Specify the semester")
+			examScheduleCmd.Flags().IntVarP(&semesterFlag, "semester", "s", 1, "Specify the semester")
+}
 var profileCmd = &cobra.Command{
 	Use:   "profile",
 	Short: "Show VTOP Student Profile",
@@ -213,7 +220,6 @@ var marksCmd = &cobra.Command{
 	Short: "Show Marks Details of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		marksCmd.Flags().IntVarP(&semesterFlag, "semester", "s", "0", "Specify the semester")
 		features.Marks(regNo, cookies, semesterFlag)
 	},
 }
@@ -223,7 +229,6 @@ var gradesCmd = &cobra.Command{
 	Short: "Show Grade Details of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		gradesCmd.Flags().IntVarP(&semesterFlag, "semester", "s", "0", "Specify the semester")
 		features.GetGrades(regNo, cookies, "", semesterFlag)
 	},
 }
@@ -233,7 +238,6 @@ var attendanceCmd = &cobra.Command{
 	Short: "Show Attendance Details of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		attendanceCmd.Flags().IntVarP(&semesterFlag, "semester", "s", "0", "Specify the semester")
 		features.GetAttendance(regNo, cookies, "", semesterFlag)
 	},
 }
@@ -252,7 +256,6 @@ var timeTableCmd = &cobra.Command{
 	Short: "Show Time Table of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		timeTableCmd.Flags().IntVarP(&semesterFlag, "semester", "s", "0", "Specify the semester")
 		features.GetTimeTable(regNo, cookies, "", semesterFlag)
 	},
 }
@@ -280,7 +283,6 @@ var examScheduleCmd = &cobra.Command{
 	Short: "Show Exam Schedule",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		examScheduleCmd.Flags().IntVarP(&semesterFlag, "semester", "s", "0", "Specify the semester")
 		features.GetExamSchedule(regNo, cookies, "", semesterFlag)
 	},
 }
