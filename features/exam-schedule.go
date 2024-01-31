@@ -308,8 +308,16 @@ func generateExamScheduleMarkdownTable(examSchedule [][]string) string {
 				}
 				daysRemaining := int(examDate.Sub(time.Now()).Hours() / 24)
 
+				// Check if the exam is completed
+				daysRemainingText := ""
+				if daysRemaining >= 0 {
+					daysRemainingText = fmt.Sprintf("%-3ddays", daysRemaining)
+				} else {
+					daysRemainingText = "Exam Completed"
+				}
+
 				// Table row with days remaining
-				fmt.Printf("| %-5s | %-11s | %-45s | %-11s | %-11s | %-14s | %-19s | %-7s | %-7s | %-8s | %-3ddays         |\n", row[0], row[1], row[2], row[5], row[6], row[8], row[9], row[10], row[11], row[12], daysRemaining)
+				fmt.Printf("| %-5s | %-11s | %-45s | %-11s | %-11s | %-14s | %-19s | %-7s | %-7s | %-8s | %-15s |\n", row[0], row[1], row[2], row[5], row[6], row[8], row[9], row[10], row[11], row[12], daysRemainingText)
 			} else {
 				fmt.Println()
 				fmt.Println(row)
@@ -320,6 +328,10 @@ func generateExamScheduleMarkdownTable(examSchedule [][]string) string {
 
 	return buf.String()
 }
+
+
+
+
 
 
 
