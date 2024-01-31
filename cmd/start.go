@@ -180,7 +180,6 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
-	rootCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
 	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
@@ -214,6 +213,7 @@ var marksCmd = &cobra.Command{
 	Short: "Show Marks Details of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
+		marksCmd.Flags().IntVarP(&semesterFlag, "semester", "s", "0", "Specify the semester")
 		features.Marks(regNo, cookies, semesterFlag)
 	},
 }
@@ -223,6 +223,7 @@ var gradesCmd = &cobra.Command{
 	Short: "Show Grade Details of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
+		gradesCmd.Flags().IntVarP(&semesterFlag, "semester", "s", "0", "Specify the semester")
 		features.GetGrades(regNo, cookies, "", semesterFlag)
 	},
 }
@@ -232,6 +233,7 @@ var attendanceCmd = &cobra.Command{
 	Short: "Show Attendance Details of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
+		attendanceCmd.Flags().IntVarP(&semesterFlag, "semester", "s", "0", "Specify the semester")
 		features.GetAttendance(regNo, cookies, "", semesterFlag)
 	},
 }
@@ -250,6 +252,7 @@ var timeTableCmd = &cobra.Command{
 	Short: "Show Time Table of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
+		timeTableCmd.Flags().IntVarP(&semesterFlag, "semester", "s", "0", "Specify the semester")
 		features.GetTimeTable(regNo, cookies, "", semesterFlag)
 	},
 }
@@ -277,6 +280,7 @@ var examScheduleCmd = &cobra.Command{
 	Short: "Show Exam Schedule",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
+		examScheduleCmd.Flags().IntVarP(&semesterFlag, "semester", "s", "0", "Specify the semester")
 		features.GetExamSchedule(regNo, cookies, "", semesterFlag)
 	},
 }
