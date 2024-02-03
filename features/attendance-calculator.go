@@ -191,16 +191,16 @@ func findAndSaveAtten(doc *goquery.Document) {
 
 func printTableAtten(title string, data [][]string, builder *strings.Builder) {
 
-	builder.WriteString(fmt.Sprintf("| %-5s | %-12s | %-20s | %-35s | %-16s | %-10s | %-18s |\n",
+	builder.WriteString(fmt.Sprintf("| %-5s | %-12s | %-20s | %-35s | %-16s | %-10s | %-22s |\n",
 		"S.No.", "Course Code", "Slot No.", "Faculty Name", "Classes Attended", "Percentage", "75% Alert"))
-	builder.WriteString("|-------|--------------|----------------------|-------------------------------------|------------------|------------|--------------------|\n")
+	builder.WriteString("|-------|--------------|----------------------|-------------------------------------|------------------|------------|------------------------|\n")
 
 }
 
 func printFormattedRowAtten(row []string, builder *strings.Builder) {
-	builder.WriteString(fmt.Sprintf("| %-5s | %-12s | %-20s | %-35s | %-16s | %-10s | %-17s |\n",
+	builder.WriteString(fmt.Sprintf("| %-5s | %-12s | %-20s | %-35s | %-16s | %-10s | %-15s |\n",
 		row[0], strings.Split(row[2], "-")[0], strings.Split(row[3], "-")[1], strings.Split(row[4], "-")[0], row[5]+"/"+row[6], row[7], Cal75(strToInt(row[5]), strToInt(row[6]))))
-		
+
 }
 
 func strToInt(str string) int {
@@ -219,22 +219,22 @@ func Cal75(att int, tot int) string {
 	//fmt.Println(perc)
 
 	if perc == 75 {
-	
-			}	ret = fmt.Sprintf("\033[32mCan skip 0 class\033[0m"+"\t")
+		ret = fmt.Sprintf("%-31s", "\033[32mCan skip 0 classes\033[0m")
 		//fmt.Printf(ret)
 	} else if perc < 75 {
-		for i := 1; i<(tot*2) ; i++ {
+		for i := 1; i <= (tot * 2); i++ {
 			newPerc := float64(att+i) / float64(tot+i) * 100
 			// fmt.Println(newPerc)
 			if math.Ceil(newPerc) >= 75 {
-				ret = fmt.Sprintf("\033[31mAttend %d class\033[0m"+"\t",i)
+				ret = fmt.Sprintf("%-31s", fmt.Sprintf("\033[31mAttend %d class(es)\033[0m", i))
 				//fmt.Printf(ret)
 				break
+			}
 		}
 	} else {
 		for i := 1; i < tot; i++ {
 			if math.Ceil((float64(att)/float64(tot+i))*100) >= 75 {
-				ret = fmt.Sprintf("\033[32mCan skip %d class\033[0m"+"\t", i)
+				ret = fmt.Sprintf("%-31s", fmt.Sprintf("\033[32mCan skip %d class(es)\033[0m", i))
 				//fmt.Printf(ret)
 			}
 		}
