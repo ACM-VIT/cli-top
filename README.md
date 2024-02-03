@@ -59,6 +59,7 @@ A Command Line Interface (CLI) tool for seamless interaction with the student po
 - [Tanmay Paturu](https://github.com/Tintedfireglass)
 - [Garv Jain](https://github.com/garv-jain1)
 - [Amritsai](https://github.com/gekyxme)
+- [Pritam Satpathy](https://github.com/ps2181)
 
 
 
