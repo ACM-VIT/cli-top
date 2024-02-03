@@ -2,6 +2,7 @@ package features
 
 import (
 	"bytes"
+	"cli-top/debug"
 	"cli-top/types"
 	"fmt"
 	"io"
@@ -302,7 +303,7 @@ func generateExamScheduleMarkdownTable(examSchedule [][]string) string {
 
 				// Calculate days remaining
 				examDate, err := time.Parse("02-Jan-2006", datePart)
-				if err != nil {
+				if err != nil && debug.Debug {
 					fmt.Println("Error parsing exam date:", err)
 					continue
 				}
@@ -328,12 +329,6 @@ func generateExamScheduleMarkdownTable(examSchedule [][]string) string {
 
 	return buf.String()
 }
-
-
-
-
-
-
 
 
 func Marks0(regNo string, cookies types.Cookies, sem_choice int) string {
