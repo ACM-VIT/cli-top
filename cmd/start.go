@@ -180,7 +180,6 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
-	rootCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
 	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
@@ -193,13 +192,20 @@ func Execute() {
 	rootCmd.AddCommand(hostelCmd)
 	rootCmd.AddCommand(cgpaCmd)
 	rootCmd.AddCommand(examScheduleCmd)
+	SemSelect()
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 }
-
+func SemSelect(){
+			marksCmd.Flags().IntVarP(&semesterFlag, "semester", "s", 1, "Specify the semester")
+			gradesCmd.Flags().IntVarP(&semesterFlag, "semester", "s", 1, "Specify the semester")
+			attendanceCmd.Flags().IntVarP(&semesterFlag, "semester", "s", 1, "Specify the semester")
+			timeTableCmd.Flags().IntVarP(&semesterFlag, "semester", "s", 1, "Specify the semester")
+			examScheduleCmd.Flags().IntVarP(&semesterFlag, "semester", "s", 1, "Specify the semester")
+}
 var profileCmd = &cobra.Command{
 	Use:   "profile",
 	Short: "Show VTOP Student Profile",
