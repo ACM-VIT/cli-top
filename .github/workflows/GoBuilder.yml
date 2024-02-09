@@ -92,30 +92,30 @@ jobs:
           # name: cli-top
           # path: ./build/macos/cli-top.mac
 
-  # build-android:
-  #   runs-on: android-latest
-  #   steps:
-  #     - uses: actions/checkout@v3
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
 
-  #     - name: Set up Go
-  #       uses: actions/setup-go@v4
-  #       with:
-  #         go-version: "1.21"
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.21"
 
-  #     - name: Install dependencies
-  #       run: |
-  #         go mod tidy
-  #         go get .
+      - name: Install dependencies
+        run: |
+          go mod tidy
+          go get .
 
-  #     - name: Build
-  #       run: |
-  #         go build -o ./build/android/ -v ./...
-  #         # mv ./build/android/cli-top ./build/android/cli-top.mac
+      - name: Build
+        run: |
+          GOOS=linux GOARCH=arm64 go build -o ./build/android/ -v ./...
+          # mv ./build/android/cli-top ./build/android/cli-top.mac
 
-  #     - name: Upload Android Binary
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: cli-top-android
-  #         path: ./build/android/cli-top
+      - name: Upload Android Binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: cli-top-android
+          path: ./build/android/cli-top
           # name: cli-top
           # path: ./build/android/cli-top.arm64
