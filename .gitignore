@@ -17,4 +17,4 @@ output_image.jpg
 *.env
 
 # Ignore Binary
-cli-top
+cli-top*
