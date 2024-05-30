@@ -216,26 +216,20 @@ func strToInt(str string) int {
 func Cal75(att int, tot int) string {
 	var ret string
 	perc := float64(att) / float64(tot) * 100
-	//fmt.Println(perc)
-
-	if perc == 75 {
+	if perc >=74.01 && perc<=75 {
 		ret = fmt.Sprintf("%-31s", "\033[32mCan skip 0 classes\033[0m")
-		//fmt.Printf(ret)
-	} else if perc < 75 {
+	} else if perc < 74.01 {
 		for i := 1; i <= (tot * 2); i++ {
 			newPerc := float64(att+i) / float64(tot+i) * 100
-			// fmt.Println(newPerc)
 			if math.Ceil(newPerc) >= 75 {
 				ret = fmt.Sprintf("%-31s", fmt.Sprintf("\033[31mAttend %d class(es)\033[0m", i))
-				//fmt.Printf(ret)
 				break
 			}
 		}
 	} else {
 		for i := 1; i < tot; i++ {
 			if math.Ceil((float64(att)/float64(tot+i))*100) >= 75 {
-				ret = fmt.Sprintf("%-31s", fmt.Sprintf("\033[32mCan skip %d class(es)\033[0m", i))
-				//fmt.Printf(ret)
+				ret = fmt.Sprintf("%-31s", fmt.Sprintf("\033[32mCan skip %d classes\033[0m", i))
 			}
 		}
 	}
