@@ -158,11 +158,27 @@ func SolveCaptcha(imageURL string) string {
 		}
 
 		img, _, err := image.Decode(strings.NewReader(string(data)))
+		if err != nil {
+			log.Fatal(err)
+		}
 		// Save the image to a file (optional)
-		outFile, err := os.Create("output.jpg")
+		outFile, err := os.Create("captcha.jpg")
+		if err != nil {
+			log.Fatal(err)
+		}
 		defer outFile.Close()
+		if CheckKillSwitch() == 1 {
+			return "Captacha solver is disabled by admin. Please manually solve the downloaded captcha."
+		}
+
 		err = jpeg.Encode(outFile, img, nil)
-		err = os.Remove("output.jpg")
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = os.Remove("captcha.jpg")
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		bounds := img.Bounds()
 		rgba := image.NewRGBA(bounds)
