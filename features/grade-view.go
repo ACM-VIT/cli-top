@@ -1,6 +1,7 @@
 package features
 
 import (
+	"cli-top/helpers"
 	types "cli-top/types"
 	"fmt"
 	"log"
@@ -13,8 +14,8 @@ import (
 func GetGrades(regNo string, cookies types.Cookies, semId string, sem_choice int) {
 	url := "https://vtop.vit.ac.in/vtop/examinations/examGradeView/doStudentGradeView"
 
-	sel_id := Grade(regNo, cookies, sem_choice)
-	bodyText, err := fetchReq2(regNo, cookies, url, sel_id)
+	semesterID := Grade(regNo, cookies, sem_choice)
+	bodyText, err := helpers.FetchReq(regNo, cookies, url, semesterID, "", "POST")
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -266,7 +266,7 @@ var hostelCmd = &cobra.Command{
 	Short: "Show Hostel Details of a user",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.PrintHostelInfo(regNo, cookies, "")
+		features.PrintHostelInfo(regNo, cookies, "https://vtop.vit.ac.in/vtop/studentsRecord/StudentProfileAllView")
 	},
 }
 
@@ -275,7 +275,7 @@ var cgpaCmd = &cobra.Command{
 	Short: "Show CGPA details",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.PrintCgpa(regNo, cookies, "")
+		features.PrintCgpa(regNo, cookies, "https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeHistory")
 	},
 }
 
