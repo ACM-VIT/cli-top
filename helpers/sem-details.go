@@ -15,7 +15,7 @@ func GetSemDetails(cookies types.Cookies, regNo string) types.SemesterDetails {
 	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentAttendance"
 
 	//fmt.Println(regNo, cookies)
-	bodyText, err := FetchReq(regNo, cookies, url, "")
+	bodyText, err := FetchReq(regNo, cookies, url, "", "", "POST")
 	if err != nil {
 		log.Fatal(err)
 	}

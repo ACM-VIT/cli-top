@@ -19,7 +19,7 @@ import (
 )
 
 func PrintCgpa(regNo string, cookies types.Cookies, url string) {
-	body, err := helpers.FetchReq(regNo, cookies, "https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeHistory", "")
+	body, err := helpers.FetchReq(regNo, cookies, url, "", "", "POST")
 	if err != nil {
 		log.Fatal("Error fetching CGPA data:", err)
 		return

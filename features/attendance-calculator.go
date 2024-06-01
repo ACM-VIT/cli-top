@@ -58,7 +58,7 @@ func GetSemDetailsAtten(cookies types.Cookies, regNo string) SemesterDetails {
 	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentAttendance"
 
 	//fmt.Println(regNo, cookies)
-	bodyText, err := fetchReqAtten(regNo, cookies, url, "")
+	bodyText, err := helpers.FetchReq(regNo, cookies, url, "", "", "POST")
 	if err != nil {
 		log.Fatal(err)
 	}
