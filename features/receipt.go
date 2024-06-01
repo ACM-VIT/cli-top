@@ -13,8 +13,7 @@ import (
 )
 
 func GetReceipt(regNo string, cookies types.Cookies) {
-	url := "https://vtop.vit.ac.in/vtop/finance/getStudentReceipts"
-	body, err := fetchReq(regNo, cookies, url, "")
+	body, err := fetchReq(regNo, cookies, "https://vtop.vit.ac.in/vtop/finance/getStudentReceipts", "")
 	if err != nil {
 		log.Fatal("Error fetching data:", err)
 		return
