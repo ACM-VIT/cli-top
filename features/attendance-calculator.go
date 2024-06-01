@@ -227,11 +227,15 @@ func Cal75(att int, tot int) string {
 			}
 		}
 	} else {
-		for i := 1; i < tot; i++ {
-			if math.Ceil((float64(att)/float64(tot+i))*100) >= 75 {
-				ret = fmt.Sprintf("%-31s", fmt.Sprintf("\033[32mCan skip %d classes\033[0m", i))
-			}
-		}
+		for i := 0; i <= tot; i++ { // Start from 0 to check if no classes can be skipped
+            newPerc := math.Ceil((float64(att) / float64(tot+i)) * 100)
+            if newPerc >= 75 {
+                ret = fmt.Sprintf("%-31s", fmt.Sprintf("\033[32mCan skip %d classes\033[0m", i))
+            } else {
+                // When the attendance percentage is no longer >= 75, break out of the loop
+                break
+            }
+        }
 	}
 
 	return ret
