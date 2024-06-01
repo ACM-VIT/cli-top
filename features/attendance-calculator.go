@@ -3,6 +3,7 @@ package features
 import (
 	//"cli-top/types"
 	"bytes"
+	"cli-top/helpers"
 	types "cli-top/types"
 	"fmt"
 	"io"
@@ -25,41 +26,6 @@ func fetchReqAtten(regNo string, cookies types.Cookies, url string, semID string
 	// Create a new HTTP request
 
 	payload := fmt.Sprintf("verifyMenu=true&authorizedID=%s&_csrf=%s&nocache=%d", regNo, cookies.CSRF, time.Now().UnixNano())
-	//fmt.Println(payload)
-	// Create a new request with POST method and payload
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(payload)))
-	if err != nil {
-		return nil, err
-	}
-
-	// Set headers or cookies if needed
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Cookie", fmt.Sprintf("SERVERID=%s; JSESSIONID=%s", cookies.SERVERID, cookies.JSESSIONID))
-
-	// Perform the request
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	// Read the response body
-	body, err := io.ReadAll(resp.Body)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return body, nil
-}
-
-func fetchReq2(regNo string, cookies types.Cookies, url string, semID string) ([]byte, error) {
-	// Create a new HTTP client
-	client := &http.Client{}
-
-	// Create a new HTTP request
-
-	payload := fmt.Sprintf("authorizedID=%s&_csrf=%s&semesterSubId=%s&x=%s", regNo, cookies.CSRF, semID, time.Now().UTC().Format(time.RFC1123)) //fmt.Println(payload)
 	//fmt.Println(payload)
 	// Create a new request with POST method and payload
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(payload)))
@@ -153,8 +119,10 @@ func GetSemDetailsAtten(cookies types.Cookies, regNo string) SemesterDetails {
 func GetAttendance(regNo string, cookies types.Cookies, semId string, sem_choice int) {
 	url := "https://vtop.vit.ac.in/vtop/processViewStudentAttendance"
 
-	sel_id := Attendance(regNo, cookies, sem_choice)
-	bodyText, err := fetchReq2(regNo, cookies, url, sel_id)
+	semesterID := Attendance(regNo, cookies, sem_choice)
+	payload := fmt.Sprintf("authorizedID=%s&_csrf=%s&semesterSubId=%s&x=%s", regNo, cookies.CSRF, semesterID, time.Now().UTC().Format(time.RFC1123)) //fmt.Println(payload)
+
+	bodyText, err := helpers.FetchReq(regNo, cookies, url, semesterID, payload, "POST")
 	if err != nil {
 		log.Fatal(err)
 	}
