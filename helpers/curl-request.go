@@ -86,18 +86,32 @@ func PostRequest(params types.Request, data *strings.Reader) *http.Response {
 	return resp
 }
 
-func FetchReq(regNo string, cookies types.Cookies, url string, semID string) ([]byte, error) {
+func FetchReq(regNo string, cookies types.Cookies, url string, semID string, payload string, method string) ([]byte, error) {
 	// Create a new HTTP client
 	client := &http.Client{}
 
-	// Create a new HTTP request
+	var req *http.Request
+	var err error
 
-	payload := fmt.Sprintf("verifyMenu=true&authorizedID=%s&_csrf=%s&nocache=%d", regNo, cookies.CSRF, time.Now().UnixNano())
+	// Create a deafult payload if not provided
+	if payload == "" {
+		payload = fmt.Sprintf("verifyMenu=true&authorizedID=%s&_csrf=%s&nocache=%d", regNo, cookies.CSRF, time.Now().UnixNano())
+	}
 	//fmt.Println(payload)
-	// Create a new request with POST method and payload
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(payload)))
-	if err != nil {
-		return nil, err
+
+	// Create a new request with POST/GET method and payload
+	if method == "POST" {
+		req, err = http.NewRequest("POST", url, bytes.NewBuffer([]byte(payload)))
+		if err != nil {
+			return nil, err
+		}
+	} else if method == "GET" {
+		req, err = http.NewRequest("GET", url, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		log.Fatal("Invalid method")
 	}
 
 	// Set headers or cookies if needed
