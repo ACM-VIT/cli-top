@@ -11,6 +11,7 @@ import (
 	// "time"
 	"cli-top/helpers"
 	"cli-top/types"
+
 	// "github.com/charmbracelet/glamour"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/olekukonko/tablewriter"

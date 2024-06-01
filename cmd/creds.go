@@ -8,9 +8,9 @@ import (
 	"github.com/spf13/viper"
 )
 
-var username = "k"
-var password = "k"
-var regno = "k"
+// var username = "k"
+// var password = "k"
+// var regno = "k"
 
 var credCmd = &cobra.Command{
 	Use:   "login",

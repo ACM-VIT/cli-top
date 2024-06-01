@@ -6,6 +6,7 @@ import (
 	// "io/ioutil"
 	"cli-top/debug"
 	"cli-top/features"
+	"cli-top/helpers"
 	"cli-top/login"
 	"cli-top/types"
 	"log"
@@ -24,6 +25,7 @@ var semesterFlag int
 var debugFlag bool
 var versionFlag bool
 var updateFlag bool
+var killSwitch int
 
 func startfn(cmd *cobra.Command, args []string) {
 
@@ -129,7 +131,6 @@ func saveCookiesToFile(cookies types.Cookies, userInfo types.LogIn, Key string) 
 	if err := viper.WriteConfigAs("cli-top-config.env"); err != nil {
 		fmt.Println("Error writing to .env file:", err)
 	}
-	return
 }
 
 func readCookiesFromFile() (types.Cookies, string) {
@@ -171,8 +172,14 @@ var rootCmd = &cobra.Command{
 		}
 
 		if updateFlag {
-			features.CheckUpdate()
+			helpers.CheckUpdate()
 			return
+		}
+
+		killSwitch = helpers.CheckKillSwitch()
+		if killSwitch == 2 {
+			fmt.Println("This version of cli-top has been decomissioned. Please await an update at https://cli-top.acmvit.in/")
+			os.Exit(1)
 		}
 
 		startfn(cmd, args)
