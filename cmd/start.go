@@ -25,7 +25,6 @@ var semesterFlag int
 var debugFlag bool
 var versionFlag bool
 var updateFlag bool
-var killSwitch int
 
 func startfn(cmd *cobra.Command, args []string) {
 
@@ -176,17 +175,16 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
-		killSwitch = helpers.CheckKillSwitch()
-		if killSwitch == 2 {
-			fmt.Println("This version of cli-top has been decomissioned. Please await an update at https://cli-top.acmvit.in/")
-			os.Exit(1)
-		}
-
 		startfn(cmd, args)
 	},
 }
 
 func Execute() {
+	killSwitch := helpers.CheckKillSwitch()
+	if killSwitch == 2 {
+		fmt.Println("This version of cli-top has been decomissioned. Please await an update at https://cli-top.acmvit.in/")
+		os.Exit(1)
+	}
 	rootCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
 	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
