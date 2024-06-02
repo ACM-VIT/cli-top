@@ -6,6 +6,7 @@ import (
 	// "io/ioutil"
 	"cli-top/debug"
 	"cli-top/features"
+	"cli-top/helpers"
 	"cli-top/login"
 	"cli-top/types"
 	"log"
@@ -129,7 +130,6 @@ func saveCookiesToFile(cookies types.Cookies, userInfo types.LogIn, Key string) 
 	if err := viper.WriteConfigAs("cli-top-config.env"); err != nil {
 		fmt.Println("Error writing to .env file:", err)
 	}
-	return
 }
 
 func readCookiesFromFile() (types.Cookies, string) {
@@ -171,7 +171,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		if updateFlag {
-			features.CheckUpdate()
+			helpers.CheckUpdate()
 			return
 		}
 
@@ -180,6 +180,13 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
+	killSwitch := helpers.CheckKillSwitch()
+	if killSwitch == 2 {
+		fmt.Println("This version of cli-top has been decomissioned. Please await an update at https://cli-top.acmvit.in/.")
+		return
+		// os.Exit(1)
+	}
+	rootCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
 	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
@@ -192,20 +199,13 @@ func Execute() {
 	rootCmd.AddCommand(hostelCmd)
 	rootCmd.AddCommand(cgpaCmd)
 	rootCmd.AddCommand(examScheduleCmd)
-	SemSelect()
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 }
-func SemSelect(){
-			marksCmd.Flags().IntVarP(&semesterFlag, "semester", "s", 1, "Specify the semester")
-			gradesCmd.Flags().IntVarP(&semesterFlag, "semester", "s", 1, "Specify the semester")
-			attendanceCmd.Flags().IntVarP(&semesterFlag, "semester", "s", 1, "Specify the semester")
-			timeTableCmd.Flags().IntVarP(&semesterFlag, "semester", "s", 1, "Specify the semester")
-			examScheduleCmd.Flags().IntVarP(&semesterFlag, "semester", "s", 1, "Specify the semester")
-}
+
 var profileCmd = &cobra.Command{
 	Use:   "profile",
 	Short: "Show VTOP Student Profile",
@@ -265,7 +265,7 @@ var hostelCmd = &cobra.Command{
 	Short: "Show Hostel Details of a user",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.PrintHostelInfo(regNo, cookies, "")
+		features.PrintHostelInfo(regNo, cookies, "https://vtop.vit.ac.in/vtop/studentsRecord/StudentProfileAllView")
 	},
 }
 
@@ -274,7 +274,7 @@ var cgpaCmd = &cobra.Command{
 	Short: "Show CGPA details",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.PrintCgpa(regNo, cookies, "")
+		features.PrintCgpa(regNo, cookies, "https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeHistory")
 	},
 }
 
