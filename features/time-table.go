@@ -219,27 +219,21 @@ func findAndSaveTimeTable(doc *goquery.Document, schedule string) {
 	table := doc.Find("table#" + targetID)
 	if table.Length() > 0 {
 		rows := [][]string{}
-		timeL := [][]string{}
-		timeTh := [][]string{}
+		//timeL := [][]string{}
+		//timeTh := [][]string{}
 		var indices []int // Move the indices declaration outside the inner scope
 		table.Find("tbody tr").Each(func(i int, rowSelection *goquery.Selection) {
 
 			row := []string{} // Initialize a new slice for each row
-			timeLab := []string{}
-			timeTheory := []string{}
+			//timeLab := []string{}
+			//timeTheory := []string{}
 			rowSelection.Find("td").Each(func(j int, cell *goquery.Selection) {
 				bgcolor, exists := cell.Attr("bgcolor")
-				if exists && bgcolor == "#CCFF33" {
+				if exists && bgcolor == "#FC6C85" {
 					text := strings.TrimSpace(cell.Text())
 					row = append(row, text)
 
 					indices = append(indices, j-2)
-				} else if exists && bgcolor == "#99CCFF" {
-					text := strings.TrimSpace(cell.Text())
-					timeLab = append(timeLab, text)
-				} else if exists && bgcolor == "##CCCCFF" {
-					text := strings.TrimSpace(cell.Text())
-					timeTheory = append(timeTheory, text)
 				} else {
 					row = append(row, "null")
 				}
@@ -247,12 +241,12 @@ func findAndSaveTimeTable(doc *goquery.Document, schedule string) {
 			if len(row) > 0 {
 				rows = append(rows, row)
 			}
-			if len(timeLab) > 0 {
-				timeL = append(timeL, timeLab)
-			}
-			if len(timeTheory) > 0 {
-				timeTh = append(timeTh, timeTheory)
-			}
+			// if len(timeLab) > 0 {
+			// 	timeL = append(timeL, timeLab)
+			// }
+			// if len(timeTheory) > 0 {
+			// 	timeTh = append(timeTh, timeTheory)
+			// }
 		})
 
 		// Print sub-rows after all rows have been processed
@@ -260,9 +254,6 @@ func findAndSaveTimeTable(doc *goquery.Document, schedule string) {
 		//var count int
 		count := 0
 		for i, subRow := range rows {
-			//count = 0
-			//fmt.Printf("Sub-Row %d:\n", i+1)
-			//fmt.Println(subRow)
 			if i > 3 && i < 14 {
 				subject = append(subject, subRow)
 				count += 1
@@ -287,27 +278,27 @@ func findAndSaveTimeTable(doc *goquery.Document, schedule string) {
 		}
 		checkTime(subjectDayWise, pythonDict)
 
-		var outputL strings.Builder
+		// var outputL strings.Builder
 
-		var filteredL [][]string
+		// var filteredL [][]string
 
-		for _, subArray := range timeL {
-			var filteredSubL []string
-			for _, item := range subArray {
-				if item != "Lunch" && item != "-" {
-					filteredSubL = append(filteredSubL, item)
-				}
-			}
-			filteredL = append(filteredL, filteredSubL)
-		}
+		// for _, subArray := range timeL {
+		// 	var filteredSubL []string
+		// 	for _, item := range subArray {
+		// 		if item != "Lunch" && item != "-" {
+		// 			filteredSubL = append(filteredSubL, item)
+		// 		}
+		// 	}
+		// 	filteredL = append(filteredL, filteredSubL)
+		// }
 
-		for i := 0; i < len(filteredL[0])-1; i = i + 2 {
+		// for i := 0; i < len(filteredL[0])-1; i = i + 2 {
 
-			start := fmt.Sprintf("%s", filteredL[0][i]) // Convert to string
-			end := fmt.Sprintf("%s", filteredL[1][i+1]) // Convert to string
-			//fmt.Println(start,end)
-			outputL.WriteString(fmt.Sprintf("%s to %s\n", start, end))
-		}
+		// 	start := fmt.Sprintf("%s", filteredL[0][i]) // Convert to string
+		// 	end := fmt.Sprintf("%s", filteredL[1][i+1]) // Convert to string
+		// 	//fmt.Println(start,end)
+		// 	outputL.WriteString(fmt.Sprintf("%s to %s\n", start, end))
+		// }
 
 		//fmt.Println(filteredL)
 		//fmt.Println(outputL.String())
