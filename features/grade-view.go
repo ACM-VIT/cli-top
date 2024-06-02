@@ -14,8 +14,8 @@ import (
 func GetGrades(regNo string, cookies types.Cookies, semId string, sem_choice int) {
 	url := "https://vtop.vit.ac.in/vtop/examinations/examGradeView/doStudentGradeView"
 
-	semesterID := Grade(regNo, cookies, sem_choice)
-	bodyText, err := helpers.FetchReq(regNo, cookies, url, semesterID, "", "POST")
+	semesterID := Attendance(regNo, cookies, sem_choice)
+	bodyText, err := helpers.FetchReq(regNo, cookies, url, semesterID, "UTC", "POST")
 	if err != nil {
 		log.Fatal(err)
 	}
