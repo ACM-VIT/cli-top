@@ -122,9 +122,7 @@ func parsePythonDict(schedule string) map[types.KeyStruct][]string {
 
 	return pythonDict
 }
-
 func checkTime(goMap map[int][][]string, pythonDict map[types.KeyStruct][]string) {
-
 	var sortedKeys []int
 	for key := range goMap {
 		sortedKeys = append(sortedKeys, key)
@@ -132,31 +130,30 @@ func checkTime(goMap map[int][][]string, pythonDict map[types.KeyStruct][]string
 	sort.Ints(sortedKeys)
 
 	for _, key := range sortedKeys {
-		// Access the value using the key
 		value := goMap[key]
 
-		// Print the day outside the inner loop
-		fmt.Print("\033[1m")
+		dayName := ""
 		switch key {
 		case 1:
-			fmt.Println("Monday\n")
+			dayName = "Monday"
 		case 2:
-			fmt.Println("Tuesday\n")
+			dayName = "Tuesday"
 		case 3:
-			fmt.Println("Wednesday\n")
+			dayName = "Wednesday"
 		case 4:
-			fmt.Println("Thursday\n")
+			dayName = "Thursday"
 		case 5:
-			fmt.Println("Friday\n")
+			dayName = "Friday"
 		case 6:
-			fmt.Println("Saturday\n")
+			dayName = "Saturday"
 		case 7:
-			fmt.Println("Sunday\n")
+			dayName = "Sunday"
 		}
-		fmt.Print("\033[0m")
 
-		// Create a new slice to store the printInfo for the current day
-		var printInfoDay []string
+		fmt.Printf("\033[1m%s\033[0m\n\n", dayName)
+
+		// Create a slice to hold the timetable entries for sorting
+		var dayEntries []string
 
 		for _, row := range value {
 			for i := range row {
@@ -169,28 +166,27 @@ func checkTime(goMap map[int][][]string, pythonDict map[types.KeyStruct][]string
 						if key == keyPy.Group {
 							for j := range valuePy {
 								if valuePy[j] == slot {
-									// Store information in the slice
+									// Determine the end time for the slot
 									hour, _ := strconv.Atoi(strings.Split(keyPy.Time, ":")[0])
 									min, _ := strconv.Atoi(strings.Split(keyPy.Time, ":")[1])
-									if (slot[0]) == 'L' {
-										// For 'L' slots, adjust the time
+									if slot[0] == 'L' {
 										min += 100
 										for min >= 60 {
 											min -= 60
 											hour++
 										}
 									} else {
-										// For other slots, adjust the time
 										min += 50
 										for min >= 60 {
 											min -= 60
 											hour++
 										}
 									}
-									end := fmt.Sprintf("%d:%02d", hour, min)
+									end := fmt.Sprintf("%02d:%02d", hour, min)
 
-									info := fmt.Sprintf("%s to %s\t| %s\t\t| %s\t| %s\t\t ", keyPy.Time, end, slot, courseCode, venue)
-									printInfoDay = append(printInfoDay, info)
+									// Create an entry string for sorting
+									entry := fmt.Sprintf("%s to %s\t| %s\t\t| %s\t| %s\t\t", keyPy.Time, end, slot, courseCode, venue)
+									dayEntries = append(dayEntries, entry)
 								}
 							}
 						}
@@ -199,14 +195,21 @@ func checkTime(goMap map[int][][]string, pythonDict map[types.KeyStruct][]string
 			}
 		}
 
-		// Print the timetable for the current day
-		for _, info := range printInfoDay {
-			fmt.Println(info)
-		}
-		fmt.Println() // Add a newline to separate tables
-	}
+		// Sort the entries by start time
+		sort.Slice(dayEntries, func(i, j int) bool {
+			timeI := strings.Split(dayEntries[i], " to ")[0]
+			timeJ := strings.Split(dayEntries[j], " to ")[0]
+			return timeI < timeJ
+		})
 
+		// Print the sorted timetable entries for the current day
+		for _, entry := range dayEntries {
+			fmt.Println(entry)
+		}
+		fmt.Println() // Add a newline to separate days
+	}
 }
+
 
 func findAndSaveTimeTable(doc *goquery.Document, schedule string) {
 
@@ -219,27 +222,21 @@ func findAndSaveTimeTable(doc *goquery.Document, schedule string) {
 	table := doc.Find("table#" + targetID)
 	if table.Length() > 0 {
 		rows := [][]string{}
-		timeL := [][]string{}
-		timeTh := [][]string{}
+		//timeL := [][]string{}
+		//timeTh := [][]string{}
 		var indices []int // Move the indices declaration outside the inner scope
 		table.Find("tbody tr").Each(func(i int, rowSelection *goquery.Selection) {
 
 			row := []string{} // Initialize a new slice for each row
-			timeLab := []string{}
-			timeTheory := []string{}
+			//timeLab := []string{}
+			//timeTheory := []string{}
 			rowSelection.Find("td").Each(func(j int, cell *goquery.Selection) {
 				bgcolor, exists := cell.Attr("bgcolor")
-				if exists && bgcolor == "#CCFF33" {
+				if exists && bgcolor == "#FC6C85" {
 					text := strings.TrimSpace(cell.Text())
 					row = append(row, text)
 
 					indices = append(indices, j-2)
-				} else if exists && bgcolor == "#99CCFF" {
-					text := strings.TrimSpace(cell.Text())
-					timeLab = append(timeLab, text)
-				} else if exists && bgcolor == "##CCCCFF" {
-					text := strings.TrimSpace(cell.Text())
-					timeTheory = append(timeTheory, text)
 				} else {
 					row = append(row, "null")
 				}
@@ -247,12 +244,7 @@ func findAndSaveTimeTable(doc *goquery.Document, schedule string) {
 			if len(row) > 0 {
 				rows = append(rows, row)
 			}
-			if len(timeLab) > 0 {
-				timeL = append(timeL, timeLab)
-			}
-			if len(timeTheory) > 0 {
-				timeTh = append(timeTh, timeTheory)
-			}
+
 		})
 
 		// Print sub-rows after all rows have been processed
@@ -260,9 +252,6 @@ func findAndSaveTimeTable(doc *goquery.Document, schedule string) {
 		//var count int
 		count := 0
 		for i, subRow := range rows {
-			//count = 0
-			//fmt.Printf("Sub-Row %d:\n", i+1)
-			//fmt.Println(subRow)
 			if i > 3 && i < 14 {
 				subject = append(subject, subRow)
 				count += 1
@@ -287,31 +276,7 @@ func findAndSaveTimeTable(doc *goquery.Document, schedule string) {
 		}
 		checkTime(subjectDayWise, pythonDict)
 
-		var outputL strings.Builder
 
-		var filteredL [][]string
-
-		for _, subArray := range timeL {
-			var filteredSubL []string
-			for _, item := range subArray {
-				if item != "Lunch" && item != "-" {
-					filteredSubL = append(filteredSubL, item)
-				}
-			}
-			filteredL = append(filteredL, filteredSubL)
-		}
-
-		for i := 0; i < len(filteredL[0])-1; i = i + 2 {
-
-			start := fmt.Sprintf("%s", filteredL[0][i]) // Convert to string
-			end := fmt.Sprintf("%s", filteredL[1][i+1]) // Convert to string
-			//fmt.Println(start,end)
-			outputL.WriteString(fmt.Sprintf("%s to %s\n", start, end))
-		}
-
-		//fmt.Println(filteredL)
-		//fmt.Println(outputL.String())
-		//fmt.Println()
 
 	} else {
 		fmt.Println("Table with ID 'timeTableStyle' not found")
