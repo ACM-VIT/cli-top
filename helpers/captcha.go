@@ -148,6 +148,7 @@ func argmax(slice []float32) int {
 
 func SolveCaptcha(imageURL string) string {
 	labelTxt := "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+	killSwitch := CheckKillSwitch()
 
 	if strings.HasPrefix(imageURL, "data:image/jpeg;base64,") {
 		base64Data := strings.TrimPrefix(imageURL, "data:image/jpeg;base64,")
@@ -167,17 +168,21 @@ func SolveCaptcha(imageURL string) string {
 			log.Fatal(err)
 		}
 		defer outFile.Close()
-		if CheckKillSwitch() == 1 {
-			return "Captacha solver is disabled by admin. Please manually solve the downloaded captcha."
-		}
 
 		err = jpeg.Encode(outFile, img, nil)
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = os.Remove("captcha.jpg")
-		if err != nil {
-			log.Fatal(err)
+
+		var captcha string
+		if killSwitch == 1 {
+			fmt.Println("Captcha auto-solver has been disabled. \nPlease manually solve the captcha and answer here:")
+			fmt.Scanln(&captcha)
+		} else {
+			err = os.Remove("captcha.jpg")
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 
 		bounds := img.Bounds()
@@ -206,7 +211,14 @@ func SolveCaptcha(imageURL string) string {
 			fmt.Println("(Helper - Captcha):", out)
 		}
 
-		return out
+		if killSwitch == 1 {
+			return captcha
+		} else if killSwitch == 2 {
+			return "disabled"
+		} else {
+			return out
+		}
+
 	} else {
 		log.Fatal("Unsupported URL scheme")
 		return ""
