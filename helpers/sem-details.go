@@ -1,7 +1,7 @@
 package helpers
 
 import (
-	"cli-top/ac"
+	"bytes"
 	"cli-top/types"
 	"fmt"
 	"log"
@@ -33,15 +33,15 @@ func GetSemDetails(cookies types.Cookies, regNo string) types.SemesterDetails {
 
 	var tempIds []string
 	// Find and save the semester IDs
-	ac.FindAndSaveSemIds(doc, "form-select", &tempIds)
+	FindAndSaveSemIds(doc, "form-select", &tempIds)
 	//fmt.Printf("%q", tempIds)
-	SemIds = ac.RemoveEmptyStrings(tempIds)
+	SemIds = RemoveEmptyStrings(tempIds)
 	//fmt.Printf("%q", SemIds)
 
 	// fmt.Printf("%q\n", SemIds)
 
 	for _, semId := range SemIds {
-		optionText := ac.FindOptionWithTagValue(doc, semId)
+		optionText := FindOptionWithTagValue(doc, semId)
 
 		if optionText != "" {
 			SemNames = append(SemNames, optionText)
@@ -83,7 +83,7 @@ func PrintSemDetails(regNo string, cookies types.Cookies) {
 	}
 
 	// Generate Markdown table text
-	markdownTable := ac.GenerateSemDetailsMarkdownTable(semDetails)
+	markdownTable := GenerateSemDetailsMarkdownTable(semDetails)
 
 	// Render Markdown using glamour
 	rendered, err := glamour.Render(markdownTable, "dark")
@@ -94,4 +94,28 @@ func PrintSemDetails(regNo string, cookies types.Cookies) {
 
 	// Print the rendered Markdown
 	fmt.Println(rendered)
+}
+
+func GenerateSemDetailsMarkdownTable(semDetails types.SemesterDetails) string {
+	var buf bytes.Buffer
+
+	// Table header
+	buf.WriteString("| Index | SemId          | SemName                   |\n")
+	buf.WriteString("|-------|----------------|---------------------------|\n")
+
+	// Iterate through SemIds and SemNames using a for loop
+	for i := 0; i < len(semDetails.SemIds); i++ {
+		index := fmt.Sprintf("%d", i+1)
+		semId := semDetails.SemIds[i]
+		semName := semDetails.SemNames[i]
+
+		// Table row
+		buf.WriteString(fmt.Sprintf("| %-5s | %-14s | %-25s |\n", index, semId, semName))
+	}
+
+	return buf.String()
+}
+
+func FindOptionWithTagValue(doc *goquery.Document, targetValue string) string {
+	return doc.Find("option[value='" + targetValue + "']").Text()
 }
