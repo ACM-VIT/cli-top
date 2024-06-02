@@ -11,6 +11,22 @@ import (
 	"github.com/charmbracelet/glamour"
 )
 
+func FindAndSaveSemIds(doc *goquery.Document, targetClass string, result *[]string) {
+	// Find all <option> elements within <select> tags with the specified class
+	//fmt.Println(targetClass, doc)
+	//selection := doc.Find("select.form-select option")
+	//fmt.Println("Number of elements found:", selection.Length())
+
+	doc.Find("select." + targetClass + " option").Each(func(i int, s *goquery.Selection) {
+
+		value, exists := s.Attr("value")
+		//fmt.Println(value)
+		if exists {
+			*result = append(*result, value)
+		}
+	})
+}
+
 func GetSemDetails(cookies types.Cookies, regNo string) types.SemesterDetails {
 	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentAttendance"
 
@@ -116,6 +132,51 @@ func GenerateSemDetailsMarkdownTable(semDetails types.SemesterDetails) string {
 	return buf.String()
 }
 
-func FindOptionWithTagValue(doc *goquery.Document, targetValue string) string {
-	return doc.Find("option[value='" + targetValue + "']").Text()
+func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) string {
+
+	selectedSemId := ""
+	selectedSemName := ""
+
+	var choice int
+	if sem_choice == 0 {
+		PrintSemDetails(regNo, cookies)
+		fmt.Print("\nEnter the index of the semester to view exam schedule: ")
+		fmt.Scanln(&choice)
+	} else {
+		choice = sem_choice
+	}
+	semDet := GetSemDetails(cookies, regNo)
+
+	if choice < 1 || choice > len(semDet.SemIds) {
+		fmt.Println("Invalid choice.")
+	} else {
+		for i, id := range semDet.SemIds {
+			if i+1 == choice {
+				// fmt.Println("Selected sem id : ",id)
+				// fmt.Println("Selected sem name : ",semDet.SemNames[i])
+				selectedSemId = id
+				selectedSemName = semDet.SemNames[i]
+			}
+		}
+	}
+
+	// Format the string with glamour
+	formattedSelection := fmt.Sprintf("\n# You selected SemId: %s, SemName: %s\n", selectedSemId, selectedSemName)
+
+	// Render and print the formatted string
+	renderer, err := glamour.NewTermRenderer(glamour.WithStylePath("dark"), glamour.WithWordWrap(150))
+	if err != nil {
+		log.Fatal("Error creating glamour renderer:", err)
+	}
+
+	output, err := renderer.Render(formattedSelection)
+	if err != nil {
+		log.Fatal("Error rendering formatted string:", err)
+	}
+
+	fmt.Print(output)
+
+	fmt.Println()
+
+	return selectedSemId
 }

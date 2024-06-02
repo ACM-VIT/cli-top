@@ -44,7 +44,7 @@ func Timetable(regNo string, cookies types.Cookies, sem_choice int) string {
 	} else {
 		choice = sem_choice
 	}
-	semDet := GetSemDetailsAtten(cookies, regNo)
+	semDet := helpers.GetSemDetails(cookies, regNo)
 
 	if choice < 1 || choice > len(semDet.SemIds) {
 		fmt.Println("Invalid choice.")

@@ -16,68 +16,6 @@ import (
 	//"golang.org/x/net/html"
 )
 
-func GetSemDetailsAtten(cookies types.Cookies, regNo string) SemesterDetails {
-	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentAttendance"
-
-	//fmt.Println(regNo, cookies)
-	bodyText, err := helpers.FetchReq(regNo, cookies, url, "", "", "POST")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Use goquery to parse the HTML
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
-	if err != nil {
-		log.Fatal(err)
-	}
-	//fmt.Println(string(bodyText))
-
-	// Create a slice to store the extracted data
-	var SemNames []string
-	var SemIds []string
-
-	var tempIds []string
-	// Find and save the semester IDs
-	findAndSaveSemIds(doc, "form-select", &tempIds)
-	//fmt.Printf("%q", tempIds)
-	SemIds = removeEmptyStrings(tempIds)
-	//fmt.Printf("%q", SemIds)
-
-	// fmt.Printf("%q\n", SemIds)
-
-	for _, semId := range SemIds {
-		optionText := findOptionWithTagValue(doc, semId)
-
-		if optionText != "" {
-			SemNames = append(SemNames, optionText)
-
-		} else {
-			// Handle the case where no <option> tag is found with the specified SemId
-			SemNames = append(SemNames, "Unknown")
-		}
-	}
-
-	// Reverse SemIds and SemNames
-	reverseSemIds := make([]string, len(SemIds))
-	reverseSemNames := make([]string, len(SemNames))
-	for i := 0; i < len(SemIds); i++ {
-		reverseIndex := len(SemIds) - 1 - i
-		reverseSemIds[i] = SemIds[reverseIndex]
-		reverseSemNames[i] = SemNames[reverseIndex]
-	}
-
-	// Save the reversed values back to SemDetails
-	SemIds = reverseSemIds
-	SemNames = reverseSemNames
-
-	//fmt.Println("\nget wroking")
-	// Return the encapsulated struct
-	return SemesterDetails{
-		SemNames: SemNames,
-		SemIds:   SemIds,
-	}
-}
-
 func GetAttendance(regNo string, cookies types.Cookies, semId string, sem_choice int) {
 	url := "https://vtop.vit.ac.in/vtop/processViewStudentAttendance"
 
@@ -92,15 +30,15 @@ func GetAttendance(regNo string, cookies types.Cookies, semId string, sem_choice
 	if err != nil {
 		log.Fatal(err)
 	}
-	findAndSaveAtten(doc)
+	findAndSaveAttenendance(doc)
 }
 
-func findAndSaveAtten(doc *goquery.Document) {
+func findAndSaveAttenendance(doc *goquery.Document) {
 	var markdownTable strings.Builder
 	targetID := "AttendanceDetailDataTable"
 	table := doc.Find("table#" + targetID)
 	if table.Length() > 0 {
-		printTableAtten("Header", nil, &markdownTable)
+		printTableAttendance("Header", nil, &markdownTable)
 		table.Find("tbody tr").Each(func(i int, rowSelection *goquery.Selection) {
 			row := []string{} // Initialize a new slice for each row
 			rowSelection.Find("td").Each(func(j int, cell *goquery.Selection) {
@@ -109,7 +47,7 @@ func findAndSaveAtten(doc *goquery.Document) {
 			})
 			//fmt.Println("hi table")
 			//fmt.Println(row)
-			printFormattedRowAtten(row, &markdownTable)
+			printFormattedRowAttendance(row, &markdownTable)
 		})
 	} else {
 		fmt.Println("Table with ID 'AttendanceDetailDataTable' not found")
@@ -117,7 +55,7 @@ func findAndSaveAtten(doc *goquery.Document) {
 	fmt.Println(markdownTable.String())
 }
 
-func printTableAtten(title string, data [][]string, builder *strings.Builder) {
+func printTableAttendance(title string, data [][]string, builder *strings.Builder) {
 
 	builder.WriteString(fmt.Sprintf("| %-5s | %-12s | %-20s | %-35s | %-16s | %-10s | %-18s |\n",
 		"S.No.", "Course Code", "Slot No.", "Faculty Name", "Classes Attended", "Percentage", "75% Alert"))
@@ -125,7 +63,7 @@ func printTableAtten(title string, data [][]string, builder *strings.Builder) {
 
 }
 
-func printFormattedRowAtten(row []string, builder *strings.Builder) {
+func printFormattedRowAttendance(row []string, builder *strings.Builder) {
 	builder.WriteString(fmt.Sprintf("| %-5s | %-12s | %-20s | %-35s | %-16s | %-10s | %-17s |\n",
 		row[0], strings.Split(row[2], "-")[0], strings.Split(row[3], "-")[1], strings.Split(row[4], "-")[0], row[5]+"/"+row[6], row[7], Cal75(strToInt(row[5]), strToInt(row[6]), strToInt(strings.Split(row[7], "%")[0]))))
 }
@@ -178,7 +116,7 @@ func Attendance(regNo string, cookies types.Cookies, sem_choice int) string {
 		choice = sem_choice
 	}
 
-	semDet := GetSemDetailsAtten(cookies, regNo)
+	semDet := helpers.GetSemDetails(cookies, regNo)
 	if choice < 1 || choice > len(semDet.SemIds) {
 		fmt.Println("Invalid choice.")
 	} else {
