@@ -52,5 +52,5 @@ func CheckKillSwitch() int {
 	} else if strings.Contains(string(bodyText), "killSwitch: 0") {
 		return 0
 	}
-	return 1
+	return 0
 }
