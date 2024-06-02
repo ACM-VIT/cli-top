@@ -241,12 +241,7 @@ func findAndSaveTimeTable(doc *goquery.Document, schedule string) {
 			if len(row) > 0 {
 				rows = append(rows, row)
 			}
-			// if len(timeLab) > 0 {
-			// 	timeL = append(timeL, timeLab)
-			// }
-			// if len(timeTheory) > 0 {
-			// 	timeTh = append(timeTh, timeTheory)
-			// }
+			
 		})
 
 		// Print sub-rows after all rows have been processed
@@ -278,31 +273,7 @@ func findAndSaveTimeTable(doc *goquery.Document, schedule string) {
 		}
 		checkTime(subjectDayWise, pythonDict)
 
-		// var outputL strings.Builder
-
-		// var filteredL [][]string
-
-		// for _, subArray := range timeL {
-		// 	var filteredSubL []string
-		// 	for _, item := range subArray {
-		// 		if item != "Lunch" && item != "-" {
-		// 			filteredSubL = append(filteredSubL, item)
-		// 		}
-		// 	}
-		// 	filteredL = append(filteredL, filteredSubL)
-		// }
-
-		// for i := 0; i < len(filteredL[0])-1; i = i + 2 {
-
-		// 	start := fmt.Sprintf("%s", filteredL[0][i]) // Convert to string
-		// 	end := fmt.Sprintf("%s", filteredL[1][i+1]) // Convert to string
-		// 	//fmt.Println(start,end)
-		// 	outputL.WriteString(fmt.Sprintf("%s to %s\n", start, end))
-		// }
-
-		//fmt.Println(filteredL)
-		//fmt.Println(outputL.String())
-		//fmt.Println()
+		
 
 	} else {
 		fmt.Println("Table with ID 'timeTableStyle' not found")
