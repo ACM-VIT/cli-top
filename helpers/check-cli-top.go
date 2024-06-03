@@ -29,7 +29,6 @@ func CheckUpdate() {
 		fmt.Println("A new version of cli-top is available.\nCheck out: https://cli-top.acmvit.in/ for the latest release.")
 	} else {
 		fmt.Println("You are using the latest stable version of cli-top.")
-
 	}
 
 }
