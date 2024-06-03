@@ -19,7 +19,7 @@ func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choi
 
 	semesterID := helpers.SelectSemester(regNo, cookies, sem_choice)
 
-	bodyText, err := helpers.FetchReq(regNo, cookies, url, semesterID, "UTC", "POST")
+	bodyText, err := helpers.FetchReq(regNo, cookies, url, semesterID, "UTC", "POST", "")
 	if err != nil {
 		log.Fatal(err)
 	}
