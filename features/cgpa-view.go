@@ -1,25 +1,20 @@
 package features
 
 import (
-	// "bytes"
-	"fmt"
-	// "io"
-	"log"
-	// "net/http"
-	// "net/url"
-	"strings"
-	// "time"
 	"cli-top/helpers"
 	"cli-top/types"
+	"fmt"
+	"log"
+	"strings"
 
-	// "github.com/charmbracelet/glamour"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/olekukonko/tablewriter"
-	// "golang.org/x/net/html"
 )
 
 func PrintCgpa(regNo string, cookies types.Cookies, url string) {
-	body, err := helpers.FetchReq(regNo, cookies, url, "", "", "POST")
+
+	// Fetch the CGPA data
+	body, err := helpers.FetchReq(regNo, cookies, url, "", "", "POST", "")
 	if err != nil {
 		log.Fatal("Error fetching CGPA data:", err)
 		return
