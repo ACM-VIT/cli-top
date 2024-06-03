@@ -56,15 +56,22 @@ func findAndSaveAttendance(doc *goquery.Document) {
 
 func printTableAttendance(title string, data [][]string, builder *strings.Builder) {
 
-	builder.WriteString(fmt.Sprintf("| %-5s | %-12s | %-20s | %-35s | %-16s | %-10s | %-18s |\n",
+	builder.WriteString(fmt.Sprintf("| %-5s | %-12s | %-20s | %-35s | %-16s | %-10s | %-22s |\n",
 		"S.No.", "Course Code", "Slot No.", "Faculty Name", "Classes Attended", "Percentage", "75% Alert"))
-	builder.WriteString("|-------|--------------|----------------------|-------------------------------------|------------------|------------|--------------------|\n")
+	builder.WriteString("|-------|--------------|----------------------|-------------------------------------|------------------|------------|------------------------|\n")
 
 }
 
-func printFormattedRowAttendance(row []string, builder *strings.Builder) {
-	builder.WriteString(fmt.Sprintf("| %-5s | %-12s | %-20s | %-35s | %-16s | %-10s | %-17s |\n",
-		row[0], strings.Split(row[2], "-")[0], strings.Split(row[3], "-")[1], strings.Split(row[4], "-")[0], row[5]+"/"+row[6], row[7], Cal75(strToInt(row[5]), strToInt(row[6]), strToInt(strings.Split(row[7], "%")[0]))))
+// <<<<<<< fix-fetchRequest
+// func printFormattedRowAttendance(row []string, builder *strings.Builder) {
+// 	builder.WriteString(fmt.Sprintf("| %-5s | %-12s | %-20s | %-35s | %-16s | %-10s | %-17s |\n",
+// 		row[0], strings.Split(row[2], "-")[0], strings.Split(row[3], "-")[1], strings.Split(row[4], "-")[0], row[5]+"/"+row[6], row[7], Cal75(strToInt(row[5]), strToInt(row[6]), strToInt(strings.Split(row[7], "%")[0]))))
+// =======
+func printFormattedRowAtten(row []string, builder *strings.Builder) {
+	builder.WriteString(fmt.Sprintf("| %-5s | %-12s | %-20s | %-35s | %-16s | %-10s | %-15s |\n",
+		row[0], strings.Split(row[2], "-")[0], strings.Split(row[3], "-")[1], strings.Split(row[4], "-")[0], row[5]+"/"+row[6], row[7], Cal75(strToInt(row[5]), strToInt(row[6]))))
+
+// >>>>>>> dev
 }
 
 func strToInt(str string) int {
@@ -77,27 +84,78 @@ func strToInt(str string) int {
 	return num
 }
 
-func Cal75(att int, tot int, perc int) string {
+func Cal75(att int, tot int) string {
 	var ret string
-	if perc == 75 {
-		ret = fmt.Sprintf("\033[32m" + "Can skip 0 class" + "\033[0m" + "\t")
-	} else if perc < 75 {
-		for i := 1; i < att; i++ {
-			if math.Ceil((float64(att+i)/float64(tot+i))*100) <= 75 {
-				ret = fmt.Sprintf("\033[31m"+"Attend %d class\033[0m"+"\033[0m"+"\t", i)
+	perc := float64(att) / float64(tot) * 100
+	if perc >=74.01 && perc<=75 {
+		ret = fmt.Sprintf("%-31s", "\033[32mCan skip 0 classes\033[0m")
+	} else if perc < 74.01 {
+		for i := 1; i <= (tot * 2); i++ {
+			newPerc := float64(att+i) / float64(tot+i) * 100
+			if math.Ceil(newPerc) >= 75 {
+				ret = fmt.Sprintf("%-31s", fmt.Sprintf("\033[31mAttend %d class(es)\033[0m", i))
+				break
 			}
 		}
 	} else {
-		ret = fmt.Sprintf("\033[32m" + "Can skip 0 class" + "\033[0m" + "\t")
-		for i := 1; i < att; i++ {
+		for i := 1; i < tot; i++ {
 			if math.Ceil((float64(att)/float64(tot+i))*100) >= 75 {
-
-				ret = fmt.Sprintf("\033[32m"+"Can skip %d class"+"\033[0m"+"\t", i)
-
+				ret = fmt.Sprintf("%-31s", fmt.Sprintf("\033[32mCan skip %d classes\033[0m", i))
 			}
-
 		}
-
 	}
+
 	return ret
 }
+// <<<<<<< fix-fetchRequest
+// =======
+
+// func Attendance(regNo string, cookies types.Cookies, sem_choice int) string {
+// 	selectedSemId := ""
+// 	selectedSemName := ""
+// 	var choice int
+
+// 	if sem_choice == 0 {
+// 		PrintSemDetails(regNo, cookies)
+// 		fmt.Print("\nEnter the index of the semester to view attendance: ")
+// 		fmt.Scanln(&choice)
+// 	} else {
+// 		choice = sem_choice
+// 	}
+
+// 	semDet := GetSemDetailsAtten(cookies, regNo)
+// 	if choice < 1 || choice > len(semDet.SemIds) {
+// 		fmt.Println("Invalid choice.")
+// 	} else {
+// 		for i, id := range semDet.SemIds {
+// 			if i+1 == choice {
+// 				// fmt.Println("Selected sem id : ",id)
+// 				// fmt.Println("Selected sem name : ",semDet.SemNames[i])
+// 				selectedSemId = id
+// 				selectedSemName = semDet.SemNames[i]
+// 			}
+// 		}
+// 	}
+
+// 	// Format the string with glamour
+// 	formattedSelection := fmt.Sprintf("\n# You selected SemId: %s, SemName: %s\n", selectedSemId, selectedSemName)
+
+// 	// Render and print the formatted string
+// 	renderer, err := glamour.NewTermRenderer(glamour.WithStylePath("dark"), glamour.WithWordWrap(150))
+// 	if err != nil {
+// 		log.Fatal("Error creating glamour renderer:", err)
+// 	}
+
+// 	output, err := renderer.Render(formattedSelection)
+// 	if err != nil {
+// 		log.Fatal("Error rendering formatted string:", err)
+// 	}
+
+// 	fmt.Print(output)
+
+// 	fmt.Println()
+
+// 	return selectedSemId
+
+// }
+// >>>>>>> dev
