@@ -50,9 +50,9 @@ func CheckKillSwitch() int {
 		log.Fatal(err)
 	}
 
-	if strings.Contains(string(bodyText), "killSwitch: 2") {
+	if strings.Contains(string(bodyText), "\"killSwitch\": 2") {
 		return 2
-	} else if strings.Contains(string(bodyText), "killSwitch: 0") {
+	} else if strings.Contains(string(bodyText), "\"killSwitch\": 0") {
 		return 0
 	}
 	return 1
