@@ -46,7 +46,7 @@ func findAndSaveAttendance(doc *goquery.Document) {
 			})
 			//fmt.Println("hi table")
 			//fmt.Println(row)
-			printFormattedRowAtten(row, &markdownTable)
+			printFormattedRowAttendance(row, &markdownTable)
 		})
 	} else {
 		fmt.Println("Table with ID 'AttendanceDetailDataTable' not found")
@@ -62,16 +62,9 @@ func printTableAttendance(title string, data [][]string, builder *strings.Builde
 
 }
 
-// <<<<<<< fix-fetchRequest
-// func printFormattedRowAttendance(row []string, builder *strings.Builder) {
-// 	builder.WriteString(fmt.Sprintf("| %-5s | %-12s | %-20s | %-35s | %-16s | %-10s | %-17s |\n",
-// 		row[0], strings.Split(row[2], "-")[0], strings.Split(row[3], "-")[1], strings.Split(row[4], "-")[0], row[5]+"/"+row[6], row[7], Cal75(strToInt(row[5]), strToInt(row[6]), strToInt(strings.Split(row[7], "%")[0]))))
-// =======
-func printFormattedRowAtten(row []string, builder *strings.Builder) {
+func printFormattedRowAttendance(row []string, builder *strings.Builder) {
 	builder.WriteString(fmt.Sprintf("| %-5s | %-12s | %-20s | %-35s | %-16s | %-10s | %-15s |\n",
 		row[0], strings.Split(row[2], "-")[0], strings.Split(row[3], "-")[1], strings.Split(row[4], "-")[0], row[5]+"/"+row[6], row[7], Cal75(strToInt(row[5]), strToInt(row[6]))))
-
-// >>>>>>> dev
 }
 
 func strToInt(str string) int {
