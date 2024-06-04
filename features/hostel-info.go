@@ -19,7 +19,7 @@ import (
 )
 
 func PrintHostelInfo(regNo string, cookies types.Cookies, url string) {
-	body, err := helpers.FetchReq(regNo, cookies, url, "")
+	body, err := helpers.FetchReq(regNo, cookies, url, "", "", "POST", "")
 	if err != nil {
 		log.Fatal("Error fetching HTML:", err)
 		return

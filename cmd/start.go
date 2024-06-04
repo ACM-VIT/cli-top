@@ -220,7 +220,7 @@ var marksCmd = &cobra.Command{
 	Short: "Show Marks Details of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.Marks(regNo, cookies, semesterFlag)
+		features.GetMarks(regNo, cookies, "", semesterFlag)
 	},
 }
 
