@@ -89,9 +89,7 @@ func checkTime(goMap map[int][][]string, pythonDict map[types.KeyStruct][]string
 		switch key {
 		case 1:
 			dayName = "Monday"
-			fmt.Println("Monday")
 		case 2:
-			fmt.Println("Tuesday")
 			dayName = "Tuesday"
 		case 3:
 			dayName = "Wednesday"
