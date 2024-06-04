@@ -2,12 +2,13 @@ package features
 
 import (
 	"bytes"
-	"cli-top/helpers"
 	"cli-top/debug"
+	"cli-top/helpers"
 	"cli-top/types"
 	"fmt"
 	"log"
 	"strings"
+	"time" // Import the time package
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/charmbracelet/glamour"
@@ -123,55 +124,3 @@ func generateExamScheduleMarkdownTable(examSchedule [][]string) string {
 
 	return buf.String()
 }
-
-// <<<<<<< fix-fetchRequest
-// =======
-
-
-// func Marks0(regNo string, cookies types.Cookies, sem_choice int) string {
-
-// 	selectedSemId := ""
-// 	selectedSemName := ""
-
-// 	var choice int
-// 	if sem_choice == 0 {
-// 		PrintSemDetails(regNo, cookies)
-// 		fmt.Print("\nEnter the index of the semester to view exam schedule: ")
-// 		fmt.Scanln(&choice)
-// 	} else {
-// 		choice = sem_choice
-// 	}
-// 	semDet := GetSemDetails0(cookies, regNo)
-
-// 	if choice < 1 || choice > len(semDet.SemIds) {
-// 		fmt.Println("Invalid choice.")
-// 	} else {
-// 		for i, id := range semDet.SemIds {
-// 			if i+1 == choice {
-// 				selectedSemId = id
-// 				selectedSemName = semDet.SemNames[i]
-// 			}
-// 		}
-// 	}
-
-// 	// Format the string with glamour
-// 	formattedSelection := fmt.Sprintf("\n# You selected SemId: %s, SemName: %s\n", selectedSemId, selectedSemName)
-
-// 	// Render and print the formatted string
-// 	renderer, err := glamour.NewTermRenderer(glamour.WithStylePath("dark"), glamour.WithWordWrap(150))
-// 	if err != nil {
-// 		log.Fatal("Error creating glamour renderer:", err)
-// 	}
-
-// 	output, err := renderer.Render(formattedSelection)
-// 	if err != nil {
-// 		log.Fatal("Error rendering formatted string:", err)
-// 	}
-
-// 	fmt.Print(output)
-// 	fmt.Println()
-
-// 	return selectedSemId
-
-// }
-// >>>>>>> dev

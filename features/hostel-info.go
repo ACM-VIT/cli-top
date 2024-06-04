@@ -33,7 +33,7 @@ func PrintHostelInfo(regNo string, cookies types.Cookies, url string) {
 
 	// fmt.Println("+-----------------------------+------------------------------------------------------+")
 	fmt.Println("Student Accommodation Info")
-	fmt.Println("+-----------------------------+------------------------------------------------------+")
+	fmt.Println("+-----------------------------+--------------------------------------------------------------------+")
 
 	table := doc.Find("div.table-responsive table.table tbody tr")
 	lastFiveRows := table.Slice(-5, table.Length())
@@ -42,8 +42,8 @@ func PrintHostelInfo(regNo string, cookies types.Cookies, url string) {
 		header := rowSelection.Find("td").Eq(0).Text()
 		value := rowSelection.Find("td").Eq(1).Text()
 
-		fmt.Printf("| %-27s | %-52s |\n", strings.TrimSpace(header), strings.TrimSpace(value))
+		fmt.Printf("| %-27s | %-66s |\n", strings.TrimSpace(header), strings.TrimSpace(value))
 	})
 
-	fmt.Println("+-----------------------------+------------------------------------------------------+")
+	fmt.Println("+-----------------------------+--------------------------------------------------------------------+")
 }

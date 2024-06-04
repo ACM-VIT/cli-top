@@ -62,16 +62,9 @@ func printTableAttendance(title string, data [][]string, builder *strings.Builde
 
 }
 
-// <<<<<<< fix-fetchRequest
-// func printFormattedRowAttendance(row []string, builder *strings.Builder) {
-// 	builder.WriteString(fmt.Sprintf("| %-5s | %-12s | %-20s | %-35s | %-16s | %-10s | %-17s |\n",
-// 		row[0], strings.Split(row[2], "-")[0], strings.Split(row[3], "-")[1], strings.Split(row[4], "-")[0], row[5]+"/"+row[6], row[7], Cal75(strToInt(row[5]), strToInt(row[6]), strToInt(strings.Split(row[7], "%")[0]))))
-// =======
-func printFormattedRowAtten(row []string, builder *strings.Builder) {
+func printFormattedRowAttendance(row []string, builder *strings.Builder) {
 	builder.WriteString(fmt.Sprintf("| %-5s | %-12s | %-20s | %-35s | %-16s | %-10s | %-15s |\n",
 		row[0], strings.Split(row[2], "-")[0], strings.Split(row[3], "-")[1], strings.Split(row[4], "-")[0], row[5]+"/"+row[6], row[7], Cal75(strToInt(row[5]), strToInt(row[6]))))
-
-// >>>>>>> dev
 }
 
 func strToInt(str string) int {
@@ -98,12 +91,17 @@ func Cal75(att int, tot int) string {
 			}
 		}
 	} else {
-		for i := 1; i < tot; i++ {
-			if math.Ceil((float64(att)/float64(tot+i))*100) >= 75 {
-				ret = fmt.Sprintf("%-31s", fmt.Sprintf("\033[32mCan skip %d classes\033[0m", i))
-			}
+		for i := 0; i <= tot; i++ { // Start from 0 to check if no classes can be skipped
+            newPerc := math.Ceil((float64(att) / float64(tot+i)) * 100)
+            if newPerc >= 75 {
+                ret = fmt.Sprintf("%-31s", fmt.Sprintf("\033[32mCan skip %d classes\033[0m", i))
+            } else {
+                // When the attendance percentage is no longer >= 75, break out of the loop
+                break
+            }
+        }
 		}
-	}
+	
 
 	return ret
 }
