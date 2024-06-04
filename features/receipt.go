@@ -14,13 +14,15 @@ import (
 )
 
 func GetReceipt(regNo string, cookies types.Cookies) {
-	body, err := helpers.FetchReq(regNo, cookies, "https://vtop.vit.ac.in/vtop/finance/getStudentReceipts", "")
+	url := "https://vtop.vit.ac.in/vtop/finance/getStudentReceipts"
+
+	bodyText, err := helpers.FetchReq(regNo, cookies, url, "", "", "POST", "")
 	if err != nil {
 		log.Fatal("Error fetching data:", err)
 		return
 	}
 
-	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
 	if err != nil {
 		log.Fatal("Error parsing HTML:", err)
 		return

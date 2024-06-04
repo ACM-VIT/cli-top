@@ -100,6 +100,10 @@ func getLoginPage() (types.Cookies, string) {
 	// fmt.Println("getLoginPage() - Captcha:", captchaImage)
 
 	captcha := helpers.SolveCaptcha(captchaImage)
+	if strings.Contains(captcha, "disabled") {
+		fmt.Println("Captcha auto-solver has been disabled. \nPlease manually solve the captcha and answer here:")
+		fmt.Scanln(&captcha)
+	}
 
 	return cookies, captcha
 }
