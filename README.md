@@ -54,10 +54,10 @@ A Command Line Interface (CLI) tool for seamless interaction with the student po
 ## Contributors
 
 - [Shambhavi Paygude](https://github.com/shambhavipaygude)
+- [Garv Jain](https://github.com/garvjainpb)
 - [Prateek Srivastava](https://github.com/prateek-srivastava001)
 - [Kaustav Patro](https://github.com/icky-kp)
 - [Tanmay Paturu](https://github.com/Tintedfireglass)
-- [Garv Jain](https://github.com/garv-jain1)
 - [Amritsai](https://github.com/gekyxme)
 - [Pritam Satpathy](https://github.com/ps2181)
 
