@@ -84,7 +84,7 @@ func printFormattedRowAttendance(row []string, builder *strings.Builder) {
     var calResult string
 	//To check for Lab slots
     if strings.ContainsAny(SlotNo, "L"){
-        calResult = Cal75lab(strToInt(row[5]), strToInt(row[6]), strToInt(strings.Split(row[7], "%")[0]))
+        calResult = Cal75Lab(strToInt(row[5]), strToInt(row[6]), strToInt(strings.Split(row[7], "%")[0]))
     } else {
         calResult = Cal75(strToInt(row[5]), strToInt(row[6]))
     }
@@ -95,7 +95,7 @@ func printFormattedRowAttendance(row []string, builder *strings.Builder) {
 
 
 
-func Cal75lab(att int, tot int, perc int) string {
+func Cal75Lab(att int, tot int, perc int) string {
     var ret string
     if perc == 75 {
         ret = fmt.Sprintf("%-31s", "\033[32mCan skip 0 labs\033[0m")
@@ -131,7 +131,7 @@ func Cal75(att int, tot int) string {
 	var ret string
 	perc := float64(att) / float64(tot) * 100
 	if perc >=74.01 && perc<=75 {
-		ret = fmt.Sprintf("%-31s", "\033[32mCan skip 0 class(es)\033[0m")
+		ret = fmt.Sprintf("%-31s", "\033[32mCan skip 0 classes\033[0m")
 	} else if perc < 74.01 {
 		for i := 1; i <= (tot * 2); i++ {
 			newPerc := float64(att+i) / float64(tot+i) * 100
