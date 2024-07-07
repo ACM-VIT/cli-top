@@ -192,9 +192,12 @@ func Execute() {
 	timeTableCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	examScheduleCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 
+	// Add the flags to the root command
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
 	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
+
+	// Add the commands to the root command
 	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd)
 
 	rootCmd.SetArgs(os.Args[1:])

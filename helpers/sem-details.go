@@ -140,7 +140,7 @@ func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) string 
 	var choice int
 	if sem_choice == 0 {
 		PrintSemDetails(regNo, cookies)
-		fmt.Print("\nEnter the index of the semester to view: ")
+		fmt.Print("\nChoose a semester: ")
 		fmt.Scanln(&choice)
 	} else {
 		choice = sem_choice
