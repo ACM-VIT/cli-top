@@ -1,6 +1,7 @@
 package features
 
 import (
+	"cli-top/debug"
 	"cli-top/helpers"
 	"cli-top/types"
 	"fmt"
@@ -15,14 +16,14 @@ func PrintCgpa(regNo string, cookies types.Cookies, url string) {
 
 	// Fetch the CGPA data
 	body, err := helpers.FetchReq(regNo, cookies, url, "", "", "POST", "")
-	if err != nil {
-		log.Fatal("Error fetching CGPA data:", err)
+	if err != nil && debug.Debug {
+		fmt.Println("Error fetching CGPA data:", err)
 		return
 	}
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
-	if err != nil {
-		log.Fatal("Error parsing HTML:", err)
+	if err != nil && debug.Debug {
+		fmt.Println("Error parsing HTML:", err)
 		return
 	}
 

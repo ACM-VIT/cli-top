@@ -5,7 +5,6 @@ import (
 	"cli-top/types"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -15,7 +14,7 @@ import (
 
 func extractImageSrc(html string) (string, error) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
-	if err != nil {
+	if err != nil && debug.Debug {
 		return "", err
 	}
 
@@ -32,8 +31,8 @@ func extractImageSrc(html string) (string, error) {
 
 func ExtractImage(html string) string {
 	src, err := extractImageSrc(html)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 		return ""
 	}
 	// fmt.Println(src)
@@ -43,7 +42,7 @@ func ExtractImage(html string) string {
 
 func ExtractCookies(resp *http.Response) types.Cookies {
 	if resp == nil {
-		log.Fatal("Response is nil")
+		fmt.Println("Response is nil")
 	}
 
 	secrets := make(map[string]string)
@@ -68,8 +67,8 @@ func ExtractCookies(resp *http.Response) types.Cookies {
 
 func ExtractBodyText(resp *http.Response) string {
 	bodyText, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 		return ""
 	}
 

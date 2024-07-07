@@ -2,9 +2,10 @@ package features
 
 import (
 	"bytes"
+	"cli-top/debug"
 	"cli-top/helpers"
 	"cli-top/types"
-	"log"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -17,14 +18,14 @@ func GetReceipt(regNo string, cookies types.Cookies) {
 	url := "https://vtop.vit.ac.in/vtop/finance/getStudentReceipts"
 
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, "", "", "POST", "")
-	if err != nil {
-		log.Fatal("Error fetching data:", err)
+	if err != nil && debug.Debug {
+		fmt.Println("Error fetching data:", err)
 		return
 	}
 
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
-	if err != nil {
-		log.Fatal("Error parsing HTML:", err)
+	if err != nil && debug.Debug {
+		fmt.Println("Error parsing HTML:", err)
 		return
 	}
 

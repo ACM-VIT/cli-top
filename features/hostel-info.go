@@ -5,12 +5,14 @@ import (
 	"fmt"
 
 	// "io"
-	"log"
+
 	// "net/http"
 	// "net/url"
 	"strings"
 	// "time"
+	"cli-top/debug"
 	"cli-top/types"
+
 	// "github.com/charmbracelet/glamour"
 	"cli-top/helpers"
 
@@ -20,14 +22,14 @@ import (
 
 func PrintHostelInfo(regNo string, cookies types.Cookies, url string) {
 	body, err := helpers.FetchReq(regNo, cookies, url, "", "", "POST", "")
-	if err != nil {
-		log.Fatal("Error fetching HTML:", err)
+	if err != nil && debug.Debug {
+		fmt.Println("Error fetching HTML:", err)
 		return
 	}
 
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
-	if err != nil {
-		log.Fatal("Error parsing HTML:", err)
+	if err != nil && debug.Debug {
+		fmt.Println("Error parsing HTML:", err)
 		return
 	}
 

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"image"
 	"image/jpeg"
-	"log"
 	"math"
 	"os"
 	"sort"
@@ -153,25 +152,25 @@ func SolveCaptcha(imageURL string) string {
 	if strings.HasPrefix(imageURL, "data:image/jpeg;base64,") {
 		base64Data := strings.TrimPrefix(imageURL, "data:image/jpeg;base64,")
 		data, err := base64.StdEncoding.DecodeString(base64Data)
-		if err != nil {
+		if err != nil && debug.Debug {
 			fmt.Println("Error decoding base64:", err)
 			return ""
 		}
 
 		img, _, err := image.Decode(strings.NewReader(string(data)))
-		if err != nil {
-			log.Fatal(err)
+		if err != nil && debug.Debug {
+			fmt.Println(err)
 		}
 		// Save the image to a file (optional)
 		outFile, err := os.Create("captcha.jpg")
-		if err != nil {
-			log.Fatal(err)
+		if err != nil && debug.Debug {
+			fmt.Println(err)
 		}
 		defer outFile.Close()
 
 		err = jpeg.Encode(outFile, img, nil)
-		if err != nil {
-			log.Fatal(err)
+		if err != nil && debug.Debug {
+			fmt.Println(err)
 		}
 
 		var captcha string
@@ -180,8 +179,8 @@ func SolveCaptcha(imageURL string) string {
 			fmt.Scanln(&captcha)
 		} else {
 			err = os.Remove("captcha.jpg")
-			if err != nil {
-				log.Fatal(err)
+			if err != nil && debug.Debug {
+				fmt.Println(err)
 			}
 		}
 
@@ -220,7 +219,7 @@ func SolveCaptcha(imageURL string) string {
 		}
 
 	} else {
-		log.Fatal("Unsupported URL scheme")
+		fmt.Println("Unsupported URL scheme")
 		return ""
 	}
 }
