@@ -4,9 +4,9 @@ package features
 
 import (
 	"bytes"
+	"cli-top/debug"
 	types "cli-top/types"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
@@ -20,7 +20,7 @@ func fetchStudentDetails(cookies types.Cookies, regNo string) (types.StudentDeta
 	data := strings.NewReader(fmt.Sprintf("verifyMenu=true&authorizedID=%s&_csrf=%s&nocache=@(new Date().getTime())", regNo, cookies.CSRF))
 
 	req, err := http.NewRequest("POST", url, data)
-	if err != nil {
+	if err != nil && debug.Debug {
 		return types.StudentDetails{}, err
 	}
 
@@ -39,13 +39,13 @@ func fetchStudentDetails(cookies types.Cookies, regNo string) (types.StudentDeta
 	req.Header.Set("TE", "trailers")
 
 	resp, err := client.Do(req)
-	if err != nil {
+	if err != nil && debug.Debug {
 		return types.StudentDetails{}, err
 	}
 	defer resp.Body.Close()
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
-	if err != nil {
+	if err != nil && debug.Debug {
 		return types.StudentDetails{}, err
 	}
 
@@ -69,15 +69,15 @@ func fetchStudentDetails(cookies types.Cookies, regNo string) (types.StudentDeta
 func Profile(cookies types.Cookies, regNo string) {
 
 	studentDetails, err := fetchStudentDetails(cookies, regNo)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 
 	markdownTable := generateStudentDetailsMarkdownTable(studentDetails)
 
 	rendered, err := glamour.Render(markdownTable, "dark")
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 
 	fmt.Println(rendered)

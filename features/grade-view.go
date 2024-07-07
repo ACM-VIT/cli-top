@@ -1,10 +1,10 @@
 package features
 
 import (
+	"cli-top/debug"
 	"cli-top/helpers"
 	types "cli-top/types"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -15,14 +15,14 @@ func GetGrades(regNo string, cookies types.Cookies, semId string, sem_choice int
 
 	semesterID := helpers.SelectSemester(regNo, cookies, sem_choice)
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, semesterID, "UTC", "POST", "")
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 
 	// Use goquery to parse the HTML
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 
 	findAndSaveGrade(doc)
