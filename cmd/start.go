@@ -6,9 +6,9 @@ import (
 	// "io/ioutil"
 	"cli-top/debug"
 	"cli-top/features"
+	"cli-top/helpers"
 	"cli-top/login"
 	"cli-top/types"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -32,8 +32,8 @@ func startfn(cmd *cobra.Command, args []string) {
 	// filePath := "logo.txt"
 
 	// content, err := ioutil.ReadFile(filePath)
-	// if err != nil {
-	// 	log.Fatal(err)
+	// if err != nil && debug.Debug{
+	// 	fmt.Println(err)
 	// }
 
 	// contentStr := string(content)
@@ -52,7 +52,7 @@ func startfn(cmd *cobra.Command, args []string) {
 
 	// Get the current working directory
 	currentDir, err := os.Getwd()
-	if err != nil {
+	if err != nil && debug.Debug {
 		fmt.Println("Error getting current directory:", err)
 		return
 	}
@@ -67,8 +67,8 @@ func startfn(cmd *cobra.Command, args []string) {
 		}
 
 		err := godotenv.Load("cli-top-config.env")
-		if err != nil {
-			log.Fatal("Error loading .env file")
+		if err != nil && debug.Debug {
+			fmt.Println("Error loading .env file")
 		}
 		if debug.Debug {
 			fmt.Println(os.Getenv("PASSWORD"))
@@ -87,8 +87,8 @@ func startfn(cmd *cobra.Command, args []string) {
 
 func vtop_login() (types.Cookies, string) {
 	err := godotenv.Load("cli-top-config.env")
-	if err != nil {
-		log.Fatal("Error loading .env file, please enter your credentials using the \"login\" command.")
+	if err != nil && debug.Debug {
+		fmt.Println("Error loading .env file, please enter your credentials using the \"login\" command.")
 	}
 
 	userInfo := types.LogIn{
@@ -99,7 +99,7 @@ func vtop_login() (types.Cookies, string) {
 	key := os.Getenv("KEY")
 
 	password, err := decryptPassword(userInfo.Password, key)
-	if err != nil {
+	if err != nil && debug.Debug {
 		fmt.Println("Error decrypting password:", err)
 	}
 
@@ -108,7 +108,7 @@ func vtop_login() (types.Cookies, string) {
 	userInfo.RegNo = tmp
 
 	saveCookiesToFile(cookies, userInfo, key)
-	if err != nil {
+	if err != nil && debug.Debug {
 		fmt.Println("Error saving cookies:", err)
 	}
 	if debug.Debug {
@@ -126,10 +126,9 @@ func saveCookiesToFile(cookies types.Cookies, userInfo types.LogIn, Key string) 
 	viper.Set("VTOP_USERNAME", "\""+userInfo.Username+"\"")
 	viper.Set("PASSWORD", "\""+userInfo.Password+"\"")
 	viper.Set("KEY", "\""+Key+"\"")
-	if err := viper.WriteConfigAs("cli-top-config.env"); err != nil {
+	if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
 		fmt.Println("Error writing to .env file:", err)
 	}
-	return
 }
 
 func readCookiesFromFile() (types.Cookies, string) {
@@ -138,8 +137,8 @@ func readCookiesFromFile() (types.Cookies, string) {
 		fmt.Println("Debug mode on")
 	}
 	err := godotenv.Load("cli-top-config.env")
-	if err != nil {
-		log.Fatal("Error loading .env file, please enter your credentials using the \"login\" command.")
+	if err != nil && debug.Debug {
+		fmt.Println("Error loading .env file, please enter your credentials using the \"login\" command.")
 	}
 	cookies := types.Cookies{
 		SERVERID:   os.Getenv("SERVERID"),
@@ -171,7 +170,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		if updateFlag {
-			features.CheckUpdate()
+			helpers.CheckUpdate()
 			return
 		}
 
@@ -180,21 +179,29 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
-	rootCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	killSwitch := helpers.CheckKillSwitch()
+	if killSwitch == 2 {
+		fmt.Println("This version of cli-top has been decomissioned. Please await an update at https://cli-top.acmvit.in/.")
+		return
+		// os.Exit(1)
+	}
+	// Specify the semester flag for a subset of the commands
+	marksCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	gradesCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	attendanceCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	timeTableCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	examScheduleCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+
+	// Add the flags to the root command
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
 	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
-	rootCmd.AddCommand(profileCmd)
-	rootCmd.AddCommand(marksCmd)
-	rootCmd.AddCommand(gradesCmd)
-	rootCmd.AddCommand(attendanceCmd)
-	rootCmd.AddCommand(timeTableCmd)
-	rootCmd.AddCommand(receiptCmd)
-	rootCmd.AddCommand(hostelCmd)
-	rootCmd.AddCommand(cgpaCmd)
-	rootCmd.AddCommand(examScheduleCmd)
+
+	// Add the commands to the root command
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd)
+
 	rootCmd.SetArgs(os.Args[1:])
-	if err := rootCmd.Execute(); err != nil {
+	if err := rootCmd.Execute(); err != nil && debug.Debug {
 		fmt.Println(err)
 		os.Exit(1)
 	}
@@ -214,7 +221,7 @@ var marksCmd = &cobra.Command{
 	Short: "Show Marks Details of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.Marks(regNo, cookies, semesterFlag)
+		features.GetMarks(regNo, cookies, "", semesterFlag)
 	},
 }
 
@@ -259,7 +266,7 @@ var hostelCmd = &cobra.Command{
 	Short: "Show Hostel Details of a user",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.PrintHostelInfo(regNo, cookies, "")
+		features.PrintHostelInfo(regNo, cookies, "https://vtop.vit.ac.in/vtop/studentsRecord/StudentProfileAllView")
 	},
 }
 
@@ -268,7 +275,7 @@ var cgpaCmd = &cobra.Command{
 	Short: "Show CGPA details",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.PrintCgpa(regNo, cookies, "")
+		features.PrintCgpa(regNo, cookies, "https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeHistory")
 	},
 }
 

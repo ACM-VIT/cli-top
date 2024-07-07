@@ -27,3 +27,10 @@ type KeyStruct struct {
 	Group int
 	Time  string
 }
+
+type StudentDetails struct {
+	RegisterNumber string
+	ProgramBranch  string
+	VITEmail       string
+	SchoolName     string
+}

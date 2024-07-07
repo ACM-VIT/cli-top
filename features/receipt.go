@@ -2,8 +2,10 @@ package features
 
 import (
 	"bytes"
+	"cli-top/debug"
+	"cli-top/helpers"
 	"cli-top/types"
-	"log"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -14,15 +16,16 @@ import (
 
 func GetReceipt(regNo string, cookies types.Cookies) {
 	url := "https://vtop.vit.ac.in/vtop/finance/getStudentReceipts"
-	body, err := fetchReq(regNo, cookies, url, "")
-	if err != nil {
-		log.Fatal("Error fetching data:", err)
+
+	bodyText, err := helpers.FetchReq(regNo, cookies, url, "", "", "POST", "")
+	if err != nil && debug.Debug {
+		fmt.Println("Error fetching data:", err)
 		return
 	}
 
-	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
-	if err != nil {
-		log.Fatal("Error parsing HTML:", err)
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
+	if err != nil && debug.Debug {
+		fmt.Println("Error parsing HTML:", err)
 		return
 	}
 
@@ -37,7 +40,7 @@ func GetReceipt(regNo string, cookies types.Cookies) {
 		}
 
 		// Extract data from each cell in the row
-		row := []string{strconv.Itoa(i + 1)}
+		row := []string{strconv.Itoa(i)}
 		rowSelection.Find("td").Each(func(j int, cellSelection *goquery.Selection) {
 			// Exclude the VIEW column
 			if j < 4 {
