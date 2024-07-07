@@ -186,19 +186,18 @@ func Execute() {
 		return
 		// os.Exit(1)
 	}
-	rootCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	// Specify the semester flag for a subset of the commands
+	marksCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	gradesCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	attendanceCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	timeTableCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+
+	examScheduleCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
 	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
-	rootCmd.AddCommand(profileCmd)
-	rootCmd.AddCommand(marksCmd)
-	rootCmd.AddCommand(gradesCmd)
-	rootCmd.AddCommand(attendanceCmd)
-	rootCmd.AddCommand(timeTableCmd)
-	rootCmd.AddCommand(receiptCmd)
-	rootCmd.AddCommand(hostelCmd)
-	rootCmd.AddCommand(cgpaCmd)
-	rootCmd.AddCommand(examScheduleCmd)
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd)
+
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
