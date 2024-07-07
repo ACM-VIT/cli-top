@@ -5,9 +5,9 @@ name: build cli-top binary
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "release"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "release"]
 
 jobs:
   build-linux:
@@ -28,6 +28,7 @@ jobs:
       - name: Build
         run: |
           go build -o ./build/linux/ -v ./...
+          chmod +x ./build/linux/cli-top 
           # mv ./build/linux/cli-top ./build/linux/cli-top.lin
 
       - name: Upload a Linux Binary
@@ -82,6 +83,7 @@ jobs:
       - name: Build
         run: |
           go build -o ./build/macos/ -v ./...
+          chmod +x ./build/macos/cli-top
           # mv ./build/macos/cli-top ./build/macos/cli-top.mac
 
       - name: Upload MacOS Binary
@@ -110,6 +112,7 @@ jobs:
       - name: Build
         run: |
           GOOS=linux GOARCH=arm64 go build -o ./build/android/ -v ./...
+          chmod +x ./build/android/cli-top
           # mv ./build/android/cli-top ./build/android/cli-top.mac
 
       - name: Upload Android Binary
