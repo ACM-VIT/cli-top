@@ -5,9 +5,9 @@ name: build cli-top binary
 
 on:
   push:
-    branches: ["main", "release"]
+    branches: ["dev"]
   pull_request:
-    branches: ["main", "release"]
+    branches: ["dev"]
 
 jobs:
   build-linux:
