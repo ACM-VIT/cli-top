@@ -1,12 +1,12 @@
 package login
 
 import (
+	"cli-top/debug"
 	"cli-top/helpers"
 	types "cli-top/types"
 	"crypto/tls"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 )
@@ -17,8 +17,8 @@ func getSessionServer() types.Cookies {
 	}
 	client := &http.Client{Transport: tr}
 	req, err := http.NewRequest("GET", "https://vtop.vit.ac.in/", nil)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 	req.Header.Set("Host", "vtop.vit.ac.in")
 	req.Header.Set("Sec-Ch-Ua", `"Chromium";v="119", "Not?A_Brand";v="24"`)
@@ -35,8 +35,8 @@ func getSessionServer() types.Cookies {
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("Priority", "u=0, i")
 	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 	defer resp.Body.Close()
 
@@ -56,8 +56,8 @@ func getLoginPage() (types.Cookies, string) {
 	client := &http.Client{Transport: tr}
 	var data = strings.NewReader(fmt.Sprintf(`_csrf=%s&flag=VTOP`, cookies.CSRF))
 	req, err := http.NewRequest("POST", "https://vtop.vit.ac.in/vtop/prelogin/setup", data)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 	req.Header.Set("Host", "vtop.vit.ac.in")
 	req.Header.Set("Content-Length", "52")
@@ -80,14 +80,14 @@ func getLoginPage() (types.Cookies, string) {
 	req.Header.Set("Priority", "u=0, i")
 	req.Header.Set("Cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", cookies.JSESSIONID, cookies.SERVERID))
 	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 	defer resp.Body.Close()
 
 	bodyText, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 	// fmt.Printf("%s\n", bodyText)
 
@@ -100,6 +100,10 @@ func getLoginPage() (types.Cookies, string) {
 	// fmt.Println("getLoginPage() - Captcha:", captchaImage)
 
 	captcha := helpers.SolveCaptcha(captchaImage)
+	if strings.Contains(captcha, "disabled") {
+		fmt.Println("Captcha auto-solver has been disabled. \nPlease manually solve the captcha and answer here:")
+		fmt.Scanln(&captcha)
+	}
 
 	return cookies, captcha
 }

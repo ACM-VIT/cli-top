@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"cli-top/debug"
 	"fmt"
 	"strings"
 
@@ -8,9 +9,9 @@ import (
 	"github.com/spf13/viper"
 )
 
-var username = "k"
-var password = "k"
-var regno = "k"
+// var username = "k"
+// var password = "k"
+// var regno = "k"
 
 var credCmd = &cobra.Command{
 	Use:   "login",
@@ -21,7 +22,7 @@ var credCmd = &cobra.Command{
 		key := GenerateAESKey()
 
 		encryptedPassword, err := encryptPassword(password, key)
-		if err != nil {
+		if err != nil && debug.Debug {
 			fmt.Println("Error encrypting password:", err)
 			return
 		}
@@ -31,7 +32,7 @@ var credCmd = &cobra.Command{
 		viper.Set("PASSWORD", "\""+encryptedPassword+"\"")
 		viper.Set("KEY", "\""+key+"\"")
 
-		if err := viper.WriteConfigAs("cli-top-config.env"); err != nil {
+		if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
 			fmt.Println("Error writing to .env file:", err)
 			return
 		}

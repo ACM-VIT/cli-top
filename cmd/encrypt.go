@@ -7,14 +7,13 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"log"
 )
 
 func GenerateAESKey() string {
 	key := make([]byte, 32)
 	_, err := rand.Read(key)
-	if err != nil {
-		log.Fatal("error generating key")
+	if err != nil && debug.Debug {
+		fmt.Println("error generating key")
 	}
 
 	keyBase64 := base64.URLEncoding.EncodeToString(key)[:32]
@@ -26,13 +25,13 @@ func encryptPassword(password string, key string) (string, error) {
 		fmt.Println("key", key)
 	}
 	block, err := aes.NewCipher([]byte(key))
-	if err != nil {
+	if err != nil && debug.Debug {
 		return "", err
 	}
 
 	cipherText := make([]byte, aes.BlockSize+len(password))
 	iv := cipherText[:aes.BlockSize]
-	if _, err := rand.Read(iv); err != nil {
+	if _, err := rand.Read(iv); err != nil && debug.Debug {
 		return "", err
 	}
 
@@ -44,12 +43,12 @@ func encryptPassword(password string, key string) (string, error) {
 
 func decryptPassword(encryptedPassword string, key string) (string, error) {
 	decoded, err := base64.URLEncoding.DecodeString(encryptedPassword)
-	if err != nil {
+	if err != nil && debug.Debug {
 		return "", err
 	}
 
 	block, err := aes.NewCipher([]byte(key))
-	if err != nil {
+	if err != nil && debug.Debug {
 		return "", err
 	}
 

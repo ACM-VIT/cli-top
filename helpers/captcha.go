@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"image"
 	"image/jpeg"
-	"log"
 	"math"
 	"os"
 	"sort"
@@ -148,21 +147,42 @@ func argmax(slice []float32) int {
 
 func SolveCaptcha(imageURL string) string {
 	labelTxt := "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+	killSwitch := CheckKillSwitch()
 
 	if strings.HasPrefix(imageURL, "data:image/jpeg;base64,") {
 		base64Data := strings.TrimPrefix(imageURL, "data:image/jpeg;base64,")
 		data, err := base64.StdEncoding.DecodeString(base64Data)
-		if err != nil {
+		if err != nil && debug.Debug {
 			fmt.Println("Error decoding base64:", err)
 			return ""
 		}
 
 		img, _, err := image.Decode(strings.NewReader(string(data)))
+		if err != nil && debug.Debug {
+			fmt.Println(err)
+		}
 		// Save the image to a file (optional)
-		outFile, err := os.Create("output.jpg")
+		outFile, err := os.Create("captcha.jpg")
+		if err != nil && debug.Debug {
+			fmt.Println(err)
+		}
 		defer outFile.Close()
+
 		err = jpeg.Encode(outFile, img, nil)
-		err = os.Remove("output.jpg")
+		if err != nil && debug.Debug {
+			fmt.Println(err)
+		}
+
+		var captcha string
+		if killSwitch == 1 {
+			fmt.Println("Captcha auto-solver has been disabled. \nPlease manually solve the captcha and answer here:")
+			fmt.Scanln(&captcha)
+		} else {
+			err = os.Remove("captcha.jpg")
+			if err != nil && debug.Debug {
+				fmt.Println(err)
+			}
+		}
 
 		bounds := img.Bounds()
 		rgba := image.NewRGBA(bounds)
@@ -190,9 +210,16 @@ func SolveCaptcha(imageURL string) string {
 			fmt.Println("(Helper - Captcha):", out)
 		}
 
-		return out
+		if killSwitch == 1 {
+			return captcha
+		} else if killSwitch == 2 {
+			return "disabled"
+		} else {
+			return out
+		}
+
 	} else {
-		log.Fatal("Unsupported URL scheme")
+		fmt.Println("Unsupported URL scheme")
 		return ""
 	}
 }

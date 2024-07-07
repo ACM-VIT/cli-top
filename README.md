@@ -29,7 +29,7 @@ A Command Line Interface (CLI) tool for seamless interaction with the student po
 | Attendance Calculator |                    |                   |
 | Leave Application     |                    |                   |  |
 
-**Tech Stack:** Go Lang
+**Tech Stack:** GoLang
 -   Charm.sh - Glamour library to format output as Markdown and render it better
 
 **Project Management:**
@@ -51,4 +51,17 @@ A Command Line Interface (CLI) tool for seamless interaction with the student po
 - [Manav Muthanna](https://github.com/ManavMuthanna)
 - [Sarthak Gupta](https://github.com/gptsarthak)
 
-## Contributors: <!-- Generate contributors list using this link - https://contributors-img.web.app/preview -->
+## Contributors
+
+- [Shambhavi Paygude](https://github.com/shambhavipaygude)
+- [Garv Jain](https://github.com/garvjainpb)
+- [Prateek Srivastava](https://github.com/prateek-srivastava001)
+- [Kaustav Patro](https://github.com/icky-kp)
+- [Tanmay Paturu](https://github.com/Tintedfireglass)
+- [Amritsai](https://github.com/gekyxme)
+- [Pritam Satpathy](https://github.com/ps2181)
+
+
+
+
+

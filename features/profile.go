@@ -4,9 +4,9 @@ package features
 
 import (
 	"bytes"
+	"cli-top/debug"
 	types "cli-top/types"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
@@ -14,21 +14,14 @@ import (
 	"github.com/charmbracelet/glamour"
 )
 
-type StudentDetails struct {
-	RegisterNumber string
-	ProgramBranch  string
-	VITEmail       string
-	SchoolName     string
-}
-
-func fetchStudentDetails(cookies types.Cookies, regNo string) (StudentDetails, error) {
+func fetchStudentDetails(cookies types.Cookies, regNo string) (types.StudentDetails, error) {
 	client := &http.Client{}
 	url := "https://vtop.vit.ac.in/vtop/studentsRecord/StudentProfileAllView"
 	data := strings.NewReader(fmt.Sprintf("verifyMenu=true&authorizedID=%s&_csrf=%s&nocache=@(new Date().getTime())", regNo, cookies.CSRF))
 
 	req, err := http.NewRequest("POST", url, data)
-	if err != nil {
-		return StudentDetails{}, err
+	if err != nil && debug.Debug {
+		return types.StudentDetails{}, err
 	}
 
 	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/118.0")
@@ -46,14 +39,14 @@ func fetchStudentDetails(cookies types.Cookies, regNo string) (StudentDetails, e
 	req.Header.Set("TE", "trailers")
 
 	resp, err := client.Do(req)
-	if err != nil {
-		return StudentDetails{}, err
+	if err != nil && debug.Debug {
+		return types.StudentDetails{}, err
 	}
 	defer resp.Body.Close()
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
-	if err != nil {
-		return StudentDetails{}, err
+	if err != nil && debug.Debug {
+		return types.StudentDetails{}, err
 	}
 
 	registerNumber := doc.Find("label[for='no']").Text()
@@ -62,10 +55,10 @@ func fetchStudentDetails(cookies types.Cookies, regNo string) (StudentDetails, e
 	schoolName := doc.Find("label[for='schoolno']").Text()
 
 	if registerNumber == "" || programAndBranch == "" || vitEmail == "" || schoolName == "" {
-		return StudentDetails{}, fmt.Errorf("unable to fetch student details, check login config")
+		return types.StudentDetails{}, fmt.Errorf("unable to fetch student details, check login config")
 	}
 
-	return StudentDetails{
+	return types.StudentDetails{
 		RegisterNumber: registerNumber,
 		ProgramBranch:  programAndBranch,
 		VITEmail:       vitEmail,
@@ -76,21 +69,21 @@ func fetchStudentDetails(cookies types.Cookies, regNo string) (StudentDetails, e
 func Profile(cookies types.Cookies, regNo string) {
 
 	studentDetails, err := fetchStudentDetails(cookies, regNo)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 
 	markdownTable := generateStudentDetailsMarkdownTable(studentDetails)
 
 	rendered, err := glamour.Render(markdownTable, "dark")
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 
 	fmt.Println(rendered)
 }
 
-func generateStudentDetailsMarkdownTable(details StudentDetails) string {
+func generateStudentDetailsMarkdownTable(details types.StudentDetails) string {
 	var buf bytes.Buffer
 
 	buf.WriteString("| Field            | Information                                                    |\n")
