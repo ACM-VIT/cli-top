@@ -2,10 +2,10 @@ package helpers
 
 import (
 	"bytes"
+	"cli-top/debug"
 	"cli-top/types"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
 )
@@ -28,16 +28,16 @@ func FetchReq(regNo string, cookies types.Cookies, url string, semID string, pay
 	// Create a new request with POST/GET method and payload
 	if method == "POST" {
 		req, err = http.NewRequest("POST", url, bytes.NewBuffer([]byte(payload)))
-		if err != nil {
+		if err != nil && debug.Debug {
 			return nil, err
 		}
 	} else if method == "GET" {
 		req, err = http.NewRequest("GET", url, nil)
-		if err != nil {
-			log.Fatal(err)
+		if err != nil && debug.Debug {
+			fmt.Println(err)
 		}
 	} else {
-		log.Fatal("Invalid method")
+		fmt.Println("Invalid method")
 	}
 
 	// Set headers or cookies for specific features if needed
@@ -52,7 +52,7 @@ func FetchReq(regNo string, cookies types.Cookies, url string, semID string, pay
 
 	// Perform the request
 	resp, err := client.Do(req)
-	if err != nil {
+	if err != nil && debug.Debug {
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -60,7 +60,7 @@ func FetchReq(regNo string, cookies types.Cookies, url string, semID string, pay
 	// Read the response body
 	body, err := io.ReadAll(resp.Body)
 
-	if err != nil {
+	if err != nil && debug.Debug {
 		return nil, err
 	}
 

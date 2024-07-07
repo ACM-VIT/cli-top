@@ -6,7 +6,6 @@ import (
 	"cli-top/helpers"
 	"cli-top/types"
 	"fmt"
-	"log"
 	"strings"
 	"time" // Import the time package
 
@@ -22,20 +21,20 @@ func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choi
 	semesterID := helpers.SelectSemester(regNo, cookies, sem_choice)
 
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, semesterID, "UTC", "POST", "")
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 	//fmt.Println(string(bodyText))
 	// Use goquery to parse the HTML
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 
 	// Find and save the exam schedule
 	examSchedule, err := findAndSaveExamSchedule(doc)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 
 	// Generate Markdown table text
@@ -43,7 +42,7 @@ func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choi
 	//findAndSaveAtten(doc)
 	// Render Markdown using glamour
 	rendered, err := glamour.Render(markdownTable, "dark")
-	if err != nil {
+	if err != nil && debug.Debug {
 		fmt.Println("Error rendering Markdown:", err)
 		return
 	}

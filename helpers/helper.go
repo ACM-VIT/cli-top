@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"cli-top/debug"
 	"fmt"
 	"strconv"
 	"strings"
@@ -35,7 +36,7 @@ func printTable(title string, data [][]string, builder *strings.Builder) {
 
 func strToInt(str string) int {
 	num, err := strconv.Atoi(str)
-	if err != nil {
+	if err != nil && debug.Debug {
 		fmt.Println("Error converting string to integer:", err)
 
 	}

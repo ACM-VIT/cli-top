@@ -2,9 +2,9 @@ package helpers
 
 import (
 	"bytes"
+	"cli-top/debug"
 	"cli-top/types"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -32,14 +32,14 @@ func GetSemDetails(cookies types.Cookies, regNo string) types.SemesterDetails {
 
 	//fmt.Println(regNo, cookies)
 	bodyText, err := FetchReq(regNo, cookies, url, "", "", "POST", "")
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 
 	// Use goquery to parse the HTML
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 	//fmt.Println(string(bodyText))
 
@@ -103,7 +103,7 @@ func PrintSemDetails(regNo string, cookies types.Cookies) {
 
 	// Render Markdown using glamour
 	rendered, err := glamour.Render(markdownTable, "dark")
-	if err != nil {
+	if err != nil && debug.Debug {
 		fmt.Println("Error rendering Markdown:", err)
 		return
 	}
@@ -165,13 +165,13 @@ func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) string 
 
 	// Render and print the formatted string
 	renderer, err := glamour.NewTermRenderer(glamour.WithStylePath("dark"), glamour.WithWordWrap(150))
-	if err != nil {
-		log.Fatal("Error creating glamour renderer:", err)
+	if err != nil && debug.Debug {
+		fmt.Println("Error creating glamour renderer:", err)
 	}
 
 	output, err := renderer.Render(formattedSelection)
-	if err != nil {
-		log.Fatal("Error rendering formatted string:", err)
+	if err != nil && debug.Debug {
+		fmt.Println("Error rendering formatted string:", err)
 	}
 
 	fmt.Print(output)
