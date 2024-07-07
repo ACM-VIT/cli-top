@@ -4,7 +4,6 @@ import (
 	"cli-top/debug"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 )
@@ -12,17 +11,17 @@ import (
 func CheckUpdate() {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", "https://cli-top.acmvit.in/latest.json", nil)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 	defer resp.Body.Close()
 	bodyText, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 
 	if !strings.Contains(string(bodyText), debug.Version) {
@@ -36,17 +35,17 @@ func CheckUpdate() {
 func CheckKillSwitch() int {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", "https://cli-top.acmvit.in/latest.json", nil)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 	defer resp.Body.Close()
 	bodyText, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 
 	if strings.Contains(string(bodyText), "\"killSwitch\": 2") {

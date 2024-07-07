@@ -7,7 +7,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 )
@@ -25,8 +24,8 @@ func performLogin(userInfo types.LogIn, cookies types.Cookies, captcha string) t
 		}}
 	var data = strings.NewReader(fmt.Sprintf(`_csrf=%s&username=%s&password=%s&captchaStr=%s`, cookies.CSRF, userInfo.Username, userInfo.Password, captcha))
 	req, err := http.NewRequest("POST", "https://vtop.vit.ac.in/vtop/login", data)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 	req.Header.Set("Host", "vtop.vit.ac.in")
 	req.Header.Set("Content-Length", "96")
@@ -49,8 +48,8 @@ func performLogin(userInfo types.LogIn, cookies types.Cookies, captcha string) t
 	req.Header.Set("Priority", "u=0, i")
 	req.Header.Set("Cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", cookies.JSESSIONID, cookies.SERVERID))
 	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 	defer resp.Body.Close()
 
@@ -69,8 +68,8 @@ func errorCheck(cookies types.Cookies) bool {
 	}
 	client := &http.Client{Transport: tr}
 	req, err := http.NewRequest("GET", "https://vtop.vit.ac.in/vtop/login/error", nil)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 	req.Header.Set("Host", "vtop.vit.ac.in")
 	req.Header.Set("Cache-Control", "max-age=0")
@@ -89,13 +88,13 @@ func errorCheck(cookies types.Cookies) bool {
 	req.Header.Set("Priority", "u=0, i")
 	req.Header.Set("Cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", cookies.JSESSIONID, cookies.SERVERID))
 	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 	defer resp.Body.Close()
 	bodyText, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 
 	if strings.Contains(string(bodyText), "Invalid Captcha") {
@@ -142,8 +141,8 @@ func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
 	}
 	client := &http.Client{Transport: tr}
 	req, err := http.NewRequest("GET", "https://vtop.vit.ac.in/vtop/init/page", nil)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 	req.Header.Set("Host", "vtop.vit.ac.in")
 	req.Header.Set("Cache-Control", "max-age=0")
@@ -163,8 +162,8 @@ func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
 	req.Header.Set("Priority", "u=0, i")
 	req.Header.Set("Cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", vtopTokens.JSESSIONID, vtopTokens.SERVERID))
 	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 	defer resp.Body.Close()
 
@@ -180,7 +179,7 @@ func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
 	vtopTokens.CSRF = helpers.ExtractCSRF2(bodyText)
 
 	RegNo, err := helpers.ExtractRegNo(bodyText)
-	if err != nil {
+	if err != nil && debug.Debug {
 		// Handle the error
 		fmt.Println("Error:", err)
 		// You might want to return or log the error, or take other appropriate actions

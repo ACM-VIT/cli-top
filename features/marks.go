@@ -3,10 +3,10 @@
 package features
 
 import (
+	"cli-top/debug"
 	"cli-top/helpers"
 	types "cli-top/types"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 
@@ -26,14 +26,14 @@ func GetMarks(regNo string, cookies types.Cookies, semID string, sem_choice int)
 	payload := fmt.Sprintf("------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"authorizedID\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"semesterSubId\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"_csrf\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J--\r\n", regNo, semesterID, cookies.CSRF)
 
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, semesterID, payload, "POST", "marks")
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 
 	// Use goquery to parse the HTML
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
-	if err != nil {
-		log.Fatal(err)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 
 	subjectDetails := subjectDetails(doc)
@@ -58,8 +58,8 @@ func GetMarks(regNo string, cookies types.Cookies, semID string, sem_choice int)
 		weightageSum = 0
 		weightagePercentageSum = 0
 		markdownTable, err := convertHTMLElementToMarkdown(element)
-		if err != nil {
-			log.Fatal(err)
+		if err != nil && debug.Debug {
+			fmt.Println(err)
 		}
 
 		renderer, e := glamour.NewTermRenderer(glamour.WithStylePath("dark"), glamour.WithWordWrap(150))
@@ -68,7 +68,7 @@ func GetMarks(regNo string, cookies types.Cookies, semID string, sem_choice int)
 			return
 		}
 		markdown, err := renderer.Render(markdownTable)
-		if err != nil {
+		if err != nil && debug.Debug {
 			fmt.Println("Error rendering Table:", err)
 			return
 		}
@@ -167,11 +167,11 @@ func printTableMarks(title string, data [][]string, builder *strings.Builder) {
 
 func printFormattedRowMarks(row []string, builder *strings.Builder) {
 	weightage, err := strconv.ParseFloat(row[6], 3)
-	if err != nil {
+	if err != nil && debug.Debug {
 		fmt.Print("Error converting weightage to float:", err)
 	}
 	weightagePercentage, err := strconv.ParseInt(row[3], 10, 64)
-	if err != nil {
+	if err != nil && debug.Debug {
 		fmt.Print("Error converting weightage Percentage to int")
 	}
 
