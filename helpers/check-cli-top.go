@@ -10,7 +10,7 @@ import (
 
 func CheckUpdate() {
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", "https://cli-top.acmvit.in/latest.json", nil)
+	req, err := http.NewRequest("GET", "https://cli-top-website.vercel.app/latest.json", nil)
 	if err != nil && debug.Debug {
 		fmt.Println(err)
 	}
@@ -34,7 +34,7 @@ func CheckUpdate() {
 
 func CheckKillSwitch() int {
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", "https://cli-top.acmvit.in/latest.json", nil)
+	req, err := http.NewRequest("GET", "https://cli-top-website.vercel.app/latest.json", nil)
 	if err != nil && debug.Debug {
 		fmt.Println(err)
 	}
@@ -49,9 +49,12 @@ func CheckKillSwitch() int {
 	}
 
 	if strings.Contains(string(bodyText), "\"killSwitch\": 2") {
+		// Disables the app completely
 		return 2
 	} else if strings.Contains(string(bodyText), "\"killSwitch\": 0") {
+		// Allows automated captcha solver to run
 		return 0
 	}
+	// Disables the automated captcha solver - manual captcha solving required
 	return 1
 }
