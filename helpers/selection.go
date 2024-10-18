@@ -74,7 +74,14 @@ func SelectFaculty(faculties []types.Faculty) (types.Faculty, error) {
 		}
 
 		selectedFaculty := faculties[index-1]
-		fmt.Printf("\n# You selected Faculty: %s (ERP ID: %s)\n", selectedFaculty.Name, selectedFaculty.ErpID)
+
+		successMessage := fmt.Sprintf("\n# You selected Faculty: %s (ERP ID: %s)\n", selectedFaculty.Name, selectedFaculty.ErpID)
+		renderedMessage, err := glamour.Render(successMessage, "dark")
+		if err != nil && debug.Debug {
+			fmt.Println("Error rendering selected faculty message:", err)
+		}
+		fmt.Print(renderedMessage)
+
 		return selectedFaculty, nil
 	}
 
@@ -148,7 +155,14 @@ func SelectFaculty(faculties []types.Faculty) (types.Faculty, error) {
 		}
 
 		selectedFaculty := displayFaculties[index-1]
-		fmt.Printf("\n# You selected Faculty: %s (ERP ID: %s)\n", selectedFaculty.Name, selectedFaculty.ErpID)
+
+		successMessage := fmt.Sprintf("\n# You selected Faculty: %s (ERP ID: %s)\n", selectedFaculty.Name, selectedFaculty.ErpID)
+		renderedMessage, err := glamour.Render(successMessage, "dark")
+		if err != nil && debug.Debug {
+			fmt.Println("Error rendering selected faculty message:", err)
+		}
+		fmt.Print(renderedMessage)
+
 		return selectedFaculty, nil
 	}
 }
