@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	// "io/ioutil"
 	"cli-top/debug"
 	"cli-top/features"
 	"cli-top/helpers"
@@ -198,7 +197,7 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
 
 	// Add the commands to the root command
-	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd)
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, coursePageCmd)
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
@@ -285,5 +284,14 @@ var examScheduleCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.GetExamSchedule(regNo, cookies, "", semesterFlag)
+	},
+}
+
+var coursePageCmd = &cobra.Command{
+	Use:   "course-page",
+	Short: "Download course materials for a selected semester, course, and faculty",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.ExecuteCoursePageDownload(regNo, cookies)
 	},
 }
