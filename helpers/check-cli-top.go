@@ -11,17 +11,32 @@ import (
 func CheckUpdate() {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", "https://cli-top-website.vercel.app/latest.json", nil)
-	if err != nil && debug.Debug {
-		fmt.Println(err)
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error creating request:", err)
+		}
+		return
 	}
+
 	resp, err := client.Do(req)
-	if err != nil && debug.Debug {
-		fmt.Println(err)
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error performing request:", err)
+		}
+		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
+		}
+	}()
+
 	bodyText, err := io.ReadAll(resp.Body)
-	if err != nil && debug.Debug {
-		fmt.Println(err)
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error reading response body:", err)
+		}
+		return
 	}
 
 	if !strings.Contains(string(bodyText), debug.Version) {
@@ -29,32 +44,43 @@ func CheckUpdate() {
 	} else {
 		fmt.Println("You are using the latest stable version of cli-top.")
 	}
-
 }
 
 func CheckKillSwitch() int {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", "https://cli-top-website.vercel.app/latest.json", nil)
-	if err != nil && debug.Debug {
-		fmt.Println(err)
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error creating request:", err)
+		}
+		return 1
 	}
+
 	resp, err := client.Do(req)
-	if err != nil && debug.Debug {
-		fmt.Println(err)
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error performing request:", err)
+		}
+		return 1
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
+		}
+	}()
+
 	bodyText, err := io.ReadAll(resp.Body)
-	if err != nil && debug.Debug {
-		fmt.Println(err)
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error reading response body:", err)
+		}
+		return 1
 	}
 
 	if strings.Contains(string(bodyText), "\"killSwitch\": 2") {
-		// Disables the app completely
 		return 2
 	} else if strings.Contains(string(bodyText), "\"killSwitch\": 0") {
-		// Allows automated captcha solver to run
 		return 0
 	}
-	// Disables the automated captcha solver - manual captcha solving required
 	return 1
 }
