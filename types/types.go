@@ -48,3 +48,4 @@ type Faculty struct {
 	SemesterName string 
 	CourseName   string 
 	SemSubID     string 
+}
