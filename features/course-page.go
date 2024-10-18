@@ -230,7 +230,7 @@ func fetchAndSelectFaculty(regNo string, cookies types.Cookies, semSubId string,
 		"praType":       "source",
 		"paramReturnId": "getSlotIdForCoursePage",
 		"semSubId":      semSubId,
-		"authorizedID":  "23BME0453",
+		"authorizedID":  regNo,
 		"x":             time.Now().UTC().Format(time.RFC1123),
 	}
 
@@ -340,7 +340,7 @@ func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester Sem
 
 	payloadMap := map[string]string{
 		"_csrf":         cookies.CSRF,
-		"authorizedID":  "23BME0453",
+		"authorizedID":  regNo,
 		"materialMode":  "1",
 		"uploadView":    "1",
 		"semesterSubId": selectedFaculty.SemSubID,
