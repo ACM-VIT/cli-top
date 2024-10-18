@@ -87,7 +87,7 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies) {
 		return
 	}
 
-	selectedFaculty, err := selectFaculty(faculties)
+	selectedFaculty, err := helpers.SelectFaculty(faculties)
 	if err != nil {
 		fmt.Println("Error selecting faculty:", err)
 		return
@@ -111,7 +111,7 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string) 
 	}
 
 	formData := helpers.FormatBodyData(payloadMap)
-	body, err := helpers.FetchReq(regNo, cookies, getCourseURL, "", formData, "POST", "form")
+	body, err := helpers.FetchReq(regNo, cookies, getCourseURL, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		if debug.Debug {
 			fmt.Println("Error fetching courses:", err)
@@ -152,9 +152,15 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string) 
 		return types.Course{}, fmt.Errorf("no courses found for the selected semester")
 	}
 
-	for i, course := range courses {
-		fmt.Printf("%d) %s\n", i+1, course.Name)
+	markdownTable := GenerateCourseDetailsMarkdownTable(courses)
+
+	rendered, err := glamour.Render(markdownTable, "dark")
+	if err != nil && debug.Debug {
+		fmt.Println("Error rendering Markdown:", err)
 	}
+
+	fmt.Println("\nAvailable Courses:")
+	fmt.Println(rendered)
 
 	fmt.Print("Select a Course by entering the number: ")
 	var index int
@@ -167,9 +173,7 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string) 
 	}
 
 	if index < 1 || index > len(courses) {
-		if debug.Debug {
-			fmt.Println("Course selection out of range.")
-		}
+		fmt.Println("Invalid selection. Please enter a valid number.")
 		return types.Course{}, fmt.Errorf("invalid course selection")
 	}
 
@@ -180,6 +184,46 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string) 
 	}
 
 	return selectedCourse, nil
+}
+
+func RemoveCourseCode(courseName string) string {
+	re := regexp.MustCompile(`^[A-Z]{4}\d{3}[A-Z]?\s*-\s*`)
+	return re.ReplaceAllString(courseName, "")
+}
+
+func TruncateString(str string, maxLength int) string {
+	if len(str) <= maxLength {
+		return str
+	}
+	if maxLength <= 3 {
+		return str[:maxLength]
+	}
+	return str[:maxLength-3] + "..."
+}
+
+func GenerateCourseDetailsMarkdownTable(courses []types.Course) string {
+	var sb strings.Builder
+
+	sb.WriteString("| INDEX | COURSE NAME                                       |\n")
+	sb.WriteString("|-------|---------------------------------------------------|\n")
+
+	for i, course := range courses {
+		index := fmt.Sprintf("%d", i+1)
+
+		courseName := RemoveCourseCode(course.Name)
+
+		courseName = strings.ReplaceAll(courseName, "\n", " ")
+		courseName = strings.TrimSpace(courseName)
+
+		maxWidth := 60
+		courseName = TruncateString(courseName, maxWidth)
+
+		courseName = fmt.Sprintf("%-60s", courseName)
+
+		sb.WriteString(fmt.Sprintf("| %-5s | %-60s |\n", index, courseName))
+	}
+
+	return sb.String()
 }
 
 func fetchSlotIds(regNo string, cookies types.Cookies, semSubId string, classId string) ([]string, error) {
@@ -195,7 +239,7 @@ func fetchSlotIds(regNo string, cookies types.Cookies, semSubId string, classId 
 	}
 
 	formData := helpers.FormatBodyData(payloadMap)
-	body, err := helpers.FetchReq(regNo, cookies, getSlotURL, "", formData, "POST", "form")
+	body, err := helpers.FetchReq(regNo, cookies, getSlotURL, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		if debug.Debug {
 			fmt.Println("Error fetching slots:", err)
@@ -289,7 +333,7 @@ func fetchFaculties(regNo string, cookies types.Cookies, semSubId string, classI
 	}
 
 	formData := helpers.FormatBodyData(payloadMap)
-	body, err := helpers.FetchReq(regNo, cookies, getFacultyURL, "", formData, "POST", "form")
+	body, err := helpers.FetchReq(regNo, cookies, getFacultyURL, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		if debug.Debug {
 			fmt.Println("Error fetching faculty details:", err)
@@ -385,48 +429,6 @@ func removeDuplicateFaculties(faculties []types.Faculty) []types.Faculty {
 	return uniqueFaculties
 }
 
-func selectFaculty(faculties []types.Faculty) (types.Faculty, error) {
-	for i, faculty := range faculties {
-		fmt.Printf("%d) %s (ERP ID: %s)\n", i+1, faculty.Name, faculty.ErpID)
-	}
-
-	fmt.Print("Select a Faculty by entering the number: ")
-	var index int
-	_, err := fmt.Scanln(&index)
-	if err != nil {
-		if debug.Debug {
-			fmt.Println("Invalid input for faculty selection:", err)
-		}
-		return types.Faculty{}, fmt.Errorf("invalid input for faculty selection")
-	}
-
-	if index < 1 || index > len(faculties) {
-		if debug.Debug {
-			fmt.Println("Faculty selection out of range.")
-		}
-		return types.Faculty{}, fmt.Errorf("invalid faculty selection")
-	}
-
-	selectedFaculty := faculties[index-1]
-
-	formattedSelection := fmt.Sprintf("\n# You selected Faculty: %s (ERP ID: %s)\n", selectedFaculty.Name, selectedFaculty.ErpID)
-
-	renderer, err := glamour.NewTermRenderer(glamour.WithStylePath("dark"), glamour.WithWordWrap(150))
-	if err != nil && debug.Debug {
-		fmt.Println("Error creating glamour renderer:", err)
-	}
-
-	output, err := renderer.Render(formattedSelection)
-	if err != nil && debug.Debug {
-		fmt.Println("Error rendering formatted string:", err)
-	}
-
-	fmt.Print(output)
-
-	return selectedFaculty, nil
-}
-
-
 func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester Semester, selectedCourse types.Course, selectedFaculty types.Faculty) error {
 	downloadURL := "https://vtop.vit.ac.in/vtop/academics/common/allCourseMeterialDownload"
 
@@ -440,7 +442,7 @@ func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester Sem
 	}
 
 	formData := helpers.FormatBodyData(payloadMap)
-	body, err := helpers.FetchReq(regNo, cookies, downloadURL, "", formData, "POST", "form")
+	body, err := helpers.FetchReq(regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		if debug.Debug {
 			fmt.Println("Error sending download request:", err)
