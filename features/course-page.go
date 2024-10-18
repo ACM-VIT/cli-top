@@ -9,9 +9,11 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/charmbracelet/glamour"
 )
 
 type Semester struct {
@@ -20,16 +22,29 @@ type Semester struct {
 }
 
 func ExecuteCoursePageDownload(regNo string, cookies types.Cookies) {
-	semesterDetails, err := fetchSemesterDetails(regNo, cookies)
-	if err != nil {
-		fmt.Println("Error fetching semester details:", err)
+	semDetails := helpers.GetSemDetails(cookies, regNo)
+	if len(semDetails.SemIds) == 0 {
+		fmt.Println("Error fetching semester details or no semesters available.")
 		return
 	}
 
-	selectedSemester, err := selectSemester(semesterDetails)
-	if err != nil {
-		fmt.Println("Error selecting semester:", err)
+	selectedSemId := helpers.SelectSemester(regNo, cookies, 0)
+	if selectedSemId == "" {
+		fmt.Println("Error selecting semester.")
 		return
+	}
+
+	selectedSemName := "Unknown"
+	for i, id := range semDetails.SemIds {
+		if id == selectedSemId {
+			selectedSemName = semDetails.SemNames[i]
+			break
+		}
+	}
+
+	selectedSemester := Semester{
+		SemName: selectedSemName,
+		SemID:   selectedSemId,
 	}
 
 	selectedCourse, err := fetchAndSelectCourse(regNo, cookies, selectedSemester.SemID)
@@ -38,13 +53,41 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies) {
 		return
 	}
 
-	selectedSlot, err := fetchAndSelectSlot(regNo, cookies, selectedSemester.SemID, selectedCourse.ID)
+	selectedCourseName := selectedCourse.Name
+	formattedSelection := fmt.Sprintf("\n# You selected Course: %s\n", selectedCourseName)
+	renderer, err := glamour.NewTermRenderer(glamour.WithStylePath("dark"), glamour.WithWordWrap(150))
+	if err != nil && debug.Debug {
+		fmt.Println("Error creating glamour renderer:", err)
+	}
+	output, err := renderer.Render(formattedSelection)
+	if err != nil && debug.Debug {
+		fmt.Println("Error rendering formatted string:", err)
+	}
+	fmt.Print(output)
+
+	slotIds, err := fetchSlotIds(regNo, cookies, selectedSemester.SemID, selectedCourse.ID)
 	if err != nil {
-		fmt.Println("Error selecting slot:", err)
+		fmt.Println("Error fetching slots:", err)
 		return
 	}
 
-	selectedFaculty, err := fetchAndSelectFaculty(regNo, cookies, selectedSemester.SemID, selectedCourse.ID, selectedSlot.ID)
+	if len(slotIds) == 0 {
+		fmt.Println("No slots available for the selected course.")
+		return
+	}
+
+	faculties, err := fetchFacultiesForAllSlotsConcurrently(regNo, cookies, selectedSemester.SemID, selectedCourse.ID, slotIds)
+	if err != nil {
+		fmt.Println("Error fetching faculties:", err)
+		return
+	}
+
+	if len(faculties) == 0 {
+		fmt.Println("No faculties found for the selected course across all slots.")
+		return
+	}
+
+	selectedFaculty, err := selectFaculty(faculties)
 	if err != nil {
 		fmt.Println("Error selecting faculty:", err)
 		return
@@ -55,110 +98,6 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies) {
 		fmt.Println("Error downloading materials:", err)
 		return
 	}
-
-	fmt.Println("Course materials downloaded successfully.")
-}
-
-func fetchSemesterDetails(regNo string, cookies types.Cookies) (types.SemesterDetails, error) {
-	coursePageURL := "https://vtop.vit.ac.in/vtop/academics/common/StudentCoursePage"
-	nocache := fmt.Sprintf("%d", time.Now().UnixMilli())
-
-	payloadMap := map[string]string{
-		"verifyMenu":   "true",
-		"authorizedID": regNo,
-		"_csrf":        cookies.CSRF,
-		"nocache":      nocache,
-	}
-
-	formData := helpers.FormatBodyData(payloadMap)
-	body, err := helpers.FetchReq(regNo, cookies, coursePageURL, "", formData, "POST", "form")
-	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error fetching course page:", err)
-		}
-		return types.SemesterDetails{}, err
-	}
-
-	if debug.Debug {
-		fmt.Println("---- Semester Response Body Start ----")
-		fmt.Println(string(body))
-		fmt.Println("---- Semester Response Body End ----")
-	}
-
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
-	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error parsing course page HTML:", err)
-		}
-		return types.SemesterDetails{}, err
-	}
-
-	var semNames []string
-	var semIds []string
-
-	doc.Find("select#semesterSubId option").Each(func(i int, s *goquery.Selection) {
-		if i == 0 {
-			return
-		}
-		value, exists := s.Attr("value")
-		if exists && value != "" {
-			text := strings.TrimSpace(s.Text())
-			semNames = append(semNames, text)
-			semIds = append(semIds, value)
-		}
-	})
-
-	if len(semNames) == 0 {
-		if debug.Debug {
-			fmt.Println("No semesters found in the response.")
-		}
-		return types.SemesterDetails{}, fmt.Errorf("no semesters found")
-	}
-
-	if len(semNames) > 10 {
-		semNames = semNames[:10]
-		semIds = semIds[:10]
-	}
-
-	semesterDetails := types.SemesterDetails{
-		SemNames: semNames,
-		SemIds:   semIds,
-	}
-
-	if debug.Debug {
-		fmt.Printf("Extracted Semesters: %v\n", semesterDetails.SemNames)
-		fmt.Printf("Extracted Semester IDs: %v\n", semesterDetails.SemIds)
-	}
-
-	return semesterDetails, nil
-}
-
-func selectSemester(semesterDetails types.SemesterDetails) (Semester, error) {
-	for i, semName := range semesterDetails.SemNames {
-		fmt.Printf("%d) %s\n", i+1, semName)
-	}
-
-	fmt.Print("Select a Semester by entering the number: ")
-	var index int
-	_, err := fmt.Scanln(&index)
-	if err != nil {
-		return Semester{}, fmt.Errorf("invalid input: %v", err)
-	}
-
-	if index < 1 || index > len(semesterDetails.SemNames) {
-		return Semester{}, fmt.Errorf("invalid semester selection")
-	}
-
-	selectedSemester := Semester{
-		SemName: semesterDetails.SemNames[index-1],
-		SemID:   semesterDetails.SemIds[index-1],
-	}
-
-	if debug.Debug {
-		fmt.Printf("Selected Semester: %s (ID: %s)\n", selectedSemester.SemName, selectedSemester.SemID)
-	}
-
-	return selectedSemester, nil
 }
 
 func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string) (types.Course, error) {
@@ -221,10 +160,16 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string) 
 	var index int
 	_, err = fmt.Scanln(&index)
 	if err != nil {
-		return types.Course{}, fmt.Errorf("invalid input: %v", err)
+		if debug.Debug {
+			fmt.Println("Invalid input for course selection:", err)
+		}
+		return types.Course{}, fmt.Errorf("invalid input for course selection")
 	}
 
 	if index < 1 || index > len(courses) {
+		if debug.Debug {
+			fmt.Println("Course selection out of range.")
+		}
 		return types.Course{}, fmt.Errorf("invalid course selection")
 	}
 
@@ -237,7 +182,7 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string) 
 	return selectedCourse, nil
 }
 
-func fetchAndSelectSlot(regNo string, cookies types.Cookies, semSubId string, classId string) (types.Slot, error) {
+func fetchSlotIds(regNo string, cookies types.Cookies, semSubId string, classId string) ([]string, error) {
 	getSlotURL := "https://vtop.vit.ac.in/vtop/getSlotIdForCoursePage"
 	payloadMap := map[string]string{
 		"_csrf":         cookies.CSRF,
@@ -255,7 +200,7 @@ func fetchAndSelectSlot(regNo string, cookies types.Cookies, semSubId string, cl
 		if debug.Debug {
 			fmt.Println("Error fetching slots:", err)
 		}
-		return types.Slot{}, err
+		return nil, err
 	}
 
 	if debug.Debug {
@@ -269,18 +214,17 @@ func fetchAndSelectSlot(regNo string, cookies types.Cookies, semSubId string, cl
 		if debug.Debug {
 			fmt.Println("Error parsing slots HTML:", err)
 		}
-		return types.Slot{}, err
+		return nil, err
 	}
 
-	var slots []types.Slot
+	var slots []string
 	doc.Find("select#slotId option").Each(func(i int, s *goquery.Selection) {
 		if i == 0 {
 			return
 		}
 		value, exists := s.Attr("value")
 		if exists && value != "" {
-			text := strings.TrimSpace(s.Text())
-			slots = append(slots, types.Slot{ID: value, Name: text})
+			slots = append(slots, value)
 		}
 	})
 
@@ -288,41 +232,57 @@ func fetchAndSelectSlot(regNo string, cookies types.Cookies, semSubId string, cl
 		if debug.Debug {
 			fmt.Println("No slots found for the selected course.")
 		}
-		return types.Slot{}, fmt.Errorf("no slots found for the selected course")
+		return nil, fmt.Errorf("no slots found for the selected course")
 	}
-
-	for i, slot := range slots {
-		fmt.Printf("%d) %s\n", i+1, slot.Name)
-	}
-
-	fmt.Print("Select a Slot by entering the number: ")
-	var index int
-	_, err = fmt.Scanln(&index)
-	if err != nil {
-		return types.Slot{}, fmt.Errorf("invalid input: %v", err)
-	}
-
-	if index < 1 || index > len(slots) {
-		return types.Slot{}, fmt.Errorf("invalid slot selection")
-	}
-
-	selectedSlot := slots[index-1]
 
 	if debug.Debug {
-		fmt.Printf("Selected Slot: %s (ID: %s)\n", selectedSlot.Name, selectedSlot.ID)
+		fmt.Printf("Available Slots: %v\n", slots)
 	}
 
-	return selectedSlot, nil
+	return slots, nil
 }
 
-func fetchAndSelectFaculty(regNo string, cookies types.Cookies, semSubId string, courseID string, slotID string) (types.Faculty, error) {
+func fetchFacultiesForAllSlotsConcurrently(regNo string, cookies types.Cookies, semSubId string, classId string, slotIds []string) ([]types.Faculty, error) {
+	var allFaculties []types.Faculty
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 10)
+
+	for _, slotId := range slotIds {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(slotId string) {
+			defer wg.Done()
+			faculties, err := fetchFaculties(regNo, cookies, semSubId, classId, slotId)
+			if err != nil {
+				if debug.Debug {
+					fmt.Printf("Error fetching faculties for slot %s: %v\n", slotId, err)
+				}
+				<-sem
+				return
+			}
+			mu.Lock()
+			allFaculties = append(allFaculties, faculties...)
+			mu.Unlock()
+			<-sem
+		}(slotId)
+	}
+
+	wg.Wait()
+
+	uniqueFaculties := removeDuplicateFaculties(allFaculties)
+
+	return uniqueFaculties, nil
+}
+
+func fetchFaculties(regNo string, cookies types.Cookies, semSubId string, classId string, slotId string) ([]types.Faculty, error) {
 	getFacultyURL := "https://vtop.vit.ac.in/vtop/getFacultyForCoursePage"
 	payloadMap := map[string]string{
 		"_csrf":         cookies.CSRF,
 		"paramReturnId": "getFacultyForCoursePage",
 		"semSubId":      semSubId,
-		"classId":       courseID,
-		"slotId":        slotID,
+		"classId":       classId,
+		"slotId":        slotId,
 		"praType":       "source",
 		"authorizedID":  regNo,
 		"x":             time.Now().UTC().Format(time.RFC1123),
@@ -334,7 +294,7 @@ func fetchAndSelectFaculty(regNo string, cookies types.Cookies, semSubId string,
 		if debug.Debug {
 			fmt.Println("Error fetching faculty details:", err)
 		}
-		return types.Faculty{}, err
+		return nil, err
 	}
 
 	if debug.Debug {
@@ -344,7 +304,10 @@ func fetchAndSelectFaculty(regNo string, cookies types.Cookies, semSubId string,
 	}
 
 	if strings.Contains(string(body), "HTTP Status 404") {
-		return types.Faculty{}, fmt.Errorf("received 404 Not Found when fetching faculty details")
+		if debug.Debug {
+			fmt.Println("Received 404 Not Found when fetching faculty details.")
+		}
+		return nil, fmt.Errorf("received 404 Not Found when fetching faculty details")
 	}
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
@@ -352,10 +315,11 @@ func fetchAndSelectFaculty(regNo string, cookies types.Cookies, semSubId string,
 		if debug.Debug {
 			fmt.Println("Error parsing faculty list HTML:", err)
 		}
-		return types.Faculty{}, err
+		return nil, err
 	}
 
-	re := regexp.MustCompile(`processViewStudentCourseDetail\('([^']+)','([^']+)','([^']+)'\)`)
+	re := regexp.MustCompile(`processViewStudentCourseDetail\(['"]([^'"]+)['"],\s*['"]([^'"]+)['"],\s*['"]([^'"]+)['"]\)`)
+
 	var faculties []types.Faculty
 
 	doc.Find("table tbody tr").Each(func(i int, s *goquery.Selection) {
@@ -364,11 +328,8 @@ func fetchAndSelectFaculty(regNo string, cookies types.Cookies, semSubId string,
 			return
 		}
 
-		semName := strings.TrimSpace(cells.Eq(1).Text())
-		courseCode := strings.TrimSpace(cells.Eq(2).Text())
-		courseTitle := strings.TrimSpace(cells.Eq(3).Text())
-		fullCourseName := fmt.Sprintf("%s - %s", courseCode, courseTitle)
 		facultyInfo := strings.TrimSpace(cells.Eq(7).Text())
+
 		viewButton := cells.Eq(8).Find("button")
 		onclick, exists := viewButton.Attr("onclick")
 		if !exists {
@@ -388,13 +349,11 @@ func fetchAndSelectFaculty(regNo string, cookies types.Cookies, semSubId string,
 		extractedClassID := matches[3]
 
 		faculty := types.Faculty{
-			ID:           extractedClassID,
-			Name:         facultyInfo,
-			ErpID:        extractedErpID,
-			ClassID:      extractedClassID,
-			SemesterName: semName,
-			CourseName:   fullCourseName,
-			SemSubID:     extractedSemSubID,
+			ID:       extractedClassID,
+			Name:     facultyInfo,
+			ErpID:    extractedErpID,
+			ClassID:  extractedClassID,
+			SemSubID: extractedSemSubID,
 		}
 
 		faculties = append(faculties, faculty)
@@ -402,34 +361,71 @@ func fetchAndSelectFaculty(regNo string, cookies types.Cookies, semSubId string,
 
 	if len(faculties) == 0 {
 		if debug.Debug {
-			fmt.Println("No faculties found for the selected course.")
+			fmt.Println("No faculties found for slot ID:", slotId)
 		}
-		return types.Faculty{}, fmt.Errorf("no faculties found for the selected course")
+		return nil, fmt.Errorf("no faculties found for slot ID: %s", slotId)
 	}
 
+	return faculties, nil
+}
+
+func removeDuplicateFaculties(faculties []types.Faculty) []types.Faculty {
+	uniqueMap := make(map[string]types.Faculty)
+	for _, faculty := range faculties {
+		if _, exists := uniqueMap[faculty.ErpID]; !exists {
+			uniqueMap[faculty.ErpID] = faculty
+		}
+	}
+
+	var uniqueFaculties []types.Faculty
+	for _, faculty := range uniqueMap {
+		uniqueFaculties = append(uniqueFaculties, faculty)
+	}
+
+	return uniqueFaculties
+}
+
+func selectFaculty(faculties []types.Faculty) (types.Faculty, error) {
 	for i, faculty := range faculties {
 		fmt.Printf("%d) %s (ERP ID: %s)\n", i+1, faculty.Name, faculty.ErpID)
 	}
 
 	fmt.Print("Select a Faculty by entering the number: ")
 	var index int
-	_, err = fmt.Scanln(&index)
+	_, err := fmt.Scanln(&index)
 	if err != nil {
-		return types.Faculty{}, fmt.Errorf("invalid input: %v", err)
+		if debug.Debug {
+			fmt.Println("Invalid input for faculty selection:", err)
+		}
+		return types.Faculty{}, fmt.Errorf("invalid input for faculty selection")
 	}
 
 	if index < 1 || index > len(faculties) {
+		if debug.Debug {
+			fmt.Println("Faculty selection out of range.")
+		}
 		return types.Faculty{}, fmt.Errorf("invalid faculty selection")
 	}
 
 	selectedFaculty := faculties[index-1]
 
-	if debug.Debug {
-		fmt.Printf("Selected Faculty: %s (ERP ID: %s)\n", selectedFaculty.Name, selectedFaculty.ErpID)
+	formattedSelection := fmt.Sprintf("\n# You selected Faculty: %s (ERP ID: %s)\n", selectedFaculty.Name, selectedFaculty.ErpID)
+
+	renderer, err := glamour.NewTermRenderer(glamour.WithStylePath("dark"), glamour.WithWordWrap(150))
+	if err != nil && debug.Debug {
+		fmt.Println("Error creating glamour renderer:", err)
 	}
+
+	output, err := renderer.Render(formattedSelection)
+	if err != nil && debug.Debug {
+		fmt.Println("Error rendering formatted string:", err)
+	}
+
+	fmt.Print(output)
 
 	return selectedFaculty, nil
 }
+
 
 func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester Semester, selectedCourse types.Course, selectedFaculty types.Faculty) error {
 	downloadURL := "https://vtop.vit.ac.in/vtop/academics/common/allCourseMeterialDownload"
@@ -492,12 +488,7 @@ func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester Sem
 		return err
 	}
 
-	if debug.Debug {
-		fmt.Printf("Course materials downloaded successfully to %s\n", filePath)
-	} else {
-		fmt.Printf("Course materials downloaded successfully to %s\n", filePath)
-	}
-
+	fmt.Printf("Course materials downloaded successfully to %s\n", filePath)
 	return nil
 }
 
@@ -506,7 +497,6 @@ func isSuccessfulDownload(body []byte) bool {
 }
 
 func sanitizeFilename(name string) string {
-	invalidChars := []string{"/", "\\", ":", "*", "?", "\"", "<", ">", "|", " "}
 	replacer := strings.NewReplacer(
 		"/", "_",
 		"\\", "_",

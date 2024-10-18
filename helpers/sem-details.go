@@ -119,9 +119,9 @@ func GenerateSemDetailsMarkdownTable(semDetails types.SemesterDetails) string {
 	buf.WriteString("| Index | SemId          | SemName                   |\n")
 	buf.WriteString("|-------|----------------|---------------------------|\n")
 
-	// Iterate through SemIds and SemNames using a for loop
-	for i := 0; i < len(semDetails.SemIds); i++ {
-		index := fmt.Sprintf("%d", i+1)
+	// Iterate through SemIds and SemNames using a for loop 
+	for i := len(semDetails.SemIds) - 1; i >= 0; i-- { // reversed to correctly reflect the order of semesters UX change
+		index := fmt.Sprintf("%d", len(semDetails.SemIds)-i)
 		semId := semDetails.SemIds[i]
 		semName := semDetails.SemNames[i]
 
@@ -150,14 +150,9 @@ func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) string 
 	if choice < 1 || choice > len(semDet.SemIds) {
 		fmt.Println("Invalid choice.")
 	} else {
-		for i, id := range semDet.SemIds {
-			if i+1 == choice {
-				// fmt.Println("Selected sem id : ",id)
-				// fmt.Println("Selected sem name : ",semDet.SemNames[i])
-				selectedSemId = id
-				selectedSemName = semDet.SemNames[i]
-			}
-		}
+		reverseIndex := len(semDet.SemIds) - choice 
+		selectedSemId = semDet.SemIds[reverseIndex] // reversed here too
+		selectedSemName = semDet.SemNames[reverseIndex] // reversed here too
 	}
 
 	// Format the string with glamour
