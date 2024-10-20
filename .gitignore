@@ -3,6 +3,7 @@ ViBoot/
 captcha.jpg
 captcha.png
 output.jpg
+temp.txt
 output_image.jpg
 .vscode/
 .env
