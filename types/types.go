@@ -48,6 +48,7 @@ type Faculty struct {
 	SemesterName string 
 	CourseName   string 
 	SemSubID     string 
+	Slot		 string
 }
 
 type Slot struct {
