@@ -6,11 +6,12 @@ import (
 	"cli-top/types"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
-	"regexp"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/charmbracelet/glamour"
@@ -54,19 +55,12 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies) {
 	}
 
 	selectedCourseName := selectedCourse.Name
-	courseName := helpers.RemoveCourseCode(selectedCourseName)
-	courseName = strings.ReplaceAll(courseName, "\n", " ")
-	courseName = strings.TrimSpace(courseName)
-	courseName = helpers.TruncateString(courseName, 60)
-	successMessage := fmt.Sprintf("# You selected Course: %s", courseName)
-	renderer, err := glamour.NewTermRenderer(
-		glamour.WithStylePath("dark"),
-		glamour.WithWordWrap(0),
-	)
+	formattedSelection := fmt.Sprintf("\n# You selected Course: %s\n", selectedCourseName)
+	renderer, err := glamour.NewTermRenderer(glamour.WithStylePath("dark"), glamour.WithWordWrap(150))
 	if err != nil && debug.Debug {
 		fmt.Println("Error creating glamour renderer:", err)
 	}
-	output, err := renderer.Render(successMessage)
+	output, err := renderer.Render(formattedSelection)
 	if err != nil && debug.Debug {
 		fmt.Println("Error rendering formatted string:", err)
 	}
@@ -110,7 +104,7 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies) {
 func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string) (types.Course, error) {
 	getCourseURL := "https://vtop.vit.ac.in/vtop/getCourseForCoursePage"
 	payloadMap := map[string]string{
-		"_csrf":         cookies.CSRF,
+		"_csrf":         cookies["csrf"], // Ensure "csrf" is the correct key
 		"paramReturnId": "getCourseForCoursePage",
 		"semSubId":      semSubId,
 		"authorizedID":  regNo,
@@ -159,7 +153,7 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string) 
 		return types.Course{}, fmt.Errorf("no courses found for the selected semester")
 	}
 
-	helpers.GenerateCourseDetailsTable(courses)
+	helpers.GenerateCourseDetailsTable(courses) // Use tablewriter to display courses
 
 	fmt.Print("Select a Course by entering the number: ")
 	var index int
@@ -188,7 +182,7 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string) 
 func fetchSlotIds(regNo string, cookies types.Cookies, semSubId string, classId string) ([]string, error) {
 	getSlotURL := "https://vtop.vit.ac.in/vtop/getSlotIdForCoursePage"
 	payloadMap := map[string]string{
-		"_csrf":         cookies.CSRF,
+		"_csrf":         cookies["csrf"], // Ensure "csrf" is the correct key
 		"paramReturnId": "getSlotIdForCoursePage",
 		"semSubId":      semSubId,
 		"classId":       classId,
@@ -281,7 +275,7 @@ func fetchFacultiesForAllSlotsConcurrently(regNo string, cookies types.Cookies, 
 func fetchFaculties(regNo string, cookies types.Cookies, semSubId string, classId string, slotId string) ([]types.Faculty, error) {
 	getFacultyURL := "https://vtop.vit.ac.in/vtop/getFacultyForCoursePage"
 	payloadMap := map[string]string{
-		"_csrf":         cookies.CSRF,
+		"_csrf":         cookies["csrf"], // Ensure "csrf" is the correct key
 		"paramReturnId": "getFacultyForCoursePage",
 		"semSubId":      semSubId,
 		"classId":       classId,
@@ -331,6 +325,7 @@ func fetchFaculties(regNo string, cookies types.Cookies, semSubId string, classI
 			return
 		}
 
+		slotInfo := strings.TrimSpace(cells.Eq(6).Text())
 		facultyInfo := strings.TrimSpace(cells.Eq(7).Text())
 
 		viewButton := cells.Eq(8).Find("button")
@@ -357,6 +352,7 @@ func fetchFaculties(regNo string, cookies types.Cookies, semSubId string, classI
 			ErpID:    extractedErpID,
 			ClassID:  extractedClassID,
 			SemSubID: extractedSemSubID,
+			Slot:     slotInfo,
 		}
 
 		faculties = append(faculties, faculty)
@@ -392,7 +388,7 @@ func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester Sem
 	downloadURL := "https://vtop.vit.ac.in/vtop/academics/common/allCourseMeterialDownload"
 
 	payloadMap := map[string]string{
-		"_csrf":         cookies.CSRF,
+		"_csrf":         cookies["csrf"], // Ensure "csrf" is the correct key
 		"authorizedID":  regNo,
 		"materialMode":  "1",
 		"uploadView":    "1",
@@ -416,22 +412,35 @@ func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester Sem
 		return fmt.Errorf("failed to download materials, response may indicate an error")
 	}
 
-	filename := fmt.Sprintf("course_materials_%d.zip", time.Now().Unix())
-	dirName := fmt.Sprintf("%s_%s_%s",
-		sanitizeFilename(selectedSemester.SemName),
-		sanitizeFilename(selectedCourse.Name),
-		sanitizeFilename(selectedFaculty.Name),
-	)
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error getting user's home directory:", err)
+		}
+		return err
+	}
 
-	err = os.MkdirAll(dirName, os.ModePerm)
+	downloadsDir := filepath.Join(homeDir, "Downloads", "Course Page Downloads")
+
+	filename := fmt.Sprintf("course_materials_%d.zip", time.Now().Unix())
+	dirName := fmt.Sprintf("%s/%s", selectedCourse.Name,
+		func() string {
+			if strings.HasPrefix(selectedFaculty.Slot, "L") {
+				return selectedFaculty.Slot[:3]
+			}
+			return selectedFaculty.Slot[:2]
+		}()+" "+selectedFaculty.Name)
+
+	fullDirPath := path.Join(downloadsDir, dirName)
+
+	err = os.MkdirAll(fullDirPath, os.ModePerm)
 	if err != nil {
 		if debug.Debug {
 			fmt.Println("Error creating directory:", err)
 		}
 		return err
 	}
-
-	filePath := filepath.Join(dirName, filename)
+	filePath := filepath.Join(fullDirPath, filename)
 	file, err := os.Create(filePath)
 	if err != nil {
 		if debug.Debug {
@@ -449,20 +458,8 @@ func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester Sem
 		return err
 	}
 
-	successMessage := fmt.Sprintf("Course materials downloaded successfully to %s", filePath)
-	renderer, err := glamour.NewTermRenderer(
-		glamour.WithStylePath("dark"),
-		glamour.WithWordWrap(0),
-	)
-	if err != nil && debug.Debug {
-		fmt.Println("Error creating glamour renderer:", err)
-	}
-	renderedMessage, err := renderer.Render(successMessage)
-	if err != nil && debug.Debug {
-		fmt.Println("Error rendering download success message:", err)
-	}
-	fmt.Print(renderedMessage)
-
+	fmt.Println("Course materials downloaded successfully")
+	fmt.Printf("\033[34m\033[4m\033]8;;file://%s\033\\%s\033]8;;\033\\ to open the folder.\n", fullDirPath, "Click Here")
 	return nil
 }
 
