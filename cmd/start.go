@@ -26,7 +26,6 @@ var updateFlag bool
 var courseFlag int
 var facultyFlag int
 
-
 func startfn(cmd *cobra.Command, args []string) {
 
 	red := color.New(color.FgRed)
@@ -180,11 +179,6 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-func init() {
-    coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
-    coursePageCmd.PersistentFlags().IntVarP(&facultyFlag, "faculty", "f", 0, "Specify the faculty")
-}
-
 func Execute() {
 	killSwitch := helpers.CheckKillSwitch()
 	if killSwitch == 2 {
@@ -199,6 +193,9 @@ func Execute() {
 	timeTableCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	examScheduleCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	calendarCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	coursePageCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+    coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
+    coursePageCmd.PersistentFlags().IntVarP(&facultyFlag, "faculty", "f", 0, "Specify the faculty")
 
 	// Add the flags to the root command
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
