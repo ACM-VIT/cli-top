@@ -34,3 +34,24 @@ type StudentDetails struct {
 	VITEmail       string
 	SchoolName     string
 }
+
+type Course struct {
+    ID   string
+    Name string
+}
+
+type Faculty struct {
+	ID           string 
+	Name         string 
+	ErpID        string 
+	ClassID      string 
+	SemesterName string 
+	CourseName   string 
+	SemSubID     string 
+	Slot		 string
+}
+
+type Slot struct {
+	ID   string
+	Name string
+}
