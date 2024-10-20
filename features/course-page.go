@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
+	"regexp"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/charmbracelet/glamour"
@@ -54,12 +54,19 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies) {
 	}
 
 	selectedCourseName := selectedCourse.Name
-	formattedSelection := fmt.Sprintf("\n# You selected Course: %s\n", selectedCourseName)
-	renderer, err := glamour.NewTermRenderer(glamour.WithStylePath("dark"), glamour.WithWordWrap(150))
+	courseName := helpers.RemoveCourseCode(selectedCourseName)
+	courseName = strings.ReplaceAll(courseName, "\n", " ")
+	courseName = strings.TrimSpace(courseName)
+	courseName = helpers.TruncateString(courseName, 60)
+	successMessage := fmt.Sprintf("# You selected Course: %s", courseName)
+	renderer, err := glamour.NewTermRenderer(
+		glamour.WithStylePath("dark"),
+		glamour.WithWordWrap(0),
+	)
 	if err != nil && debug.Debug {
 		fmt.Println("Error creating glamour renderer:", err)
 	}
-	output, err := renderer.Render(formattedSelection)
+	output, err := renderer.Render(successMessage)
 	if err != nil && debug.Debug {
 		fmt.Println("Error rendering formatted string:", err)
 	}
@@ -152,15 +159,7 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string) 
 		return types.Course{}, fmt.Errorf("no courses found for the selected semester")
 	}
 
-	markdownTable := GenerateCourseDetailsMarkdownTable(courses)
-
-	rendered, err := glamour.Render(markdownTable, "dark")
-	if err != nil && debug.Debug {
-		fmt.Println("Error rendering Markdown:", err)
-	}
-
-	fmt.Println("\nAvailable Courses:")
-	fmt.Println(rendered)
+	helpers.GenerateCourseDetailsTable(courses)
 
 	fmt.Print("Select a Course by entering the number: ")
 	var index int
@@ -184,46 +183,6 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string) 
 	}
 
 	return selectedCourse, nil
-}
-
-func RemoveCourseCode(courseName string) string {
-	re := regexp.MustCompile(`^[A-Z]{4}\d{3}[A-Z]?\s*-\s*`)
-	return re.ReplaceAllString(courseName, "")
-}
-
-func TruncateString(str string, maxLength int) string {
-	if len(str) <= maxLength {
-		return str
-	}
-	if maxLength <= 3 {
-		return str[:maxLength]
-	}
-	return str[:maxLength-3] + "..."
-}
-
-func GenerateCourseDetailsMarkdownTable(courses []types.Course) string {
-	var sb strings.Builder
-
-	sb.WriteString("| INDEX | COURSE NAME                                       |\n")
-	sb.WriteString("|-------|---------------------------------------------------|\n")
-
-	for i, course := range courses {
-		index := fmt.Sprintf("%d", i+1)
-
-		courseName := RemoveCourseCode(course.Name)
-
-		courseName = strings.ReplaceAll(courseName, "\n", " ")
-		courseName = strings.TrimSpace(courseName)
-
-		maxWidth := 60
-		courseName = TruncateString(courseName, maxWidth)
-
-		courseName = fmt.Sprintf("%-60s", courseName)
-
-		sb.WriteString(fmt.Sprintf("| %-5s | %-60s |\n", index, courseName))
-	}
-
-	return sb.String()
 }
 
 func fetchSlotIds(regNo string, cookies types.Cookies, semSubId string, classId string) ([]string, error) {
@@ -490,7 +449,20 @@ func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester Sem
 		return err
 	}
 
-	fmt.Printf("Course materials downloaded successfully to %s\n", filePath)
+	successMessage := fmt.Sprintf("Course materials downloaded successfully to %s", filePath)
+	renderer, err := glamour.NewTermRenderer(
+		glamour.WithStylePath("dark"),
+		glamour.WithWordWrap(0),
+	)
+	if err != nil && debug.Debug {
+		fmt.Println("Error creating glamour renderer:", err)
+	}
+	renderedMessage, err := renderer.Render(successMessage)
+	if err != nil && debug.Debug {
+		fmt.Println("Error rendering download success message:", err)
+	}
+	fmt.Print(renderedMessage)
+
 	return nil
 }
 
