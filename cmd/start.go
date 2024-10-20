@@ -198,7 +198,7 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
 
 	// Add the commands to the root command
-	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd)
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, daDueDatesCmd, logoutCmd)
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
@@ -294,5 +294,26 @@ var libraryDuesCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.GetLibraryDues(regNo, cookies)
+	},
+}
+
+var daDueDatesCmd = &cobra.Command{
+	Use:   "da",
+	Short: "Show Digital Assignment Due Dates",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.PrintDAdates(regNo, cookies)
+	},
+}
+
+var logoutCmd = &cobra.Command{
+	Use:   "logout",
+	Short: "Logout from VTOP",
+	Run: func(cmd *cobra.Command, args []string) {
+		err := os.Remove("cli-top-config.env")
+		if err != nil && debug.Debug {
+			fmt.Println("Error deleting .env file:", err)
+		}
+		fmt.Println("Logged out successfully.")
 	},
 }
