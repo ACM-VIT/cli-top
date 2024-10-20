@@ -11,9 +11,10 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/charmbracelet/glamour"
+
 )
 
-//payload := []byte("_csrf=154a792d-e0d1-42fb-8300-c4211db46510&semesterSubId=VL20232405&authorizedID=22BCI0272&x=" + time.Now().UTC().Format(time.RFC1123))
+
 
 func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choice int) {
 	url := "https://vtop.vit.ac.in/vtop/examinations/doSearchExamScheduleForStudent"
@@ -24,6 +25,7 @@ func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choi
 	if err != nil && debug.Debug {
 		fmt.Println(err)
 	}
+
 	//fmt.Println(string(bodyText))
 	// Use goquery to parse the HTML
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
@@ -92,23 +94,32 @@ func generateExamScheduleMarkdownTable(examSchedule [][]string) string {
 						strings.Repeat("-", 13), strings.Repeat("-", 47), strings.Repeat("-", 13), strings.Repeat("-", 13), strings.Repeat("-", 16), strings.Repeat("-", 21),
 						strings.Repeat("-", 9), strings.Repeat("-", 9), strings.Repeat("-", 10), strings.Repeat("-", 17))
 				}
+
 				// Extract date from the exam date column
 				datePart := row[6]
 
-				// Calculate days remaining
-				examDate, err := time.Parse("02-Jan-2006", datePart)
-				if err != nil && debug.Debug {
-					fmt.Println("Error parsing exam date:", err)
-					continue
-				}
-				daysRemaining := int(examDate.Sub(time.Now()).Hours() / 24)
-
-				// Check if the exam is completed
+				// Initialize daysRemainingText
 				daysRemainingText := ""
-				if daysRemaining >= 0 {
-					daysRemainingText = fmt.Sprintf("%-3ddays", daysRemaining)
+
+				// Check if the exam date is empty
+				if datePart == "" {
+					daysRemainingText = "To Be Released"
 				} else {
-					daysRemainingText = "Exam Completed"
+					// Calculate days remaining
+					now := time.Now().Truncate(24 * time.Hour) // Only keep the date part of the current time
+					examDate, err := time.Parse("02-Jan-2006", datePart)
+					if err != nil && debug.Debug {
+						fmt.Println("Error parsing exam date:", err)
+						continue
+					}
+					daysRemaining := int(examDate.Sub(now).Hours() / 24)
+
+					// Check if the exam is completed
+					if daysRemaining >= 0 {
+						daysRemainingText = fmt.Sprintf("%-3ddays", daysRemaining)
+					} else {
+						daysRemainingText = "Exam Completed"
+					}
 				}
 
 				// Table row with days remaining
