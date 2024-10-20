@@ -36,13 +36,20 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag
         return
     }
 
-    selectedSemName := "Unknown"
+    indexInSemDetails := -1
     for i, id := range semDetails.SemIds {
         if id == selectedSemId {
-            selectedSemName = semDetails.SemNames[i]
+            indexInSemDetails = i
             break
         }
     }
+
+    if indexInSemDetails == -1 {
+        fmt.Println("Selected semester ID not found in semester details.")
+        return
+    }
+
+    selectedSemName := semDetails.SemNames[indexInSemDetails]
 
     selectedSemester := Semester{
         SemName: selectedSemName,
