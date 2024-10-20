@@ -3,6 +3,8 @@ package helpers
 import (
 	"bufio"
 	"bytes"
+	"cli-top/debug"
+	"cli-top/types"
 	"fmt"
 	"os"
 	"regexp"
@@ -11,13 +13,10 @@ import (
 
 	"github.com/charmbracelet/glamour"
 	"github.com/olekukonko/tablewriter"
-
-	"cli-top/debug"
-	"cli-top/types"
 )
 
 func RemoveCourseCode(courseName string) string {
-	re := regexp.MustCompile(`^[A-Z]{4}\d{3}[A-Z]?\s*-\s*`)
+	re := regexp.MustCompile(`^[A-Z]{4}\d{3}[A-Z]?\s*[─-]\s*`)
 	return re.ReplaceAllString(courseName, "")
 }
 
@@ -38,39 +37,116 @@ func HighlightMatches(text, query string) string {
 	})
 }
 
-func GenerateFacultyDetailsTable(faculties []types.Faculty, query string) {
-    var buf bytes.Buffer
-    table := tablewriter.NewWriter(&buf)
-
-    table.SetHeader([]string{"INDEX", "SLOT", "NAME"})
-
-    table.SetBorder(false)
-    table.SetHeaderLine(true)
-    table.SetRowLine(false)
-    table.SetAutoWrapText(false)
-    table.SetAlignment(tablewriter.ALIGN_LEFT) 
-    table.SetColumnSeparator("│")
-
-    for i, faculty := range faculties {
-        index := fmt.Sprintf("%5d", i+1) 
-        slot := faculty.Slot              
-        name := faculty.Name              
-
-        if query != "" {
-            name = HighlightMatches(name, query) 
-        }
-
-        table.Append([]string{index, slot, name})
-    }
-
-    table.Render()
-    output := strings.ReplaceAll(buf.String(), "-", "─")
-    output = strings.ReplaceAll(output, "+", "┼")
-    output = strings.ReplaceAll(output, "|", "│")
-
-    fmt.Print(output)
+func RedactERPID(facultyName string) string {
+	re := regexp.MustCompile(`^\d+\s*[─–—-]\s*`)
+	return re.ReplaceAllString(facultyName, "")
 }
 
+func SplitCourseName(courseName string) (string, string) {
+	re := regexp.MustCompile(`\s*[─–—-]\s*`)
+	idx := re.FindStringIndex(courseName)
+	if idx != nil {
+		courseCode := strings.TrimSpace(courseName[:idx[0]])
+		courseNamePart := strings.TrimSpace(courseName[idx[1]:])
+		return courseCode, courseNamePart
+	}
+	return courseName, ""
+}
+
+func SplitCourseNameFull(courseName string) []string {
+	re := regexp.MustCompile(`\s*[─–—-]\s*`)
+	parts := re.Split(courseName, -1)
+	for i := range parts {
+		parts[i] = strings.TrimSpace(parts[i])
+	}
+	return parts
+}
+
+func SplitFacultyNameFull(facultyName string) []string {
+	re := regexp.MustCompile(`\s*[─–—-]\s*`)
+	parts := re.Split(facultyName, -1)
+	for i := range parts {
+		parts[i] = strings.TrimSpace(parts[i])
+	}
+	return parts
+}
+
+func addLeftPadding(output string, spaces int) string {
+	pad := strings.Repeat(" ", spaces)
+	lines := strings.Split(output, "\n")
+	for i, line := range lines {
+		if strings.TrimSpace(line) != "" {
+			lines[i] = pad + line
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+func GenerateFacultyDetailsTable(faculties []types.Faculty, query string) {
+	var buf bytes.Buffer
+	table := tablewriter.NewWriter(&buf)
+
+	table.SetHeader([]string{"INDEX", "SLOT", "NAME"})
+
+	table.SetBorder(false)
+	table.SetHeaderLine(true)
+	table.SetRowLine(false)
+	table.SetAutoWrapText(false)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.SetColumnSeparator("│")
+
+	for i, faculty := range faculties {
+		index := fmt.Sprintf("%5d", i+1)
+		slot := faculty.Slot
+		name := RedactERPID(faculty.Name)
+
+		if query != "" {
+			name = HighlightMatches(name, query)
+		}
+
+		table.Append([]string{index, slot, name})
+	}
+
+	table.Render()
+	output := strings.ReplaceAll(buf.String(), "-", "─")
+	output = strings.ReplaceAll(output, "+", "┼")
+	output = strings.ReplaceAll(output, "|", "│")
+
+	output = addLeftPadding(output, 2)
+
+	fmt.Print(output)
+	fmt.Println()
+}
+
+func GenerateCourseDetailsTable(courses []types.Course) {
+	var buf bytes.Buffer
+	table := tablewriter.NewWriter(&buf)
+
+	table.SetHeader([]string{"INDEX", "COURSE CODE", "COURSE NAME"})
+
+	table.SetBorder(false)
+	table.SetHeaderLine(true)
+	table.SetRowLine(false)
+	table.SetAutoWrapText(false)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.SetColumnSeparator("│")
+
+	for i, course := range courses {
+		index := fmt.Sprintf("%5d", i+1)
+		courseCode, courseName := SplitCourseName(course.Name)
+		table.Append([]string{index, courseCode, courseName})
+	}
+
+	table.Render()
+	output := strings.ReplaceAll(buf.String(), "-", "─")
+	output = strings.ReplaceAll(output, "+", "┼")
+	output = strings.ReplaceAll(output, "|", "│")
+
+	output = addLeftPadding(output, 2)
+
+	fmt.Print(output)
+	fmt.Println()
+}
 
 func SelectFaculty(faculties []types.Faculty) (types.Faculty, error) {
 	if len(faculties) == 0 {
@@ -79,6 +155,7 @@ func SelectFaculty(faculties []types.Faculty) (types.Faculty, error) {
 
 	if len(faculties) <= 15 {
 		GenerateFacultyDetailsTable(faculties, "")
+		fmt.Println()
 		fmt.Print("Select a Faculty by entering the number: ")
 		var index int
 		_, err := fmt.Scanln(&index)
@@ -93,7 +170,8 @@ func SelectFaculty(faculties []types.Faculty) (types.Faculty, error) {
 			return types.Faculty{}, fmt.Errorf("invalid faculty selection")
 		}
 		selectedFaculty := faculties[index-1]
-		successMessage := fmt.Sprintf("# You selected Faculty: %s", selectedFaculty.Name)
+		redactedName := RedactERPID(selectedFaculty.Name)
+		successMessage := fmt.Sprintf("# You selected Faculty: %s", redactedName)
 		renderer, err := glamour.NewTermRenderer(
 			glamour.WithStylePath("dark"),
 			glamour.WithWordWrap(0),
@@ -145,6 +223,7 @@ func SelectFaculty(faculties []types.Faculty) (types.Faculty, error) {
 		}
 
 		GenerateFacultyDetailsTable(displayFaculties, query)
+		fmt.Println()
 		fmt.Print("Enter the number of the faculty to select (or type 's' to search again, 'exit' to cancel): ")
 		selection, err := reader.ReadString('\n')
 		if err != nil {
@@ -170,7 +249,8 @@ func SelectFaculty(faculties []types.Faculty) (types.Faculty, error) {
 		}
 
 		selectedFaculty := displayFaculties[index-1]
-		successMessage := fmt.Sprintf("# You selected Faculty: %s", selectedFaculty.Name)
+		redactedName := RedactERPID(selectedFaculty.Name)
+		successMessage := fmt.Sprintf("# You selected Faculty: %s", redactedName)
 		renderer, err := glamour.NewTermRenderer(
 			glamour.WithStylePath("dark"),
 			glamour.WithWordWrap(0),
@@ -188,40 +268,12 @@ func SelectFaculty(faculties []types.Faculty) (types.Faculty, error) {
 	}
 }
 
-func GenerateCourseDetailsTable(courses []types.Course) {
-    var buf bytes.Buffer
-    table := tablewriter.NewWriter(&buf)
-
-    table.SetHeader([]string{"INDEX", "COURSE NAME"})
-
-    table.SetBorder(false)
-    table.SetHeaderLine(true)
-    table.SetRowLine(false)
-    table.SetAutoWrapText(false)
-    table.SetAlignment(tablewriter.ALIGN_LEFT) 
-    table.SetColumnSeparator("│")
-
-    for i, course := range courses {
-        index := fmt.Sprintf("%5d", i+1) 
-        name := course.Name
-        table.Append([]string{index, name})
-    }
-
-    table.Render()
-    output := strings.ReplaceAll(buf.String(), "-", "─")
-    output = strings.ReplaceAll(output, "+", "┼")
-    output = strings.ReplaceAll(output, "|", "│")
-
-    fmt.Print(output)
-}
-
-
 func RemoveDuplicateFaculties(faculties []types.Faculty) []types.Faculty {
 	uniqueFaculties := make([]types.Faculty, 0)
 	keys := make(map[string]bool)
 	for _, faculty := range faculties {
 		key := faculty.ID + "_" + faculty.Name + "_" + faculty.Slot
-		if _, value := keys[key]; !value {
+		if _, exists := keys[key]; !exists {
 			keys[key] = true
 			uniqueFaculties = append(uniqueFaculties, faculty)
 		}

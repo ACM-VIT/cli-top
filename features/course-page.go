@@ -1,12 +1,14 @@
 package features
 
 import (
+	"archive/zip"
+	"bytes"
 	"cli-top/debug"
 	"cli-top/helpers"
 	"cli-top/types"
 	"fmt"
+	"io"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -406,16 +408,40 @@ func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester Sem
 
 	downloadsDir := filepath.Join(homeDir, "Downloads", "Course Page Downloads")
 
-	filename := fmt.Sprintf("course_materials_%d.zip", time.Now().Unix())
-	dirName := fmt.Sprintf("%s/%s", sanitizeFilename(selectedCourse.Name),
-		func() string {
-			if strings.HasPrefix(selectedFaculty.Slot, "L") {
-				return selectedFaculty.Slot[:3]
-			}
-			return selectedFaculty.Slot[:2]
-		}()+" "+sanitizeFilename(selectedFaculty.Name))
+	// Construct course folder name
+	courseParts := helpers.SplitCourseNameFull(selectedCourse.Name)
+	var courseFolderName string
+	if len(courseParts) >= 3 {
+		courseFolderName = fmt.Sprintf("%s_%s_%s", courseParts[0], courseParts[1], courseParts[2])
+	} else if len(courseParts) == 2 {
+		courseFolderName = fmt.Sprintf("%s_%s", courseParts[0], courseParts[1])
+	} else {
+		courseFolderName = courseParts[0]
+	}
+	courseFolderName = sanitizeFilename(courseFolderName)
 
-	fullDirPath := path.Join(downloadsDir, dirName)
+	// Construct faculty folder name
+	slotID := func() string {
+		if len(selectedFaculty.Slot) >= 3 && strings.HasPrefix(selectedFaculty.Slot, "L") {
+			return selectedFaculty.Slot[:3]
+		} else if len(selectedFaculty.Slot) >= 2 {
+			return selectedFaculty.Slot[:2]
+		}
+		return selectedFaculty.Slot
+	}()
+
+	facultyNameNoERP := helpers.RedactERPID(selectedFaculty.Name)
+	facultyParts := helpers.SplitFacultyNameFull(facultyNameNoERP)
+	var facultyFolderName string
+	facultyNamePart := strings.ReplaceAll(facultyParts[0], " ", "-")
+	if len(facultyParts) >= 2 {
+		facultyFolderName = fmt.Sprintf("%s_%s_%s", slotID, facultyNamePart, facultyParts[1])
+	} else {
+		facultyFolderName = fmt.Sprintf("%s_%s", slotID, facultyNamePart)
+	}
+	facultyFolderName = sanitizeFilename(facultyFolderName)
+
+	fullDirPath := filepath.Join(downloadsDir, courseFolderName, facultyFolderName)
 
 	err = os.MkdirAll(fullDirPath, os.ModePerm)
 	if err != nil {
@@ -424,26 +450,17 @@ func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester Sem
 		}
 		return err
 	}
-	filePath := filepath.Join(fullDirPath, filename)
-	file, err := os.Create(filePath)
-	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error creating file:", err)
-		}
-		return err
-	}
-	defer file.Close()
 
-	_, err = file.Write(body)
+	err = unzipFromBytes(body, fullDirPath)
 	if err != nil {
 		if debug.Debug {
-			fmt.Println("Error saving file:", err)
+			fmt.Println("Error unzipping file:", err)
 		}
 		return err
 	}
 
-	fmt.Println("Course materials downloaded successfully")
-	fmt.Printf("\033[34m\033[4m\033]8;;file://%s\033\\%s\033]8;;\033\\ to open the folder.\n", fullDirPath, "Click Here")
+	fmt.Println("Course materials downloaded and extracted successfully")
+	fmt.Printf("\033[34m\033[4m\033]8;;file://%s\033\\%s\033]8;;\033\\\033[0m to open the folder.\n", fullDirPath, "Click Here")
 	return nil
 }
 
@@ -462,7 +479,46 @@ func sanitizeFilename(name string) string {
 		"<", "_",
 		">", "_",
 		"|", "_",
-		" ", "_",
 	)
 	return replacer.Replace(name)
+}
+
+func unzipFromBytes(data []byte, dest string) error {
+	readerAt := bytes.NewReader(data)
+	zipReader, err := zip.NewReader(readerAt, int64(len(data)))
+	if err != nil {
+		return err
+	}
+
+	for _, file := range zipReader.File {
+		filePath := filepath.Join(dest, file.Name)
+
+		if file.FileInfo().IsDir() {
+			os.MkdirAll(filePath, os.ModePerm)
+			continue
+		} else {
+			os.MkdirAll(filepath.Dir(filePath), os.ModePerm)
+
+			outFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
+			if err != nil {
+				return err
+			}
+
+			rc, err := file.Open()
+			if err != nil {
+				return err
+			}
+
+			_, err = io.Copy(outFile, rc)
+
+			outFile.Close()
+			rc.Close()
+
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
