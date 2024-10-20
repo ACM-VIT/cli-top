@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -23,6 +22,7 @@ func FetchReq(regNo string, cookies types.Cookies, url string, semID string, pay
 		payload = fmt.Sprintf("verifyMenu=true&authorizedID=%s&_csrf=%s&nocache=%d", regNo, cookies.CSRF, time.Now().UnixNano())
 	} else if payload == "UTC" {
 		payload = fmt.Sprintf("authorizedID=%s&_csrf=%s&semesterSubId=%s&x=%s", regNo, cookies.CSRF, semID, time.Now().UTC().Format(time.RFC1123)) //fmt.Println(payload)
+
 	} else if strings.HasPrefix(payload, "DA") {
 		code := payload[3:]
 		x := time.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT")
@@ -34,7 +34,7 @@ func FetchReq(regNo string, cookies types.Cookies, url string, semID string, pay
 		x = strings.ReplaceAll(x, "UTC", "GMT")
 		payload = fmt.Sprintf("authorizedID=%s&_csrf=%s&classId=%s&x=%s", regNo, cookies.CSRF, code,x)
 	} 
-	//fmt.Println(payload)
+  //fmt.Println(payload)
 
 	// Create a new request with POST/GET method and payload
 	if method == "POST" {

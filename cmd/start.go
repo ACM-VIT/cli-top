@@ -190,6 +190,7 @@ func Execute() {
 	attendanceCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	timeTableCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	examScheduleCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	calendarCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 
 	// Add the flags to the root command
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
@@ -197,7 +198,9 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
 
 	// Add the commands to the root command
-	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, daDueDatesCmd, logoutCmd, coursePageCmd, nightslipCmd)
+
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, daDueDatesCmd, logoutCmd, coursePageCmd, nightslipCmd, calendarCmd)
+
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
@@ -315,6 +318,15 @@ var daDueDatesCmd = &cobra.Command{
 	},
 }
 
+var calendarCmd = &cobra.Command{
+	Use:   "cal",
+	Short: "Show Calendar",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.PrintCal(regNo, cookies, semesterFlag)
+	},
+}
+
 var logoutCmd = &cobra.Command{
 	Use:   "logout",
 	Short: "Logout from VTOP",
@@ -327,6 +339,7 @@ var logoutCmd = &cobra.Command{
 	},
 }
 
+
 var coursePageCmd = &cobra.Command{
 	Use:   "course-page",
 	Short: "Download course materials for a selected semester, course, and faculty",
@@ -335,3 +348,4 @@ var coursePageCmd = &cobra.Command{
 		features.ExecuteCoursePageDownload(regNo, cookies)
 	},
 }
+
