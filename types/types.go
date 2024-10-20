@@ -55,3 +55,17 @@ type Slot struct {
 	ID   string
 	Name string
 }
+
+type CourseMaterial struct {
+    Index              int
+    Date               string
+    DayOrderSlot       string
+    Topic              string
+    ReferenceMaterials []ReferenceMaterial
+}
+
+type ReferenceMaterial struct {
+    Name         string
+    MaterialID   string
+    MaterialDate string
+}
