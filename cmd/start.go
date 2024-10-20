@@ -197,7 +197,7 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
 
 	// Add the commands to the root command
-	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, daDueDatesCmd, logoutCmd, coursePageCmd)
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, daDueDatesCmd, logoutCmd, coursePageCmd, nightslipCmd)
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
@@ -287,15 +287,6 @@ var examScheduleCmd = &cobra.Command{
 	},
 }
 
-var coursePageCmd = &cobra.Command{
-	Use:   "course-page",
-	Short: "Download course materials for a selected semester, course, and faculty",
-	Run: func(cmd *cobra.Command, args []string) {
-		cookies, regNo := readCookiesFromFile()
-		features.ExecuteCoursePageDownload(regNo, cookies)
-	},
-}
-
 var libraryDuesCmd = &cobra.Command{
 	Use:   "library-dues",
 	Short: "Show Library Dues",
@@ -304,6 +295,16 @@ var libraryDuesCmd = &cobra.Command{
 		features.GetLibraryDues(regNo, cookies)
 	},
 }
+
+var nightslipCmd = &cobra.Command{
+	Use:   "nightslip",
+	Short: "Show Nightslip Request Status of a user",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetNightSlipStatus(regNo, cookies)
+	},
+}
+
 
 var daDueDatesCmd = &cobra.Command{
 	Use:   "da",
@@ -323,5 +324,14 @@ var logoutCmd = &cobra.Command{
 			fmt.Println("Error deleting .env file:", err)
 		}
 		fmt.Println("Logged out successfully.")
+	},
+}
+
+var coursePageCmd = &cobra.Command{
+	Use:   "course-page",
+	Short: "Download course materials for a selected semester, course, and faculty",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.ExecuteCoursePageDownload(regNo, cookies)
 	},
 }

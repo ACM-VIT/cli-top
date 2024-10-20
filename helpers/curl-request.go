@@ -28,6 +28,11 @@ func FetchReq(regNo string, cookies types.Cookies, url string, semID string, pay
 		x := time.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT")
 		x = strings.ReplaceAll(x, "UTC", "GMT")
 		payload = fmt.Sprintf("authorizedID=%s&_csrf=%s&classId=%s&x=%s", regNo, cookies.CSRF, code,x)
+	} else if strings.HasPrefix(payload, "nightslip") {
+		code := payload[:]
+		x := time.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT")
+		x = strings.ReplaceAll(x, "UTC", "GMT")
+		payload = fmt.Sprintf("authorizedID=%s&_csrf=%s&classId=%s&x=%s", regNo, cookies.CSRF, code,x)
 	} 
 	//fmt.Println(payload)
 
