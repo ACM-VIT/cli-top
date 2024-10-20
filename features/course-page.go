@@ -104,11 +104,11 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies) {
 func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string) (types.Course, error) {
 	getCourseURL := "https://vtop.vit.ac.in/vtop/getCourseForCoursePage"
 	payloadMap := map[string]string{
-		"_csrf":         cookies["csrf"], // Ensure "csrf" is the correct key
+		"_csrf":         cookies.CSRF,
 		"paramReturnId": "getCourseForCoursePage",
 		"semSubId":      semSubId,
 		"authorizedID":  regNo,
-		"x":             fmt.Sprintf("%d", time.Now().Unix()),
+		"x":             time.Now().UTC().Format(time.RFC1123),
 	}
 
 	formData := helpers.FormatBodyData(payloadMap)
@@ -153,7 +153,7 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string) 
 		return types.Course{}, fmt.Errorf("no courses found for the selected semester")
 	}
 
-	helpers.GenerateCourseDetailsTable(courses) // Use tablewriter to display courses
+	helpers.GenerateCourseDetailsTable(courses)
 
 	fmt.Print("Select a Course by entering the number: ")
 	var index int
@@ -182,7 +182,7 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string) 
 func fetchSlotIds(regNo string, cookies types.Cookies, semSubId string, classId string) ([]string, error) {
 	getSlotURL := "https://vtop.vit.ac.in/vtop/getSlotIdForCoursePage"
 	payloadMap := map[string]string{
-		"_csrf":         cookies["csrf"], // Ensure "csrf" is the correct key
+		"_csrf":         cookies.CSRF,
 		"paramReturnId": "getSlotIdForCoursePage",
 		"semSubId":      semSubId,
 		"classId":       classId,
@@ -267,7 +267,7 @@ func fetchFacultiesForAllSlotsConcurrently(regNo string, cookies types.Cookies, 
 
 	wg.Wait()
 
-	uniqueFaculties := removeDuplicateFaculties(allFaculties)
+	uniqueFaculties := helpers.RemoveDuplicateFaculties(allFaculties)
 
 	return uniqueFaculties, nil
 }
@@ -275,7 +275,7 @@ func fetchFacultiesForAllSlotsConcurrently(regNo string, cookies types.Cookies, 
 func fetchFaculties(regNo string, cookies types.Cookies, semSubId string, classId string, slotId string) ([]types.Faculty, error) {
 	getFacultyURL := "https://vtop.vit.ac.in/vtop/getFacultyForCoursePage"
 	payloadMap := map[string]string{
-		"_csrf":         cookies["csrf"], // Ensure "csrf" is the correct key
+		"_csrf":         cookies.CSRF,
 		"paramReturnId": "getFacultyForCoursePage",
 		"semSubId":      semSubId,
 		"classId":       classId,
@@ -368,27 +368,11 @@ func fetchFaculties(regNo string, cookies types.Cookies, semSubId string, classI
 	return faculties, nil
 }
 
-func removeDuplicateFaculties(faculties []types.Faculty) []types.Faculty {
-	uniqueMap := make(map[string]types.Faculty)
-	for _, faculty := range faculties {
-		if _, exists := uniqueMap[faculty.ErpID]; !exists {
-			uniqueMap[faculty.ErpID] = faculty
-		}
-	}
-
-	var uniqueFaculties []types.Faculty
-	for _, faculty := range uniqueMap {
-		uniqueFaculties = append(uniqueFaculties, faculty)
-	}
-
-	return uniqueFaculties
-}
-
 func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester Semester, selectedCourse types.Course, selectedFaculty types.Faculty) error {
 	downloadURL := "https://vtop.vit.ac.in/vtop/academics/common/allCourseMeterialDownload"
 
 	payloadMap := map[string]string{
-		"_csrf":         cookies["csrf"], // Ensure "csrf" is the correct key
+		"_csrf":         cookies.CSRF,
 		"authorizedID":  regNo,
 		"materialMode":  "1",
 		"uploadView":    "1",
@@ -423,13 +407,13 @@ func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester Sem
 	downloadsDir := filepath.Join(homeDir, "Downloads", "Course Page Downloads")
 
 	filename := fmt.Sprintf("course_materials_%d.zip", time.Now().Unix())
-	dirName := fmt.Sprintf("%s/%s", selectedCourse.Name,
+	dirName := fmt.Sprintf("%s/%s", sanitizeFilename(selectedCourse.Name),
 		func() string {
 			if strings.HasPrefix(selectedFaculty.Slot, "L") {
 				return selectedFaculty.Slot[:3]
 			}
 			return selectedFaculty.Slot[:2]
-		}()+" "+selectedFaculty.Name)
+		}()+" "+sanitizeFilename(selectedFaculty.Name))
 
 	fullDirPath := path.Join(downloadsDir, dirName)
 
