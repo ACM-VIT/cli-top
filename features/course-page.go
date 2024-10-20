@@ -284,34 +284,47 @@ func fetchSlotIds(regNo string, cookies types.Cookies, semSubId string, classId 
 }
 
 func fetchFacultiesForAllSlotsConcurrently(regNo string, cookies types.Cookies, semSubId string, classId string, slotIds []string) ([]types.Faculty, error) {
-	var allFaculties []types.Faculty
-	var mu sync.Mutex
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, 10) 
 
-	for _, slotId := range slotIds {
+	facultySlices := make([][]types.Faculty, len(slotIds))
+	errorsOccurred := false
+	var mu sync.Mutex
+
+	for i, slotId := range slotIds {
 		wg.Add(1)
 		sem <- struct{}{}
-		go func(slotId string) {
+		go func(i int, slotId string) {
 			defer wg.Done()
 			faculties, err := fetchFaculties(regNo, cookies, semSubId, classId, slotId)
 			if err != nil {
 				if debug.Debug {
 					fmt.Printf("Error fetching faculties for slot %s: %v\n", slotId, err)
 				}
+				mu.Lock()
+				errorsOccurred = true
+				mu.Unlock()
 				<-sem
 				return
 			}
-			mu.Lock()
-			allFaculties = append(allFaculties, faculties...)
-			mu.Unlock()
+			facultySlices[i] = faculties
 			<-sem
-		}(slotId)
+		}(i, slotId)
 	}
 
 	wg.Wait()
 
+	if errorsOccurred {
+		return nil, fmt.Errorf("some faculties could not be fetched")
+	}
+
+	var allFaculties []types.Faculty
+	for _, slice := range facultySlices {
+		allFaculties = append(allFaculties, slice...)
+	}
+
 	uniqueFaculties := helpers.RemoveDuplicateFaculties(allFaculties)
+	helpers.SortFacultiesAlphabetically(uniqueFaculties) 
 
 	return uniqueFaculties, nil
 }
@@ -623,6 +636,8 @@ func downloadSelectedMaterials(regNo string, cookies types.Cookies, selectedFacu
 				}
 			}
 			bar.Add(1)
+
+			time.Sleep(1 * time.Second)
 		}
 	}
 	fmt.Println("\nCourse materials downloaded successfully")

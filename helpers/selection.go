@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -161,18 +162,19 @@ func SelectFaculty(faculties []types.Faculty, facultyFlag int) (types.Faculty, e
 		return types.Faculty{}, fmt.Errorf("no faculties available for selection")
 	}
 
+	renderer, err := glamour.NewTermRenderer(
+		glamour.WithStylePath("dark"),
+		glamour.WithWordWrap(0),
+	)
+	if err != nil && debug.Debug {
+		fmt.Println("Error creating glamour renderer:", err)
+	}
+
 	if facultyFlag > 0 && facultyFlag <= len(faculties) {
 		selectedFaculty := faculties[facultyFlag-1]
 		redactedName := RedactERPID(selectedFaculty.Name)
 		successMessage := fmt.Sprintf("# You selected Faculty: %s", redactedName)
 
-		renderer, err := glamour.NewTermRenderer(
-			glamour.WithStylePath("dark"),
-			glamour.WithWordWrap(0),
-		)
-		if err != nil && debug.Debug {
-			fmt.Println("Error creating glamour renderer:", err)
-		}
 		renderedMessage, err := renderer.Render(successMessage)
 		if err != nil && debug.Debug {
 			fmt.Println("Error rendering selected faculty message:", err)
@@ -201,13 +203,6 @@ func SelectFaculty(faculties []types.Faculty, facultyFlag int) (types.Faculty, e
 		redactedName := RedactERPID(selectedFaculty.Name)
 		successMessage := fmt.Sprintf("# You selected Faculty: %s", redactedName)
 
-		renderer, err := glamour.NewTermRenderer(
-			glamour.WithStylePath("dark"),
-			glamour.WithWordWrap(0),
-		)
-		if err != nil && debug.Debug {
-			fmt.Println("Error creating glamour renderer:", err)
-		}
 		renderedMessage, err := renderer.Render(successMessage)
 		if err != nil && debug.Debug {
 			fmt.Println("Error rendering selected faculty message:", err)
@@ -281,13 +276,6 @@ func SelectFaculty(faculties []types.Faculty, facultyFlag int) (types.Faculty, e
 		redactedName := RedactERPID(selectedFaculty.Name)
 		successMessage := fmt.Sprintf("# You selected Faculty: %s", redactedName)
 
-		renderer, err := glamour.NewTermRenderer(
-			glamour.WithStylePath("dark"),
-			glamour.WithWordWrap(0),
-		)
-		if err != nil && debug.Debug {
-			fmt.Println("Error creating glamour renderer:", err)
-		}
 		renderedMessage, err := renderer.Render(successMessage)
 		if err != nil && debug.Debug {
 			fmt.Println("Error rendering selected faculty message:", err)
@@ -309,6 +297,12 @@ func RemoveDuplicateFaculties(faculties []types.Faculty) []types.Faculty {
 		}
 	}
 	return uniqueFaculties
+}
+
+func SortFacultiesAlphabetically(faculties []types.Faculty) {
+	sort.Slice(faculties, func(i, j int) bool {
+		return strings.ToLower(faculties[i].Name) < strings.ToLower(faculties[j].Name)
+	})
 }
 
 func GenerateCourseMaterialsTable(materials []types.CourseMaterial) {
