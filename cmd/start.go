@@ -23,6 +23,9 @@ var semesterFlag int
 var debugFlag bool
 var versionFlag bool
 var updateFlag bool
+var courseFlag int
+var facultyFlag int
+
 
 func startfn(cmd *cobra.Command, args []string) {
 
@@ -177,10 +180,15 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+func init() {
+    coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
+    coursePageCmd.PersistentFlags().IntVarP(&facultyFlag, "faculty", "f", 0, "Specify the faculty")
+}
+
 func Execute() {
 	killSwitch := helpers.CheckKillSwitch()
 	if killSwitch == 2 {
-		fmt.Println("This version of cli-top has been decomissioned. Please await an update at https://cli-top.acmvit.in/.")
+		fmt.Println("This version of cli-top has been decommissioned. Please await an update at https://cli-top.acmvit.in/.")
 		return
 		// os.Exit(1)
 	}
@@ -190,6 +198,8 @@ func Execute() {
 	attendanceCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	timeTableCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	examScheduleCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	coursePageCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	
 
 	// Add the flags to the root command
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
@@ -288,12 +298,12 @@ var examScheduleCmd = &cobra.Command{
 }
 
 var coursePageCmd = &cobra.Command{
-	Use:   "course-page",
-	Short: "Download course materials for a selected semester, course, and faculty",
-	Run: func(cmd *cobra.Command, args []string) {
-		cookies, regNo := readCookiesFromFile()
-		features.ExecuteCoursePageDownload(regNo, cookies)
-	},
+    Use:   "course-page",
+    Short: "Download course materials for a selected semester, course, and faculty",
+    Run: func(cmd *cobra.Command, args []string) {
+        cookies, regNo := readCookiesFromFile()
+        features.ExecuteCoursePageDownload(regNo, cookies, semesterFlag, courseFlag, facultyFlag)
+    },
 }
 
 var libraryDuesCmd = &cobra.Command{
