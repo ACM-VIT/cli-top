@@ -10,7 +10,6 @@ import (
 	"golang.org/x/net/html"
 )
 
-//payload := []byte("_csrf=154a792d-e0d1-42fb-8300-c4211db46510&semesterSubId=VL20232405&authorizedID=22BCI0272&x=" + time.Now().UTC().Format(time.RFC1123))
 
 func getTextContent(n *html.Node) string {
 	var textContent string
