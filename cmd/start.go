@@ -325,12 +325,3 @@ var logoutCmd = &cobra.Command{
 		fmt.Println("Logged out successfully.")
 	},
 }
-
-var coursePageCmd = &cobra.Command{	
-	Use: "course-page",
-	Short: "Download all course materials for a selected semester, course, and faculty",
-	Run: func(cmd *cobra.Command, args []string) {
-		cookies, regNo := readCookiesFromFile()
-		features.ExecuteCoursePageDownload(regNo, cookies)
-	},
-}
