@@ -111,13 +111,15 @@ func GenerateLeaveStatusTable(leaveRequests []LeaveRequest) {
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
 	table.SetColumnSeparator("│")
 
+	const maxVisitPlaceLength = 30 // Define max length for "Visit Place" field
+
 	for _, leave := range leaveRequests {
-		visitPlace := leave.VisitPlace
+		visitPlace := truncateWithEllipses(leave.VisitPlace, maxVisitPlaceLength)
 		reason := leave.Reason
 		leaveType := leave.LeaveType
 		from := leave.From
 		to := leave.To
-		status := colorStatus(leave.Status) 
+		status := colorStatus(leave.Status)
 
 		table.Append([]string{visitPlace, reason, leaveType, from, to, status})
 	}
@@ -131,9 +133,16 @@ func GenerateLeaveStatusTable(leaveRequests []LeaveRequest) {
 
 	output = addLeftPadding(output, 2)
 
-	fmt.Println("\n") 
+	fmt.Println("\n")
 	fmt.Print(output)
-	fmt.Println("\n") 
+	fmt.Println("\n")
+}
+
+func truncateWithEllipses(text string, maxLength int) string {
+	if len(text) > maxLength {
+		return text[:maxLength-3] + "..." // Add ellipses if text exceeds max length
+	}
+	return text
 }
 
 func colorStatus(status string) string {
