@@ -340,40 +340,50 @@ func GenerateCourseMaterialsTable(materials []types.CourseMaterial) {
 
 func SelectCourseMaterials(materials []types.CourseMaterial) ([]types.CourseMaterial, error) {
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter the index numbers of the topics to download (e.g., 1,2,3), or 0 for bulk download: ")
-	input, err := reader.ReadString('\n')
-	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error reading input:", err)
-		}
-		return nil, err
-	}
-	input = strings.TrimSpace(input)
-	if input == "" {
-		fmt.Println("No input provided.")
-		return nil, fmt.Errorf("no input provided")
-	}
-	if input == "0" {
-		return nil, nil
-	}
-	indicesStr := strings.Split(input, ",")
-	var selectedMaterials []types.CourseMaterial
-	for _, idxStr := range indicesStr {
-		idxStr = strings.TrimSpace(idxStr)
-		idx, err := strconv.Atoi(idxStr)
+	for {
+		fmt.Print("Enter the index numbers of the topics to download (e.g., 1,2,3), or 0 for bulk download: ")
+		input, err := reader.ReadString('\n')
 		if err != nil {
-			fmt.Println("Invalid index:", idxStr)
+			if debug.Debug {
+				fmt.Println("Error reading input:", err)
+			}
+			return nil, err
+		}
+		input = strings.TrimSpace(input)
+		if input == "" {
+			fmt.Println("No input provided.")
 			continue
 		}
-		if idx < 1 || idx > len(materials) {
-			fmt.Println("Index out of range:", idx)
+		if input == "0" {
+			return materials, nil
+		}
+		indicesStr := strings.Split(input, ",")
+		indexSet := make(map[int]struct{})
+		var invalidIndices []string
+		for _, idxStr := range indicesStr {
+			idxStr = strings.TrimSpace(idxStr)
+			idx, err := strconv.Atoi(idxStr)
+			if err != nil {
+				invalidIndices = append(invalidIndices, idxStr)
+				continue
+			}
+			if idx < 1 || idx > len(materials) {
+				invalidIndices = append(invalidIndices, idxStr)
+				continue
+			}
+			indexSet[idx] = struct{}{}
+		}
+		if len(invalidIndices) > 0 {
+			fmt.Println("Invalid indices:", strings.Join(invalidIndices, ", "))
+		}
+		if len(indexSet) == 0 {
+			fmt.Println("No valid indices selected.")
 			continue
 		}
-		selectedMaterials = append(selectedMaterials, materials[idx-1])
+		var selectedMaterials []types.CourseMaterial
+		for idx := range indexSet {
+			selectedMaterials = append(selectedMaterials, materials[idx-1])
+		}
+		return selectedMaterials, nil
 	}
-	if len(selectedMaterials) == 0 {
-		fmt.Println("No valid indices selected.")
-		return nil, fmt.Errorf("no valid indices selected")
-	}
-	return selectedMaterials, nil
 }
