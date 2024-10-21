@@ -193,7 +193,7 @@ func GenerateICSFile(events []DAEvent) error {
     }
 
     for _, event := range events {
-        uid := fmt.Sprintf("%d-%s@yourdomain.com", time.Now().UnixNano(), event.Name)
+        uid := fmt.Sprintf("%d-%s", time.Now().UnixNano(), event.Name)
         dtstamp := time.Now().UTC().Format("20060102T150405Z")
         startDate := event.DueDate.Format("20060102")
         endDate := event.DueDate.AddDate(0, 0, 1).Format("20060102")
