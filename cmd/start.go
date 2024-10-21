@@ -26,6 +26,7 @@ var updateFlag bool
 var courseFlag int
 var facultyFlag int
 var classGrpFlag int
+var courseNameFlag string
 
 func startfn(cmd *cobra.Command, args []string) {
 
@@ -198,6 +199,7 @@ func Execute() {
     coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
     coursePageCmd.PersistentFlags().IntVarP(&facultyFlag, "faculty", "f", 0, "Specify the faculty")
 	calendarCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
+	daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")	
 
 	// Add the flags to the root command
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
@@ -205,7 +207,7 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
 
 	// Add the commands to the root command
-	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, daDueDatesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd)
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, daDueDatesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd)
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
@@ -367,5 +369,14 @@ var classMessagesCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.GetClassMessage(regNo, cookies)
+	},
+}
+
+var daDetailsCmd = &cobra.Command{
+	Use:   "da-details",
+	Short: "Show Digital Assignment Details",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.PrintAllDAs(regNo, cookies, courseNameFlag)
 	},
 }
