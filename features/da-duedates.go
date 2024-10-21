@@ -6,52 +6,21 @@ import (
 	"cli-top/types"
 	"fmt"
 	"strconv"
-	"time"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
 func PrintDAdates(regNo string, cookies types.Cookies){
-	url:="https://vtop.vit.ac.in/vtop/examinations/doDigitalAssignment"
-	semDetails := helpers.GetSemDetails(cookies, regNo)
-	if len(semDetails.SemIds) == 0 {
-		fmt.Println("No semesters found")
-		return
-	}
-	semID := semDetails.SemIds[len(semDetails.SemIds)-1]
-	bodyText, err := helpers.FetchReq(regNo, cookies, url, semID, "UTC", "POST", "")
-	if err != nil && debug.Debug {
-		fmt.Println(err)
-	}
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
-	if err != nil && debug.Debug {
-		fmt.Println(err)
-	}
-	subjectlist:=allSubDetails(doc)
-	url = "https://vtop.vit.ac.in/vtop/examinations/processDigitalAssignment"
+	listOfSubjects := getAllSubs(regNo, cookies)
 	var table_data [][]string
     currentDate := time.Now()
 	k:= 1
-	for _, detail := range subjectlist {
-		code := detail[0]
-		name := detail[2]
-        payloadMap := map[string]string{
-            "_csrf":         cookies.CSRF,
-            "paramReturnId": "getCourseForCoursePage",
-            "classId":      code,
-            "authorizedID":  regNo,
-            "x":             fmt.Sprintf("%d", time.Now().Unix()),
-        }
-        formData := helpers.FormatBodyData(payloadMap)
-		subBody, err := helpers.FetchReq(regNo, cookies, url, "",formData, "POST", "")
-		if err != nil && debug.Debug {
-			fmt.Println(err)
-		}
-		doc, err = goquery.NewDocumentFromReader(strings.NewReader(string(subBody)))
-		if err != nil && debug.Debug {
-			fmt.Println(err)
-		}
+	for _, detail := range listOfSubjects {
+		code := detail[2]
+		name := detail[0]
+        doc := getOneSub(regNo, cookies, code)
 		lastest_work:=lastestda(doc)
 		if len(lastest_work) > 0 {
 			title :=lastest_work[0]
@@ -67,10 +36,10 @@ func PrintDAdates(regNo string, cookies types.Cookies){
 		}
 	}
 	//fmt.Println(table_data)
-	if len(table_data) == 0 {
-		fmt.Println("YAYYYY!! No DA's due")
-		return
-	}
+    if len(table_data) == 0 {
+        fmt.Println("YAYYYY!! No DA's due")
+        return
+    }
 	printTableData(table_data)
 }
 
@@ -155,11 +124,12 @@ func allSubDetails(doc *goquery.Document) [][]string {
         // Add more lines as needed for other columns
 
         // Create a slice for the current row
-        detail := []string{code, subject, name}
+        detail := []string{name, subject, code}
 
         // Append the row to the details slice
         details = append(details, detail)
     })
+    fmt.Println()
     return details
 }
 
@@ -189,4 +159,45 @@ func lastestda(doc *goquery.Document) []string {
     //     fmt.Println("Did not find the element")
 	// }
 	return details
+}
+
+func getAllSubs(regNo string, cookies types.Cookies) [][]string {
+    url:="https://vtop.vit.ac.in/vtop/examinations/doDigitalAssignment"
+	semDetails := helpers.GetSemDetails(cookies, regNo)
+	if len(semDetails.SemIds) == 0 {
+		fmt.Println("No semesters found")
+		return nil 
+	}
+	semID := semDetails.SemIds[len(semDetails.SemIds)-1]
+	bodyText, err := helpers.FetchReq(regNo, cookies, url, semID, "UTC", "POST", "")
+	if err != nil && debug.Debug {
+		fmt.Println(err)
+	}
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
+	if err != nil && debug.Debug {
+		fmt.Println(err)
+	}
+
+    return allSubDetails(doc)
+}
+
+func getOneSub(regNo string, cookies types.Cookies, code string) *goquery.Document {
+    url:="https://vtop.vit.ac.in/vtop/examinations/processDigitalAssignment"
+    payloadMap := map[string]string{
+        "_csrf":         cookies.CSRF,
+        "paramReturnId": "getCourseForCoursePage",
+        "classId":      code,
+        "authorizedID":  regNo,
+        "x":             fmt.Sprintf("%d", time.Now().Unix()),
+    }
+    formData := helpers.FormatBodyData(payloadMap)
+    subBody, err := helpers.FetchReq(regNo, cookies, url, "",formData, "POST", "")
+    if err != nil && debug.Debug {
+        fmt.Println(err)
+    }
+    doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(subBody)))
+    if err != nil && debug.Debug {
+        fmt.Println(err)
+    }
+    return doc
 }
