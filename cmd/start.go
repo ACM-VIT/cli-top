@@ -25,6 +25,7 @@ var versionFlag bool
 var updateFlag bool
 var courseFlag int
 var facultyFlag int
+var classGrpFlag int
 
 func startfn(cmd *cobra.Command, args []string) {
 
@@ -196,6 +197,7 @@ func Execute() {
 	coursePageCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
     coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
     coursePageCmd.PersistentFlags().IntVarP(&facultyFlag, "faculty", "f", 0, "Specify the faculty")
+	calendarCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
 
 	// Add the flags to the root command
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
@@ -325,7 +327,7 @@ var calendarCmd = &cobra.Command{
 	Short: "Show Calendar",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.PrintCal(regNo, cookies, semesterFlag)
+		features.PrintCal(regNo, cookies, semesterFlag, classGrpFlag)
 	},
 }
 
