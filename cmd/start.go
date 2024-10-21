@@ -161,7 +161,7 @@ var rootCmd = &cobra.Command{
 
 	Run: func(cmd *cobra.Command, args []string) {
 
-]		if debugFlag {
+		if debugFlag {
 			debug.Debug = true
 			fmt.Println("Debug mode on")
 		}
