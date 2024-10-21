@@ -203,7 +203,7 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
 
 	// Add the commands to the root command
-	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, daDueDatesCmd, logoutCmd, calendarCmd, coursePageCmd)
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, daDueDatesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd)
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
@@ -340,3 +340,13 @@ var logoutCmd = &cobra.Command{
 		fmt.Println("Logged out successfully.")
 	},
 }
+
+var nightslipCmd = &cobra.Command{
+	Use:   "nightslip",
+	Short: "Show Nightslip Request Status of a user",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetNightSlipStatus(regNo, cookies)
+	},
+}
+
