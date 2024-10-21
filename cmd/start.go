@@ -205,7 +205,7 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
 
 	// Add the commands to the root command
-	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, daDueDatesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd)
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, daDueDatesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd)
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
@@ -358,5 +358,14 @@ var leavestatusCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.GetLeaveStatus(regNo, cookies)
+	},
+}
+
+var classMessagesCmd = &cobra.Command{
+	Use:   "msg",
+	Short: "Show Class Messages",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetClassMessage(regNo, cookies)
 	},
 }
