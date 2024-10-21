@@ -93,7 +93,7 @@ func GetLeaveStatus(regNo string, cookies types.Cookies) {
 func formatDate(dateStr string) string {
 	parsedTime, err := time.Parse("02-Jan-2006 15:04", dateStr)
 	if err != nil {
-		return dateStr s
+		return dateStr
 	}
 	return parsedTime.Format("02/01/06 15:04") 
 }
