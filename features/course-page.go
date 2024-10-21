@@ -18,11 +18,6 @@ import (
 	"github.com/schollz/progressbar/v3"
 )
 
-type Semester struct {
-	SemName string
-	SemID   string
-}
-
 func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag, courseFlag, facultyFlag int) {
 	semDetails := helpers.GetSemDetails(cookies, regNo)
 	if len(semDetails.SemIds) == 0 {
@@ -44,7 +39,7 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag
 		}
 	}
 
-	selectedSemester := Semester{
+	selectedSemester := types.Semester{
 		SemName: selectedSemName,
 		SemID:   selectedSemId,
 	}
@@ -527,7 +522,7 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 	return materials, nil
 }
 
-func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester Semester, selectedCourse types.Course, selectedFaculty types.Faculty, allMaterials []types.CourseMaterial, selectedMaterials []types.CourseMaterial) error {
+func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester types.Semester, selectedCourse types.Course, selectedFaculty types.Faculty, allMaterials []types.CourseMaterial, selectedMaterials []types.CourseMaterial) error {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		if debug.Debug {
