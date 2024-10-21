@@ -23,9 +23,37 @@ func TableSelector(subject string ,nestedList [][]string, choice int) int {
 		fmt.Println("Invalid choice.")
 		return -1
 	}
-    fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n",subject, nestedList[choice][1])
+    fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n",subject, nestedList[choice][0])
     return choice
 } 
+
+func TableSelectorFuzzy(subject string ,nestedList [][]string, choice string) string {
+	if choice != "" {
+		for _, v := range nestedList {
+			if FuzzyMatch(choice, v[0]) {
+				return v[len(v)-1]
+			}
+		}
+	}
+	fmt.Println("\n")
+	PrintTable(nestedList)
+	fmt.Println("\n")
+	fmt.Print("Choose a ",subject,": ")
+	_, err := fmt.Scan(&choice)
+	fmt.Println(choice)
+	if err != nil {
+		fmt.Println("Invalid input. Please enter a valid code.")
+		return ""
+	}
+	for _, v := range nestedList {
+		fmt.Println(v[1])
+		if FuzzyMatch(choice, v[0]) {
+			fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n",subject, v[0])
+			return v[len(v)-1]
+		}
+	}
+	return ""
+}
 
 func PrintTable(nestedList [][]string) int {
     if len(nestedList) == 0 {
@@ -41,35 +69,37 @@ func PrintTable(nestedList [][]string) int {
     // Determine the maximum number of columns
     maxCols := len(nestedList[0])
 
-    // Normalize the number of columns in each row
-    for i, row := range nestedList {
+    normalizedList := make([][]string, 0, len(nestedList))
+
+    // Normalize the number of columns in each row and append to the new list
+    for _, row := range nestedList {
         if len(row) < maxCols {
             // Add empty strings to rows with fewer columns
             for len(row) < maxCols {
                 row = append(row, "")
             }
-            nestedList[i] = row
         } else if len(row) > maxCols {
             // Truncate rows with more columns
-            nestedList[i] = row[:maxCols]
+            row = row[:maxCols]
         }
+        normalizedList = append(normalizedList, row)
     }
 
     // Prepend 'INDEX' to the header row
-    nestedList[0] = append([]string{"INDEX"}, nestedList[0]...)
+    normalizedList[0] = append([]string{"INDEX"}, normalizedList[0]...)
 
     // Add index numbers to the remaining rows
-    for i := 1; i < len(nestedList); i++ {
+    for i := 1; i < len(normalizedList); i++ {
         index := fmt.Sprintf("%d", i)
-        nestedList[i] = append([]string{index}, nestedList[i]...)
+        normalizedList[i] = append([]string{index}, normalizedList[i]...)
     }
 
     // Compute the maximum width for each column
-    maxwidth := make([]int, len(nestedList[0]))
-    for i, v := range nestedList[0] {
+    maxwidth := make([]int, len(normalizedList[0]))
+    for i, v := range normalizedList[0] {
         maxwidth[i] = len(v)
     }
-    for _, row := range nestedList {
+    for _, row := range normalizedList {
         for j, v := range row {
             if len(v) > maxwidth[j] {
                 maxwidth[j] = len(v)
@@ -95,8 +125,8 @@ func PrintTable(nestedList [][]string) int {
     formatRow = strings.TrimSuffix(formatRow, " │") + "\n"
 
     // Print the header row
-    headerRow := make([]interface{}, len(nestedList[0]))
-    for i, v := range nestedList[0] {
+    headerRow := make([]interface{}, len(normalizedList[0]))
+    for i, v := range normalizedList[0] {
         width := maxwidth[i]
         headerRow[i] = leftAlign(v, width) // Left-align the header
     }
@@ -113,7 +143,7 @@ func PrintTable(nestedList [][]string) int {
     fmt.Println(separator)
 
     // Print the data rows
-    for _, row := range nestedList[1:] {
+    for _, row := range normalizedList[1:] {
         rowToPrint := make([]interface{}, len(row))
         for i, v := range row {
             width := maxwidth[i]
