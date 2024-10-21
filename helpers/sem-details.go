@@ -1,14 +1,12 @@
 package helpers
 
 import (
-	"bytes"
 	"cli-top/debug"
 	"cli-top/types"
 	"fmt"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/charmbracelet/glamour"
 )
 
 func FindAndSaveSemIds(doc *goquery.Document, targetClass string, result *[]string) {
@@ -89,89 +87,29 @@ func GetSemDetails(cookies types.Cookies, regNo string) types.SemesterDetails {
 	}
 }
 
-func PrintSemDetails(regNo string, cookies types.Cookies) {
+func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) string {
 	semDetails := GetSemDetails(cookies, regNo)
-	//fmt.Println(len(semDetails.SemNames))
-	//fmt.Println(len(semDetails.SemIds))
 	if len(semDetails.SemIds) == 0 {
 		fmt.Println("Error fetching semester details or no semesters available.")
-		return
+		return ""
+	}
+	var selectedSemId string
+	var nested_sem_list [][]string
+	nested_sem_list = append(nested_sem_list, []string{"SemId", "SemName"})
+	for i := 0; i < len(semDetails.SemIds); i++ {
+		nested_sem_list = append(nested_sem_list, []string{semDetails.SemIds[i], semDetails.SemNames[i]})
 	}
 
-	// Generate Markdown table text
-	markdownTable := GenerateSemDetailsMarkdownTable(semDetails)
+	for i, j := 1, len(nested_sem_list)-1; i < j; i, j = i+1, j-1 {
+		nested_sem_list[i], nested_sem_list[j] = nested_sem_list[j], nested_sem_list[i]
+	}	
 
-	// Render Markdown using glamour
-	rendered, err := glamour.Render(markdownTable, "dark")
-	if err != nil && debug.Debug {
-		fmt.Println("Error rendering Markdown:", err)
-		return
+	choice := TableSelector("semester", nested_sem_list, sem_choice)
+
+	if choice == -1 {
+		return "Problem in selecting semester"
 	}
 
-	// Print the rendered Markdown
-	fmt.Println(rendered)
-}
-
-func GenerateSemDetailsMarkdownTable(semDetails types.SemesterDetails) string {
-	var buf bytes.Buffer
-
-	// Table header
-	buf.WriteString("| Index | SemId          | SemName                   |\n")
-	buf.WriteString("|-------|----------------|---------------------------|\n")
-
-	// Iterate through SemIds and SemNames using a for loop 
-	for i := len(semDetails.SemIds) - 1; i >= 0; i-- { // reversed to correctly reflect the order of semesters UX change
-		index := fmt.Sprintf("%d", len(semDetails.SemIds)-i)
-		semId := semDetails.SemIds[i]
-		semName := semDetails.SemNames[i]
-
-		// Table row
-		buf.WriteString(fmt.Sprintf("| %-5s | %-14s | %-25s |\n", index, semId, semName))
-	}
-
-	return buf.String()
-}
-
-func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) string {
-
-	selectedSemId := ""
-	selectedSemName := ""
-
-	var choice int
-	if sem_choice == 0 {
-		PrintSemDetails(regNo, cookies)
-		fmt.Print("Choose a semester: ")
-		fmt.Scanln(&choice)
-	} else {
-		choice = sem_choice
-	}
-	semDet := GetSemDetails(cookies, regNo)
-
-	if choice < 1 || choice > len(semDet.SemIds) {
-		fmt.Println("Invalid choice.")
-	} else {
-		reverseIndex := len(semDet.SemIds) - choice 
-		selectedSemId = semDet.SemIds[reverseIndex] // reversed here too
-		selectedSemName = semDet.SemNames[reverseIndex] // reversed here too
-	}
-
-	// Format the string with glamour
-	formattedSelection := fmt.Sprintf("\n# You selected SemId: %s, SemName: %s\n", selectedSemId, selectedSemName)
-
-	// Render and print the formatted string
-	renderer, err := glamour.NewTermRenderer(glamour.WithStylePath("dark"), glamour.WithWordWrap(150))
-	if err != nil && debug.Debug {
-		fmt.Println("Error creating glamour renderer:", err)
-	}
-
-	output, err := renderer.Render(formattedSelection)
-	if err != nil && debug.Debug {
-		fmt.Println("Error rendering formatted string:", err)
-	}
-
-	fmt.Print(output)
-
-	fmt.Println()
-
+	selectedSemId = semDetails.SemIds[len(semDetails.SemIds)-choice] // reversed here too
 	return selectedSemId
 }
