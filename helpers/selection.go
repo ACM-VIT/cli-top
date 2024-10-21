@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -82,6 +83,10 @@ func addLeftPadding(output string, spaces int) string {
 	return strings.Join(lines, "\n")
 }
 
+func ReplaceCrossWithPlus(input string) string {
+	return strings.ReplaceAll(input, "┼", "+")
+}
+
 func GenerateFacultyDetailsTable(faculties []types.Faculty, query string) {
 	var buf bytes.Buffer
 	table := tablewriter.NewWriter(&buf)
@@ -97,7 +102,8 @@ func GenerateFacultyDetailsTable(faculties []types.Faculty, query string) {
 
 	for i, faculty := range faculties {
 		index := fmt.Sprintf("%5d", i+1)
-		slot := faculty.Slot
+		slot := ReplaceCrossWithPlus(faculty.Slot)
+
 		name := RedactERPID(faculty.Name)
 
 		if query != "" {
@@ -108,8 +114,8 @@ func GenerateFacultyDetailsTable(faculties []types.Faculty, query string) {
 	}
 
 	table.Render()
-	output := strings.ReplaceAll(buf.String(), "-", "─")
-	output = strings.ReplaceAll(output, "+", "┼")
+	output := buf.String()
+	output = strings.ReplaceAll(output, "-", "─")
 	output = strings.ReplaceAll(output, "|", "│")
 
 	output = addLeftPadding(output, 2)
@@ -134,12 +140,15 @@ func GenerateCourseDetailsTable(courses []types.Course) {
 	for i, course := range courses {
 		index := fmt.Sprintf("%5d", i+1)
 		courseCode, courseName := SplitCourseName(course.Name)
+
+		courseCode = ReplaceCrossWithPlus(courseCode)
+
 		table.Append([]string{index, courseCode, courseName})
 	}
 
 	table.Render()
-	output := strings.ReplaceAll(buf.String(), "-", "─")
-	output = strings.ReplaceAll(output, "+", "┼")
+	output := buf.String()
+	output = strings.ReplaceAll(output, "-", "─")
 	output = strings.ReplaceAll(output, "|", "│")
 
 	output = addLeftPadding(output, 2)
@@ -148,9 +157,30 @@ func GenerateCourseDetailsTable(courses []types.Course) {
 	fmt.Println()
 }
 
-func SelectFaculty(faculties []types.Faculty) (types.Faculty, error) {
+func SelectFaculty(faculties []types.Faculty, facultyFlag int) (types.Faculty, error) {
 	if len(faculties) == 0 {
 		return types.Faculty{}, fmt.Errorf("no faculties available for selection")
+	}
+
+	renderer, err := glamour.NewTermRenderer(
+		glamour.WithStylePath("dark"),
+		glamour.WithWordWrap(0),
+	)
+	if err != nil && debug.Debug {
+		fmt.Println("Error creating glamour renderer:", err)
+	}
+
+	if facultyFlag > 0 && facultyFlag <= len(faculties) {
+		selectedFaculty := faculties[facultyFlag-1]
+		redactedName := RedactERPID(selectedFaculty.Name)
+		successMessage := fmt.Sprintf("# You selected Faculty: %s", redactedName)
+
+		renderedMessage, err := renderer.Render(successMessage)
+		if err != nil && debug.Debug {
+			fmt.Println("Error rendering selected faculty message:", err)
+		}
+		fmt.Print(renderedMessage)
+		return selectedFaculty, nil
 	}
 
 	if len(faculties) <= 15 {
@@ -172,13 +202,7 @@ func SelectFaculty(faculties []types.Faculty) (types.Faculty, error) {
 		selectedFaculty := faculties[index-1]
 		redactedName := RedactERPID(selectedFaculty.Name)
 		successMessage := fmt.Sprintf("# You selected Faculty: %s", redactedName)
-		renderer, err := glamour.NewTermRenderer(
-			glamour.WithStylePath("dark"),
-			glamour.WithWordWrap(0),
-		)
-		if err != nil && debug.Debug {
-			fmt.Println("Error creating glamour renderer:", err)
-		}
+
 		renderedMessage, err := renderer.Render(successMessage)
 		if err != nil && debug.Debug {
 			fmt.Println("Error rendering selected faculty message:", err)
@@ -251,13 +275,7 @@ func SelectFaculty(faculties []types.Faculty) (types.Faculty, error) {
 		selectedFaculty := displayFaculties[index-1]
 		redactedName := RedactERPID(selectedFaculty.Name)
 		successMessage := fmt.Sprintf("# You selected Faculty: %s", redactedName)
-		renderer, err := glamour.NewTermRenderer(
-			glamour.WithStylePath("dark"),
-			glamour.WithWordWrap(0),
-		)
-		if err != nil && debug.Debug {
-			fmt.Println("Error creating glamour renderer:", err)
-		}
+
 		renderedMessage, err := renderer.Render(successMessage)
 		if err != nil && debug.Debug {
 			fmt.Println("Error rendering selected faculty message:", err)
@@ -269,7 +287,7 @@ func SelectFaculty(faculties []types.Faculty) (types.Faculty, error) {
 }
 
 func RemoveDuplicateFaculties(faculties []types.Faculty) []types.Faculty {
-	uniqueFaculties := make([]types.Faculty, 0)
+	uniqueFaculties := make([]types.Faculty, 0, len(faculties))
 	keys := make(map[string]bool)
 	for _, faculty := range faculties {
 		key := faculty.ID + "_" + faculty.Name + "_" + faculty.Slot
@@ -279,4 +297,83 @@ func RemoveDuplicateFaculties(faculties []types.Faculty) []types.Faculty {
 		}
 	}
 	return uniqueFaculties
+}
+
+func SortFacultiesAlphabetically(faculties []types.Faculty) {
+	sort.Slice(faculties, func(i, j int) bool {
+		return strings.ToLower(faculties[i].Name) < strings.ToLower(faculties[j].Name)
+	})
+}
+
+func GenerateCourseMaterialsTable(materials []types.CourseMaterial) {
+	var buf bytes.Buffer
+	table := tablewriter.NewWriter(&buf)
+
+	table.SetHeader([]string{"INDEX", "DATE", "DAY ORDER/SLOT", "TOPIC", "REF MATERIALS"})
+
+	table.SetBorder(false)
+	table.SetHeaderLine(true)
+	table.SetRowLine(false)
+	table.SetAutoWrapText(false)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.SetColumnSeparator("│")
+
+	for _, material := range materials {
+		index := fmt.Sprintf("%5d", material.Index)
+		date := material.Date
+		dayOrderSlot := ReplaceCrossWithPlus(material.DayOrderSlot)
+		topic := TruncateString(material.Topic, 40)
+		refMaterialsCount := fmt.Sprintf("%d", len(material.ReferenceMaterials))
+		table.Append([]string{index, date, dayOrderSlot, topic, refMaterialsCount})
+	}
+
+	table.Render()
+	output := buf.String()
+	output = strings.ReplaceAll(output, "-", "─")
+	output = strings.ReplaceAll(output, "|", "│")
+
+	output = addLeftPadding(output, 2)
+
+	fmt.Print(output)
+	fmt.Println()
+}
+
+func SelectCourseMaterials(materials []types.CourseMaterial) ([]types.CourseMaterial, error) {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Enter the index numbers of the topics to download (e.g., 1,2,3), or 0 for bulk download: ")
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error reading input:", err)
+		}
+		return nil, err
+	}
+	input = strings.TrimSpace(input)
+	if input == "" {
+		fmt.Println("No input provided.")
+		return nil, fmt.Errorf("no input provided")
+	}
+	if input == "0" {
+		return nil, nil
+	}
+	indicesStr := strings.Split(input, ",")
+	var selectedMaterials []types.CourseMaterial
+	for _, idxStr := range indicesStr {
+		idxStr = strings.TrimSpace(idxStr)
+		idx, err := strconv.Atoi(idxStr)
+		if err != nil {
+			fmt.Println("Invalid index:", idxStr)
+			continue
+		}
+		if idx < 1 || idx > len(materials) {
+			fmt.Println("Index out of range:", idx)
+			continue
+		}
+		selectedMaterials = append(selectedMaterials, materials[idx-1])
+	}
+	if len(selectedMaterials) == 0 {
+		fmt.Println("No valid indices selected.")
+		return nil, fmt.Errorf("no valid indices selected")
+	}
+	return selectedMaterials, nil
 }

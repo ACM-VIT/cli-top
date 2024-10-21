@@ -1,22 +1,21 @@
 package features
 
 import (
-	"archive/zip"
-	"bytes"
 	"cli-top/debug"
 	"cli-top/helpers"
 	"cli-top/types"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/charmbracelet/glamour"
+	"github.com/schollz/progressbar/v3"
 )
 
 type Semester struct {
@@ -24,14 +23,14 @@ type Semester struct {
 	SemID   string
 }
 
-func ExecuteCoursePageDownload(regNo string, cookies types.Cookies) {
+func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag, courseFlag, facultyFlag int) {
 	semDetails := helpers.GetSemDetails(cookies, regNo)
 	if len(semDetails.SemIds) == 0 {
-		fmt.Println("Error fetching semester details or no semesters available.")
+		fmt.Println("Error fetching semester details or no semesters available. Try logging out and logging back in again.")
 		return
 	}
 
-	selectedSemId := helpers.SelectSemester(regNo, cookies, 0)
+	selectedSemId := helpers.SelectSemester(regNo, cookies, semesterFlag)
 	if selectedSemId == "" {
 		fmt.Println("Error selecting semester.")
 		return
@@ -50,7 +49,7 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies) {
 		SemID:   selectedSemId,
 	}
 
-	selectedCourse, err := fetchAndSelectCourse(regNo, cookies, selectedSemester.SemID)
+	selectedCourse, err := fetchAndSelectCourse(regNo, cookies, selectedSemester.SemID, courseFlag)
 	if err != nil {
 		fmt.Println("Error selecting course:", err)
 		return
@@ -90,20 +89,56 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies) {
 		return
 	}
 
-	selectedFaculty, err := helpers.SelectFaculty(faculties)
+	selectedFaculty, err := helpers.SelectFaculty(faculties, facultyFlag)
 	if err != nil {
 		fmt.Println("Error selecting faculty:", err)
 		return
 	}
 
-	err = downloadMaterials(regNo, cookies, selectedSemester, selectedCourse, selectedFaculty)
+	htmlContent, err := fetchCourseMaterialsPage(regNo, cookies, selectedFaculty)
+	if err != nil {
+		fmt.Println("Error fetching course materials page:", err)
+		return
+	}
+
+	materials, err := parseCourseMaterialsPage(htmlContent)
+	if err != nil {
+		fmt.Println("Error parsing course materials:", err)
+		return
+	}
+
+	var filteredMaterials []types.CourseMaterial
+	for _, material := range materials {
+		if len(material.ReferenceMaterials) > 0 {
+			filteredMaterials = append(filteredMaterials, material)
+		}
+	}
+
+	if len(filteredMaterials) == 0 {
+		fmt.Println("No course materials with reference materials available for download.")
+		return
+	}
+
+	for i := range filteredMaterials {
+		filteredMaterials[i].Index = i + 1
+	}
+
+	helpers.GenerateCourseMaterialsTable(filteredMaterials)
+
+	selectedMaterials, err := helpers.SelectCourseMaterials(filteredMaterials)
+	if err != nil {
+		fmt.Println("Error selecting materials:", err)
+		return
+	}
+
+	err = downloadMaterials(regNo, cookies, selectedSemester, selectedCourse, selectedFaculty, filteredMaterials, selectedMaterials)
 	if err != nil {
 		fmt.Println("Error downloading materials:", err)
 		return
 	}
 }
 
-func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string) (types.Course, error) {
+func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string, courseFlag int) (types.Course, error) {
 	getCourseURL := "https://vtop.vit.ac.in/vtop/getCourseForCoursePage"
 	payloadMap := map[string]string{
 		"_csrf":         cookies.CSRF,
@@ -155,27 +190,34 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string) 
 		return types.Course{}, fmt.Errorf("no courses found for the selected semester")
 	}
 
-	helpers.GenerateCourseDetailsTable(courses)
-
-	fmt.Print("Select a Course by entering the number: ")
-	var index int
-	_, err = fmt.Scanln(&index)
-	if err != nil {
+	selectedCourse := types.Course{}
+	if courseFlag > 0 && courseFlag <= len(courses) {
+		selectedCourse = courses[courseFlag-1]
 		if debug.Debug {
-			fmt.Println("Invalid input for course selection:", err)
+			fmt.Printf("Selected Course: %s (ID: %s)\n", selectedCourse.Name, selectedCourse.ID)
 		}
-		return types.Course{}, fmt.Errorf("invalid input for course selection")
-	}
+	} else {
+		helpers.GenerateCourseDetailsTable(courses)
+		fmt.Print("Select a Course by entering the number: ")
+		var index int
+		_, err = fmt.Scanln(&index)
+		if err != nil {
+			if debug.Debug {
+				fmt.Println("Invalid input for course selection:", err)
+			}
+			return types.Course{}, fmt.Errorf("invalid input for course selection")
+		}
 
-	if index < 1 || index > len(courses) {
-		fmt.Println("Invalid selection. Please enter a valid number.")
-		return types.Course{}, fmt.Errorf("invalid course selection")
-	}
+		if index < 1 || index > len(courses) {
+			fmt.Println("Invalid selection. Please enter a valid number.")
+			return types.Course{}, fmt.Errorf("invalid course selection")
+		}
 
-	selectedCourse := courses[index-1]
+		selectedCourse = courses[index-1]
 
-	if debug.Debug {
-		fmt.Printf("Selected Course: %s (ID: %s)\n", selectedCourse.Name, selectedCourse.ID)
+		if debug.Debug {
+			fmt.Printf("Selected Course: %s (ID: %s)\n", selectedCourse.Name, selectedCourse.ID)
+		}
 	}
 
 	return selectedCourse, nil
@@ -242,34 +284,47 @@ func fetchSlotIds(regNo string, cookies types.Cookies, semSubId string, classId 
 }
 
 func fetchFacultiesForAllSlotsConcurrently(regNo string, cookies types.Cookies, semSubId string, classId string, slotIds []string) ([]types.Faculty, error) {
-	var allFaculties []types.Faculty
-	var mu sync.Mutex
 	var wg sync.WaitGroup
-	sem := make(chan struct{}, 10)
+	sem := make(chan struct{}, 10) 
 
-	for _, slotId := range slotIds {
+	facultySlices := make([][]types.Faculty, len(slotIds))
+	errorsOccurred := false
+	var mu sync.Mutex
+
+	for i, slotId := range slotIds {
 		wg.Add(1)
 		sem <- struct{}{}
-		go func(slotId string) {
+		go func(i int, slotId string) {
 			defer wg.Done()
 			faculties, err := fetchFaculties(regNo, cookies, semSubId, classId, slotId)
 			if err != nil {
 				if debug.Debug {
 					fmt.Printf("Error fetching faculties for slot %s: %v\n", slotId, err)
 				}
+				mu.Lock()
+				errorsOccurred = true
+				mu.Unlock()
 				<-sem
 				return
 			}
-			mu.Lock()
-			allFaculties = append(allFaculties, faculties...)
-			mu.Unlock()
+			facultySlices[i] = faculties
 			<-sem
-		}(slotId)
+		}(i, slotId)
 	}
 
 	wg.Wait()
 
+	if errorsOccurred {
+		return nil, fmt.Errorf("some faculties could not be fetched")
+	}
+
+	var allFaculties []types.Faculty
+	for _, slice := range facultySlices {
+		allFaculties = append(allFaculties, slice...)
+	}
+
 	uniqueFaculties := helpers.RemoveDuplicateFaculties(allFaculties)
+	helpers.SortFacultiesAlphabetically(uniqueFaculties) 
 
 	return uniqueFaculties, nil
 }
@@ -328,6 +383,7 @@ func fetchFaculties(regNo string, cookies types.Cookies, semSubId string, classI
 		}
 
 		slotInfo := strings.TrimSpace(cells.Eq(6).Text())
+		slotInfo = helpers.ReplaceCrossWithPlus(slotInfo)
 		facultyInfo := strings.TrimSpace(cells.Eq(7).Text())
 
 		viewButton := cells.Eq(8).Find("button")
@@ -370,34 +426,108 @@ func fetchFaculties(regNo string, cookies types.Cookies, semSubId string, classI
 	return faculties, nil
 }
 
-func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester Semester, selectedCourse types.Course, selectedFaculty types.Faculty) error {
-	downloadURL := "https://vtop.vit.ac.in/vtop/academics/common/allCourseMeterialDownload"
-
+func fetchCourseMaterialsPage(regNo string, cookies types.Cookies, selectedFaculty types.Faculty) (string, error) {
+	url := "https://vtop.vit.ac.in/vtop/processViewStudentCourseDetail"
 	payloadMap := map[string]string{
-		"_csrf":         cookies.CSRF,
-		"authorizedID":  regNo,
-		"materialMode":  "1",
-		"uploadView":    "1",
-		"semesterSubId": selectedFaculty.SemSubID,
-		"classId":       selectedFaculty.ClassID,
+		"_csrf":        cookies.CSRF,
+		"semSubId":     selectedFaculty.SemSubID,
+		"erpId":        selectedFaculty.ErpID,
+		"classId":      selectedFaculty.ClassID,
+		"authorizedID": regNo,
+		"x":            time.Now().UTC().Format(time.RFC1123),
 	}
-
 	formData := helpers.FormatBodyData(payloadMap)
-	body, err := helpers.FetchReq(regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
+	body, err := helpers.FetchReq(regNo, cookies, url, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error sending download request:", err)
-		}
-		return err
+		return "", err
+	}
+	return string(body), nil
+}
+
+func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error) {
+	var materials []types.CourseMaterial
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
+	if err != nil {
+		return nil, err
 	}
 
-	if !isSuccessfulDownload(body) {
-		if debug.Debug {
-			fmt.Println("Download response does not start with 'PK', indicating an invalid ZIP file.")
+	doc.Find("table.table-bordered.table-hover tbody tr").Each(func(_ int, s *goquery.Selection) {
+		cells := s.Find("td")
+		if cells.Length() < 5 {
+			return
 		}
-		return fmt.Errorf("failed to download materials, response may indicate an error")
-	}
+		indexStr := strings.TrimSpace(cells.Eq(0).Text())
+		index, _ := strconv.Atoi(indexStr)
+		date := strings.TrimSpace(cells.Eq(1).Text())
+		dayOrderSlot := strings.TrimSpace(cells.Eq(2).Text())
+		dayOrderSlot = helpers.ReplaceCrossWithPlus(dayOrderSlot)
+		topic := strings.TrimSpace(cells.Eq(3).Text())
+		if topic == "" {
+			topic = "Unnamed"
+		}
+		refMaterialsTd := cells.Eq(4)
 
+		var refMaterials []types.ReferenceMaterial
+		refMaterialsTd.Find("button[name='getDownloadSemPdf']").Each(func(_ int, btn *goquery.Selection) {
+			materialID, _ := btn.Attr("data-matid")
+			materialDate, _ := btn.Attr("data-mdate")
+			name := strings.TrimSpace(btn.Find("span").Text())
+			refMaterials = append(refMaterials, types.ReferenceMaterial{
+				Name:         name,
+				MaterialID:   materialID,
+				MaterialDate: materialDate,
+			})
+		})
+
+		materials = append(materials, types.CourseMaterial{
+			Index:              index,
+			Date:               date,
+			DayOrderSlot:       dayOrderSlot,
+			Topic:              topic,
+			ReferenceMaterials: refMaterials,
+		})
+	})
+
+	doc.Find("table").Each(func(_ int, table *goquery.Selection) {
+		if table.HasClass("table-bordered") && table.HasClass("table-hover") {
+			return
+		}
+
+		table.Find("tr").Each(func(_ int, row *goquery.Selection) {
+			cells := row.Find("td")
+			if cells.Length() < 2 {
+				return
+			}
+			category := strings.TrimSpace(cells.Eq(0).Text())
+			buttonsTd := cells.Eq(1)
+			var refMaterials []types.ReferenceMaterial
+			buttonsTd.Find("button[name='getDownloadSemPdf']").Each(func(_ int, btn *goquery.Selection) {
+				materialID, _ := btn.Attr("data-matid")
+				materialDate, _ := btn.Attr("data-mdate")
+				name := strings.TrimSpace(btn.Find("span").Text())
+				refMaterials = append(refMaterials, types.ReferenceMaterial{
+					Name:         name,
+					MaterialID:   materialID,
+					MaterialDate: materialDate,
+				})
+			})
+			if len(refMaterials) > 0 {
+				material := types.CourseMaterial{
+					Index:              len(materials) + 1,
+					Date:               "",
+					DayOrderSlot:       "",
+					Topic:              category,
+					ReferenceMaterials: refMaterials,
+				}
+				materials = append(materials, material)
+			}
+		})
+	})
+
+	return materials, nil
+}
+
+func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester Semester, selectedCourse types.Course, selectedFaculty types.Faculty, allMaterials []types.CourseMaterial, selectedMaterials []types.CourseMaterial) error {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		if debug.Debug {
@@ -408,7 +538,6 @@ func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester Sem
 
 	downloadsDir := filepath.Join(homeDir, "Downloads", "Course Page Downloads")
 
-	// Construct course folder name
 	courseParts := helpers.SplitCourseNameFull(selectedCourse.Name)
 	var courseFolderName string
 	if len(courseParts) >= 3 {
@@ -420,7 +549,6 @@ func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester Sem
 	}
 	courseFolderName = sanitizeFilename(courseFolderName)
 
-	// Construct faculty folder name
 	slotID := func() string {
 		if len(selectedFaculty.Slot) >= 3 && strings.HasPrefix(selectedFaculty.Slot, "L") {
 			return selectedFaculty.Slot[:3]
@@ -451,74 +579,114 @@ func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester Sem
 		return err
 	}
 
-	err = unzipFromBytes(body, fullDirPath)
-	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error unzipping file:", err)
-		}
-		return err
+	if len(selectedMaterials) == 0 {
+		return downloadSelectedMaterials(regNo, cookies, selectedFaculty, allMaterials, fullDirPath)
+	} else {
+		return downloadSelectedMaterials(regNo, cookies, selectedFaculty, selectedMaterials, fullDirPath)
+	}
+}
+
+func downloadSelectedMaterials(
+	regNo string,
+	cookies types.Cookies,
+	selectedFaculty types.Faculty,
+	materials []types.CourseMaterial,
+	fullDirPath string,
+) error {
+	totalFiles := 0
+	for _, material := range materials {
+		totalFiles += len(material.ReferenceMaterials)
 	}
 
-	fmt.Println("Course materials downloaded and extracted successfully")
+	bar := progressbar.Default(int64(totalFiles), "Downloading materials")
+
+	for _, material := range materials {
+		topicName := sanitizeFilename(material.Topic)
+
+		materialIndex := material.Index
+
+		for _, refMaterial := range material.ReferenceMaterials {
+			downloadURL := "https://vtop.vit.ac.in/vtop/downloadPdf"
+			payloadMap := map[string]string{
+				"_csrf":        cookies.CSRF,
+				"authorizedID": regNo,
+				"semSubId":     selectedFaculty.SemSubID,
+				"classId":      selectedFaculty.ClassID,
+				"materialId":   refMaterial.MaterialID,
+				"materialDate": refMaterial.MaterialDate,
+			}
+			formData := helpers.FormatBodyData(payloadMap)
+			body, err := helpers.FetchReq(regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
+			if err != nil {
+				if debug.Debug {
+					fmt.Println("Error downloading material:", err)
+				}
+				bar.Add(1)
+				continue
+			}
+			if !isSuccessfulPdfDownload(body) {
+				if debug.Debug {
+					fmt.Println("Failed to download material, response may indicate an error")
+				}
+				bar.Add(1)
+				continue
+			}
+
+			refMaterialName := sanitizeFilename(refMaterial.Name)
+
+			filename := fmt.Sprintf("%02d_%s_%s.pdf", materialIndex, topicName, refMaterialName)
+			filePath := filepath.Join(fullDirPath, filename)
+
+			if _, err := os.Stat(filePath); os.IsNotExist(err) {
+				err = saveFile(body, filePath)
+				if err != nil {
+					if debug.Debug {
+						fmt.Println("Error saving file:", err)
+					}
+					bar.Add(1)
+					continue
+				}
+			}
+
+			bar.Add(1)
+
+			time.Sleep(1 * time.Second)
+		}
+	}
+	fmt.Println("\nCourse materials downloaded successfully")
 	fmt.Printf("\033[34m\033[4m\033]8;;file://%s\033\\%s\033]8;;\033\\\033[0m to open the folder.\n", fullDirPath, "Click Here")
 	return nil
 }
 
-func isSuccessfulDownload(body []byte) bool {
-	return strings.HasPrefix(string(body), "PK")
+func isSuccessfulPdfDownload(body []byte) bool {
+	return strings.HasPrefix(string(body), "%PDF-")
 }
 
 func sanitizeFilename(name string) string {
 	replacer := strings.NewReplacer(
 		"/", "_",
 		"\\", "_",
-		":", "_",
+		":", "",
 		"*", "_",
-		"?", "_",
+		"?", "",
 		"\"", "_",
 		"<", "_",
 		">", "_",
 		"|", "_",
+		"\u2013", "-",
+		"\u2014", "-",
+		"\u2018", "'",
+		"\u2019", "'",
+		"\u201C", "\"",
+		"\u201D", "\"",
 	)
 	return replacer.Replace(name)
 }
 
-func unzipFromBytes(data []byte, dest string) error {
-	readerAt := bytes.NewReader(data)
-	zipReader, err := zip.NewReader(readerAt, int64(len(data)))
+func saveFile(data []byte, filePath string) error {
+	err := os.WriteFile(filePath, data, 0644)
 	if err != nil {
 		return err
 	}
-
-	for _, file := range zipReader.File {
-		filePath := filepath.Join(dest, file.Name)
-
-		if file.FileInfo().IsDir() {
-			os.MkdirAll(filePath, os.ModePerm)
-			continue
-		} else {
-			os.MkdirAll(filepath.Dir(filePath), os.ModePerm)
-
-			outFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
-			if err != nil {
-				return err
-			}
-
-			rc, err := file.Open()
-			if err != nil {
-				return err
-			}
-
-			_, err = io.Copy(outFile, rc)
-
-			outFile.Close()
-			rc.Close()
-
-			if err != nil {
-				return err
-			}
-		}
-	}
-
 	return nil
 }
