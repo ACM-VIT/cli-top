@@ -362,7 +362,7 @@ var leavestatusCmd = &cobra.Command{
 }
 
 var classMessagesCmd = &cobra.Command{
-	Use:   "messages",
+	Use:   "msg",
 	Short: "Show Class Messages",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
