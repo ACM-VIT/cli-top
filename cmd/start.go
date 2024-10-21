@@ -198,7 +198,7 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
 
 	// Add the commands to the root command
-	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, daDueDatesCmd, logoutCmd, calendarCmd, coursePageCmd)
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, daDueDatesCmd, logoutCmd, calendarCmd, coursePageCmd, classMessagesCmd)
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
@@ -333,5 +333,14 @@ var logoutCmd = &cobra.Command{
 			fmt.Println("Error deleting .env file:", err)
 		}
 		fmt.Println("Logged out successfully.")
+	},
+}
+
+var classMessagesCmd = &cobra.Command{
+	Use:   "messages",
+	Short: "Show Class Messages",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetClassMessage(regNo, cookies)
 	},
 }
