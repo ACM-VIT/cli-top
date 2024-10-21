@@ -45,7 +45,7 @@ func extractClassMessages(bodyText []byte) ([][]string, error) {
 		return nil, fmt.Errorf("error parsing HTML: %v", err)
 	}
 
-	re := regexp.MustCompile(^[A-Z0-9]+ - | - Online Course)
+    re := regexp.MustCompile(`^[A-Z0-9]+ - | - Online Course`)
 
     doc.Find("h5").Each(func(i int, h5 *goquery.Selection) {
         var row []string
