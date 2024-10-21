@@ -20,7 +20,7 @@ const (
 	blue   = "\033[34m"
 )
 
-func PrintCal(regNo string, cookies types.Cookies, sem_choice int) {
+func PrintCal(regNo string, cookies types.Cookies, sem_choice int, classGrpFlag int) {
 	url := "https://vtop.vit.ac.in/vtop/getDateForSemesterPreview"
 	semesterID := helpers.SelectSemester(regNo, cookies, sem_choice)
 	payloadMap := map[string]string{
@@ -40,27 +40,14 @@ func PrintCal(regNo string, cookies types.Cookies, sem_choice int) {
 		fmt.Println(err)
 	}
 	grp_list := extractclassgrp(doc)
-
-	PrintMarkdownList(grp_list)
-	var choice int
-	fmt.Print("Choose a class group: ")
-	_, err = fmt.Scan(&choice)
-	if err != nil {
-		fmt.Println("Invalid input. Please enter a valid number.")
-		return
-	}
-	if choice < 1 || choice > len(grp_list) {
-		fmt.Println("Invalid choice.")
-		return
-	}
-	selected_grp_code := grp_list[choice-1][0]
-	fmt.Printf("\n    \033[1;44mYou selected Group: %s\033[0m\n\n\n", grp_list[choice-1][1])
+	grp_list = append([][]string{{"CLASS GROUP"}}, grp_list...)
+	grp := helpers.TableSelector("class group",grp_list, classGrpFlag)
 	url = "https://vtop.vit.ac.in/vtop/getListForSemester"
 	payloadMap = map[string]string{
 		"_csrf":         cookies.CSRF,
 		"paramReturnId": "getListForSemester",
 		"semSubId":      semesterID,
-		"classGroupId":  selected_grp_code,
+		"classGroupId":  grp_list[grp][1],
 		"authorizedID":  regNo,
 		"x":             fmt.Sprintf("%d", time.Now().Unix()),
 	}
@@ -100,7 +87,7 @@ func PrintCal(regNo string, cookies types.Cookies, sem_choice int) {
 			"_csrf":        cookies.CSRF,
 			"calDate":      date,
 			"semSubId":     semesterID,
-			"classGroupId": selected_grp_code,
+			"classGroupId": grp_list[grp][1],
 			"authorizedID": regNo,
 			"x":            fmt.Sprintf("%d", time.Now().Unix()),
 		}
@@ -256,62 +243,9 @@ func extractclassgrp(doc *goquery.Document) [][]string {
 		s.Find("option").Each(func(i int, option *goquery.Selection) {
 			value, _ := option.Attr("value")
 			text := option.Text()
-			grp_list = append(grp_list, []string{value, text})
+			grp_list = append(grp_list, []string{text, value})
 		})
 	})
 	grp_list = grp_list[1:]
 	return grp_list
-}
-
-func PrintMarkdownList(nestedList [][]string) {
-	// Determine the maximum width for each column
-	maxWidths := []int{len("INDEX"), len("CLASS GROUP")}
-	for i, row := range nestedList {
-		serial := fmt.Sprintf("%d", i+1)
-		if len(serial) > maxWidths[0] {
-			maxWidths[0] = len(serial)
-		}
-		if len(row) > 1 && len(row[1]) > maxWidths[1] {
-			maxWidths[1] = len(row[1])
-		}
-	}
-
-	// Function to center-align text
-	center := func(s string, width int) string {
-		if len(s) >= width {
-			return s
-		}
-		pad := width - len(s)
-		left := pad / 2
-		right := pad - left
-		return strings.Repeat(" ", left) + s + strings.Repeat(" ", right)
-	}
-
-	// Create format strings based on the maximum widths
-	formatHeader := fmt.Sprintf("    %%-%ds │ %%-%ds\n", maxWidths[0], maxWidths[1])
-	formatData := fmt.Sprintf("    %%%ds │ %%-%ds\n", maxWidths[0], maxWidths[1]) // Right-align the index
-	separator := fmt.Sprintf("    %s─┼─%s\n",
-		strings.Repeat("─", maxWidths[0]),
-		strings.Repeat("─", maxWidths[1]))
-
-	var builder strings.Builder
-	// Print the table header with centered headers
-	builder.WriteString(fmt.Sprintf(formatHeader,
-		center("INDEX", maxWidths[0]),
-		center("CLASS GROUP", maxWidths[1])))
-
-	// Print separator line
-	builder.WriteString(separator)
-
-	// Print the table rows
-	for i, row := range nestedList {
-		serial := fmt.Sprintf("%d", i+1)
-		semname := ""
-		if len(row) > 1 {
-			semname = strings.TrimSpace(row[1]) // Strip starting whitespace
-		}
-		builder.WriteString(fmt.Sprintf(formatData, serial, semname)) // Right-aligned index
-	}
-
-	fmt.Println(builder.String())
 }
