@@ -23,6 +23,9 @@ var semesterFlag int
 var debugFlag bool
 var versionFlag bool
 var updateFlag bool
+var courseFlag int
+var facultyFlag int
+var classGrpFlag int
 
 func startfn(cmd *cobra.Command, args []string) {
 
@@ -180,7 +183,7 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	killSwitch := helpers.CheckKillSwitch()
 	if killSwitch == 2 {
-		fmt.Println("This version of cli-top has been decomissioned. Please await an update at https://cli-top.acmvit.in/.")
+		fmt.Println("This version of cli-top has been decommissioned. Please await an update at https://cli-top.acmvit.in/.")
 		return
 		// os.Exit(1)
 	}
@@ -190,6 +193,11 @@ func Execute() {
 	attendanceCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	timeTableCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	examScheduleCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	calendarCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	coursePageCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+    coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
+    coursePageCmd.PersistentFlags().IntVarP(&facultyFlag, "faculty", "f", 0, "Specify the faculty")
+	calendarCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
 
 	// Add the flags to the root command
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
@@ -197,7 +205,7 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
 
 	// Add the commands to the root command
-	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, daDueDatesCmd, logoutCmd, coursePageCmd)
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, daDueDatesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd)
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
@@ -288,12 +296,12 @@ var examScheduleCmd = &cobra.Command{
 }
 
 var coursePageCmd = &cobra.Command{
-	Use:   "course-page",
-	Short: "Download course materials for a selected semester, course, and faculty",
-	Run: func(cmd *cobra.Command, args []string) {
-		cookies, regNo := readCookiesFromFile()
-		features.ExecuteCoursePageDownload(regNo, cookies)
-	},
+    Use:   "course-page",
+    Short: "Download course materials for a selected semester, course, and faculty",
+    Run: func(cmd *cobra.Command, args []string) {
+        cookies, regNo := readCookiesFromFile()
+        features.ExecuteCoursePageDownload(regNo, cookies, semesterFlag, courseFlag, facultyFlag)
+    },
 }
 
 var libraryDuesCmd = &cobra.Command{
@@ -314,6 +322,15 @@ var daDueDatesCmd = &cobra.Command{
 	},
 }
 
+var calendarCmd = &cobra.Command{
+	Use:   "cal",
+	Short: "Show Calendar",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.PrintCal(regNo, cookies, semesterFlag, classGrpFlag)
+	},
+}
+
 var logoutCmd = &cobra.Command{
 	Use:   "logout",
 	Short: "Logout from VTOP",
@@ -325,3 +342,13 @@ var logoutCmd = &cobra.Command{
 		fmt.Println("Logged out successfully.")
 	},
 }
+
+var nightslipCmd = &cobra.Command{
+	Use:   "nightslip",
+	Short: "Show Nightslip Request Status of a user",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetNightSlipStatus(regNo, cookies)
+	},
+}
+
