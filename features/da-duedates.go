@@ -78,7 +78,7 @@ func PrintDAdates(regNo string, cookies types.Cookies) {
     } else {
         fmt.Println("Calendar file 'DAs.ics' generated with the upcoming DA deadlines.")
 
-        serverURL := "https://syllabi.examcooker.in" // Replace with your server URL
+        serverURL := "https://syllabi.examcooker.in" // temporary hopefully :P
         uploadedFileURL, err := UploadICSFile("DAs.ics", serverURL)
         if err != nil {
             fmt.Println("Error uploading ICS file:", err)
