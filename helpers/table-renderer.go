@@ -40,13 +40,11 @@ func TableSelectorFuzzy(subject string ,nestedList [][]string, choice string) st
 	fmt.Println("\n")
 	fmt.Print("Choose a ",subject,": ")
 	_, err := fmt.Scan(&choice)
-	fmt.Println(choice)
 	if err != nil {
 		fmt.Println("Invalid input. Please enter a valid code.")
 		return ""
 	}
 	for _, v := range nestedList {
-		fmt.Println(v[1])
 		if FuzzyMatch(choice, v[0]) {
 			fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n",subject, v[0])
 			return v[len(v)-1]
