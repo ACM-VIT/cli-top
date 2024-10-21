@@ -109,7 +109,7 @@ func getAllSubs(regNo string, cookies types.Cookies) [][]string {
 		fmt.Println("No semesters found")
 		return nil 
 	}
-	semID := semDetails.SemIds[len(semDetails.SemIds)-1]
+	semID := semDetails.SemIds[0]
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, semID, "UTC", "POST", "")
 	if err != nil && debug.Debug {
 		fmt.Println(err)
