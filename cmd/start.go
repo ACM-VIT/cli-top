@@ -161,7 +161,7 @@ var rootCmd = &cobra.Command{
 
 	Run: func(cmd *cobra.Command, args []string) {
 
-]		if debugFlag {
+		if debugFlag {
 			debug.Debug = true
 			fmt.Println("Debug mode on")
 		}
@@ -195,8 +195,8 @@ func Execute() {
 	examScheduleCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	calendarCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	coursePageCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
-    coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
-    coursePageCmd.PersistentFlags().IntVarP(&facultyFlag, "faculty", "f", 0, "Specify the faculty")
+	coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
+	coursePageCmd.PersistentFlags().IntVarP(&facultyFlag, "faculty", "f", 0, "Specify the faculty")
 	calendarCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
 
 	// Add the flags to the root command
@@ -296,12 +296,12 @@ var examScheduleCmd = &cobra.Command{
 }
 
 var coursePageCmd = &cobra.Command{
-    Use:   "course-page",
-    Short: "Download course materials for a selected semester, course, and faculty",
-    Run: func(cmd *cobra.Command, args []string) {
-        cookies, regNo := readCookiesFromFile()
-        features.ExecuteCoursePageDownload(regNo, cookies, semesterFlag, courseFlag, facultyFlag)
-    },
+	Use:   "course-page",
+	Short: "Download course materials for a selected semester, course, and faculty",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.ExecuteCoursePageDownload(regNo, cookies, semesterFlag, courseFlag, facultyFlag)
+	},
 }
 
 var libraryDuesCmd = &cobra.Command{
