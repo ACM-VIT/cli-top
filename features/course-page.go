@@ -26,7 +26,7 @@ type Semester struct {
 func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag, courseFlag, facultyFlag int) {
 	semDetails := helpers.GetSemDetails(cookies, regNo)
 	if len(semDetails.SemIds) == 0 {
-		fmt.Println("Error fetching semester details or no semesters available.")
+		fmt.Println("Error fetching semester details or no semesters available. Try logging out and logging back in again.")
 		return
 	}
 
@@ -586,7 +586,13 @@ func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester Sem
 	}
 }
 
-func downloadSelectedMaterials(regNo string, cookies types.Cookies, selectedFaculty types.Faculty, materials []types.CourseMaterial, fullDirPath string) error {
+func downloadSelectedMaterials(
+	regNo string,
+	cookies types.Cookies,
+	selectedFaculty types.Faculty,
+	materials []types.CourseMaterial,
+	fullDirPath string,
+) error {
 	totalFiles := 0
 	for _, material := range materials {
 		totalFiles += len(material.ReferenceMaterials)
@@ -596,6 +602,9 @@ func downloadSelectedMaterials(regNo string, cookies types.Cookies, selectedFacu
 
 	for _, material := range materials {
 		topicName := sanitizeFilename(material.Topic)
+
+		materialIndex := material.Index
+
 		for _, refMaterial := range material.ReferenceMaterials {
 			downloadURL := "https://vtop.vit.ac.in/vtop/downloadPdf"
 			payloadMap := map[string]string{
@@ -622,9 +631,12 @@ func downloadSelectedMaterials(regNo string, cookies types.Cookies, selectedFacu
 				bar.Add(1)
 				continue
 			}
+
 			refMaterialName := sanitizeFilename(refMaterial.Name)
-			filename := fmt.Sprintf("%s_%s.pdf", topicName, refMaterialName)
+
+			filename := fmt.Sprintf("%02d_%s_%s.pdf", materialIndex, topicName, refMaterialName)
 			filePath := filepath.Join(fullDirPath, filename)
+
 			if _, err := os.Stat(filePath); os.IsNotExist(err) {
 				err = saveFile(body, filePath)
 				if err != nil {
@@ -635,6 +647,7 @@ func downloadSelectedMaterials(regNo string, cookies types.Cookies, selectedFacu
 					continue
 				}
 			}
+
 			bar.Add(1)
 
 			time.Sleep(1 * time.Second)
