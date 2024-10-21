@@ -12,15 +12,8 @@ import (
 )
 
 func FindAndSaveSemIds(doc *goquery.Document, targetClass string, result *[]string) {
-	// Find all <option> elements within <select> tags with the specified class
-	//fmt.Println(targetClass, doc)
-	//selection := doc.Find("select.form-select option")
-	//fmt.Println("Number of elements found:", selection.Length())
-
 	doc.Find("select." + targetClass + " option").Each(func(i int, s *goquery.Selection) {
-
 		value, exists := s.Attr("value")
-		//fmt.Println(value)
 		if exists {
 			*result = append(*result, value)
 		}
@@ -30,46 +23,32 @@ func FindAndSaveSemIds(doc *goquery.Document, targetClass string, result *[]stri
 func GetSemDetails(cookies types.Cookies, regNo string) types.SemesterDetails {
 	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentAttendance"
 
-	//fmt.Println(regNo, cookies)
 	bodyText, err := FetchReq(regNo, cookies, url, "", "", "POST", "")
 	if err != nil && debug.Debug {
 		fmt.Println(err)
 	}
 
-	// Use goquery to parse the HTML
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
 	if err != nil && debug.Debug {
 		fmt.Println(err)
 	}
-	//fmt.Println(string(bodyText))
 
-	// Create a slice to store the extracted data
 	var SemNames []string
 	var SemIds []string
 
 	var tempIds []string
-	// Find and save the semester IDs
 	FindAndSaveSemIds(doc, "form-select", &tempIds)
-	//fmt.Printf("%q", tempIds)
 	SemIds = RemoveEmptyStrings(tempIds)
-	//fmt.Printf("%q", SemIds)
-
-	// fmt.Printf("%q\n", SemIds)
 
 	for _, semId := range SemIds {
 		optionText := FindOptionWithTagValue(doc, semId)
-
 		if optionText != "" {
 			SemNames = append(SemNames, optionText)
-
 		} else {
-			// Handle the case where no <option> tag is found with the specified SemId
 			SemNames = append(SemNames, "Unknown")
 		}
 	}
 
-	//fmt.Println("\nget wroking")
-	// Return the encapsulated struct
 	return types.SemesterDetails{
 		SemNames: SemNames,
 		SemIds:   SemIds,
@@ -92,6 +71,8 @@ func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) string 
 
 	for i, j := 1, len(nested_sem_list)-1; i < j; i, j = i+1, j-1 {
 		nested_sem_list[i], nested_sem_list[j] = nested_sem_list[j], nested_sem_list[i]
+		semDetails.SemIds[i-1], semDetails.SemIds[j-1] = semDetails.SemIds[j-1], semDetails.SemIds[i-1]
+		semDetails.SemNames[i-1], semDetails.SemNames[j-1] = semDetails.SemNames[j-1], semDetails.SemNames[i-1]
 	}
 
 	choice := TableSelector("semester", nested_sem_list, sem_choice)
@@ -105,7 +86,7 @@ func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) string 
 	if choice < 1 || choice > len(semDetails.SemIds) {
 		fmt.Println("Invalid semester selection.")
 		clearInputBuffer()
-		return "" 
+		return ""
 	}
 
 	selectedSemId = semDetails.SemIds[choice-1]
@@ -117,7 +98,7 @@ func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) string 
 
 func clearInputBuffer() {
 	reader := bufio.NewReader(os.Stdin)
-	_, err := reader.ReadString('\n') 
+	_, err := reader.ReadString('\n')
 	if err != nil && debug.Debug {
 		fmt.Println("Error clearing input buffer:", err)
 	}
