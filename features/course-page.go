@@ -280,7 +280,7 @@ func fetchSlotIds(regNo string, cookies types.Cookies, semSubId string, classId 
 
 func fetchFacultiesForAllSlotsConcurrently(regNo string, cookies types.Cookies, semSubId string, classId string, slotIds []string) ([]types.Faculty, error) {
 	var wg sync.WaitGroup
-	sem := make(chan struct{}, 10) 
+	sem := make(chan struct{}, 10)
 
 	facultySlices := make([][]types.Faculty, len(slotIds))
 	errorsOccurred := false
@@ -319,7 +319,7 @@ func fetchFacultiesForAllSlotsConcurrently(regNo string, cookies types.Cookies, 
 	}
 
 	uniqueFaculties := helpers.RemoveDuplicateFaculties(allFaculties)
-	helpers.SortFacultiesAlphabetically(uniqueFaculties) 
+	helpers.SortFacultiesAlphabetically(uniqueFaculties)
 
 	return uniqueFaculties, nil
 }
@@ -574,12 +574,18 @@ func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester typ
 		return err
 	}
 
-	if len(selectedMaterials) == 0 {
-		return downloadSelectedMaterials(regNo, cookies, selectedFaculty, allMaterials, fullDirPath)
-	} else {
-		return downloadSelectedMaterials(regNo, cookies, selectedFaculty, selectedMaterials, fullDirPath)
+	if selectedMaterials == nil {
+		selectedMaterials = allMaterials
 	}
+
+	if helpers.IsRateLimitExceeded() {
+		fmt.Println("Rate limit exceeded. Please try again later.")
+		return fmt.Errorf("rate limit exceeded")
+	}
+
+	return downloadSelectedMaterials(regNo, cookies, selectedFaculty, selectedMaterials, fullDirPath)
 }
+
 
 func downloadSelectedMaterials(
 	regNo string,
@@ -644,8 +650,6 @@ func downloadSelectedMaterials(
 			}
 
 			bar.Add(1)
-
-			time.Sleep(1 * time.Second)
 		}
 	}
 	fmt.Println("\nCourse materials downloaded successfully")
