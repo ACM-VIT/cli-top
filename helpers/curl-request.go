@@ -21,8 +21,9 @@ func FetchReq(regNo string, cookies types.Cookies, url string, semID string, pay
 	if payload == "" {
 		payload = fmt.Sprintf("verifyMenu=true&authorizedID=%s&_csrf=%s&nocache=%d", regNo, cookies.CSRF, time.Now().UnixNano())
 	} else if payload == "UTC" {
-		payload = fmt.Sprintf("authorizedID=%s&_csrf=%s&semesterSubId=%s&x=%s", regNo, cookies.CSRF, semID, time.Now().UTC().Format(time.RFC1123)) //fmt.Println(payload)
+		payload = fmt.Sprintf("authorizedID=%s&_csrf=%s&semesterSubId=%s&x=%s", regNo, cookies.CSRF, semID, time.Now().UTC().Format(time.RFC1123))
 	}
+	//fmt.Println(payload)
 
 	// Create a new request with POST/GET method and payload
 	if method == "POST" {

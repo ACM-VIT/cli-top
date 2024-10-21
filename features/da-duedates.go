@@ -30,15 +30,21 @@ func PrintDAdates(regNo string, cookies types.Cookies){
 	}
 	subjectlist:=allSubDetails(doc)
 	url = "https://vtop.vit.ac.in/vtop/examinations/processDigitalAssignment"
-	
 	var table_data [][]string
     currentDate := time.Now()
 	k:= 1
 	for _, detail := range subjectlist {
 		code := detail[0]
 		name := detail[2]
-		payload := fmt.Sprintf("DA %s", code)
-		subBody, err := helpers.FetchReq(regNo, cookies, url, "",payload, "POST", "")
+        payloadMap := map[string]string{
+            "_csrf":         cookies.CSRF,
+            "paramReturnId": "getCourseForCoursePage",
+            "classId":      code,
+            "authorizedID":  regNo,
+            "x":             fmt.Sprintf("%d", time.Now().Unix()),
+        }
+        formData := helpers.FormatBodyData(payloadMap)
+		subBody, err := helpers.FetchReq(regNo, cookies, url, "",formData, "POST", "")
 		if err != nil && debug.Debug {
 			fmt.Println(err)
 		}
