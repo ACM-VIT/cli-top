@@ -15,8 +15,8 @@ import (
 func PrintDAdates(regNo string, cookies types.Cookies){
 	listOfSubjects := getAllSubs(regNo, cookies)
 	var table_data [][]string
+    table_data = append(table_data, []string{"Name", "Title", "Date", "Days Left"})
     currentDate := time.Now()
-	k:= 1
 	for _, detail := range listOfSubjects {
 		code := detail[2]
 		name := detail[0]
@@ -31,8 +31,16 @@ func PrintDAdates(regNo string, cookies types.Cookies){
 				continue	
 			}
 			daysLeft := int(date.Sub(currentDate).Hours() / 24) + 1
-			table_data = append(table_data, []string{strconv.Itoa(k), name, title, datestr, strconv.Itoa(daysLeft)})
-			k++
+            daysString := strconv.Itoa(daysLeft)
+            color := "\033[32m" 
+            if daysLeft < 3 {
+                color = "\033[31m" // Red
+            } else if daysLeft < 7 {
+                color = "\033[33m" // Yellow
+            }
+            reset := "\033[0m"
+            daysString = color + daysString + reset
+			table_data = append(table_data, []string{name, title, datestr, daysString})
 		}
 	}
 	//fmt.Println(table_data)
@@ -40,75 +48,8 @@ func PrintDAdates(regNo string, cookies types.Cookies){
         fmt.Println("YAYYYY!! No DA's due")
         return
     }
-	printTableData(table_data)
-}
-
-func printTableData(table_data [][]string) {
-    // Determine the maximum width for each column
-    maxWidths := []int{4, 4, 5, 4, 9} // Initial widths based on header lengths
-    for _, row := range table_data {
-        for i, col := range row {
-            if len(col)+2 > maxWidths[i] {
-                maxWidths[i] = len(col) + 2
-            }
-        }
-    }
-
-    // Create format strings based on the maximum widths
-    format := fmt.Sprintf("| %%-%ds | %%-%ds | %%-%ds | %%-%ds | %%%ds |\n",  // Changed last one to right-aligned
-        maxWidths[0], maxWidths[1], maxWidths[2], maxWidths[3], maxWidths[4])
-    
-    separator := fmt.Sprintf("+%%-%ds+%%-%ds+%%-%ds+%%-%ds+%%-%ds+\n",
-        maxWidths[0]+2, maxWidths[1]+2, maxWidths[2]+2, maxWidths[3]+2, maxWidths[4]+2)
-    
-    var builder strings.Builder
-    
-    // Print the top border
-    builder.WriteString(fmt.Sprintf(separator, 
-        strings.Repeat("-", maxWidths[0]+2),
-        strings.Repeat("-", maxWidths[1]+2),
-        strings.Repeat("-", maxWidths[2]+2),
-        strings.Repeat("-", maxWidths[3]+2),
-        strings.Repeat("-", maxWidths[4]+2)))
-    
-    // Print the table header
-    builder.WriteString(fmt.Sprintf(format, "S.No", "Name", "Title", "Date", "Days Left"))
-    
-    // Print separator line
-    builder.WriteString(fmt.Sprintf(separator, 
-        strings.Repeat("-", maxWidths[0]+2),
-        strings.Repeat("-", maxWidths[1]+2),
-        strings.Repeat("-", maxWidths[2]+2),
-        strings.Repeat("-", maxWidths[3]+2),
-        strings.Repeat("-", maxWidths[4]+2)))
-    
-    // Print the table rows
-    for _, row := range table_data {
-        daysLeft, _ := strconv.Atoi(row[4])
-        color := "\033[32m" // Green by default
-        if daysLeft < 3 {
-            color = "\033[31m" // Red
-        } else if daysLeft < 7 {
-            color = "\033[33m" // Yellow
-        }
-        reset := "\033[0m"
-        
-        // Add padding to the days left value
-        paddedDaysLeft := fmt.Sprintf("%*s", maxWidths[4], row[4])
-        builder.WriteString(fmt.Sprintf(format, 
-            row[0], row[1], row[2], row[3], 
-            color+paddedDaysLeft+reset))
-    }
-    
-    // Print the bottom border
-    builder.WriteString(fmt.Sprintf(separator, 
-        strings.Repeat("-", maxWidths[0]+2),
-        strings.Repeat("-", maxWidths[1]+2),
-        strings.Repeat("-", maxWidths[2]+2),
-        strings.Repeat("-", maxWidths[3]+2),
-        strings.Repeat("-", maxWidths[4]+2)))
-    
-    fmt.Println(builder.String())
+	helpers.PrintTable(table_data)
+    fmt.Println()
 }
 
 func allSubDetails(doc *goquery.Document) [][]string {
