@@ -36,19 +36,19 @@ type StudentDetails struct {
 }
 
 type Course struct {
-    ID   string
-    Name string
+	ID   string
+	Name string
 }
 
 type Faculty struct {
-	ID           string 
-	Name         string 
-	ErpID        string 
-	ClassID      string 
-	SemesterName string 
-	CourseName   string 
-	SemSubID     string 
-	Slot		 string
+	ID           string
+	Name         string
+	ErpID        string
+	ClassID      string
+	SemesterName string
+	CourseName   string
+	SemSubID     string
+	Slot         string
 }
 
 type Slot struct {
@@ -57,15 +57,29 @@ type Slot struct {
 }
 
 type CourseMaterial struct {
-    Index              int
-    Date               string
-    DayOrderSlot       string
-    Topic              string
-    ReferenceMaterials []ReferenceMaterial
+	Index              int
+	Date               string
+	DayOrderSlot       string
+	Topic              string
+	ReferenceMaterials []ReferenceMaterial
 }
 
 type ReferenceMaterial struct {
-    Name         string
-    MaterialID   string
-    MaterialDate string
+	Name         string
+	MaterialID   string
+	MaterialDate string
+}
+
+type LeaveRequest struct {
+	VisitPlace string
+	Reason     string
+	LeaveType  string
+	From       string
+	To         string
+	Status     string
+}
+
+type Semester struct {
+	SemName string
+	SemID   string
 }
