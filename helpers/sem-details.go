@@ -5,6 +5,8 @@ import (
 	"cli-top/types"
 	"fmt"
 	"strings"
+	"bufio"
+	"os"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -66,19 +68,6 @@ func GetSemDetails(cookies types.Cookies, regNo string) types.SemesterDetails {
 		}
 	}
 
-	// Reverse SemIds and SemNames
-	reverseSemIds := make([]string, len(SemIds))
-	reverseSemNames := make([]string, len(SemNames))
-	for i := 0; i < len(SemIds); i++ {
-		reverseIndex := len(SemIds) - 1 - i
-		reverseSemIds[i] = SemIds[reverseIndex]
-		reverseSemNames[i] = SemNames[reverseIndex]
-	}
-
-	// Save the reversed values back to SemDetails
-	SemIds = reverseSemIds
-	SemNames = reverseSemNames
-
 	//fmt.Println("\nget wroking")
 	// Return the encapsulated struct
 	return types.SemesterDetails{
@@ -93,6 +82,7 @@ func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) string 
 		fmt.Println("Error fetching semester details or no semesters available.")
 		return ""
 	}
+
 	var selectedSemId string
 	var nested_sem_list [][]string
 	nested_sem_list = append(nested_sem_list, []string{"SemId", "SemName"})
@@ -102,14 +92,33 @@ func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) string 
 
 	for i, j := 1, len(nested_sem_list)-1; i < j; i, j = i+1, j-1 {
 		nested_sem_list[i], nested_sem_list[j] = nested_sem_list[j], nested_sem_list[i]
-	}	
+	}
 
 	choice := TableSelector("semester", nested_sem_list, sem_choice)
 
 	if choice == -1 {
-		return "Problem in selecting semester"
+		fmt.Println("Problem in selecting semester")
+		clearInputBuffer()
+		return ""
 	}
 
-	selectedSemId = semDetails.SemIds[len(semDetails.SemIds)-choice] // reversed here too
+	if choice < 1 || choice > len(semDetails.SemIds) {
+		fmt.Println("Invalid semester selection.")
+		clearInputBuffer()
+		return "" 
+	}
+
+	selectedSemId = semDetails.SemIds[choice-1]
+
+	clearInputBuffer()
+
 	return selectedSemId
+}
+
+func clearInputBuffer() {
+	reader := bufio.NewReader(os.Stdin)
+	_, err := reader.ReadString('\n') 
+	if err != nil && debug.Debug {
+		fmt.Println("Error clearing input buffer:", err)
+	}
 }
