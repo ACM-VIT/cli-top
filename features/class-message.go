@@ -6,64 +6,59 @@ import (
 	"cli-top/types"
 	"fmt"
 	"strings"
+	"github.com/PuerkitoBio/goquery"
 )
 
-// Function to fetch and extract faculty messages using session cookies and regNo
+
 func GetClassMessage(regNo string, cookies types.Cookies) {
-	// URL for the class messages
+	
 	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentClassMessage"
 
-	// Fetch the response body using helper functions (assuming helpers.FetchReq is implemented)
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, "", "UTC", "GET", "")
 	if err != nil && debug.Debug {
 		fmt.Println(err)
 		return
 	}
 
-	// Convert []byte to string before passing it to the extractClassMessages function
-	messages, err := extractClassMessages(string(bodyText))
+	messages, err := extractClassMessages(bodyText)
 	if err != nil && debug.Debug {
 		fmt.Println("Error extracting messages:", err)
 		return
 	}
 
-	// Print the extracted messages in a table format
 	printClassMessagesTable(messages)
 }
 
-// Function to extract class messages using string manipulation (no external packages)
-func extractClassMessages(bodyText string) ([][]string, error) {
+
+func extractClassMessages(bodyText []byte) ([][]string, error) {
 	var messages [][]string
 
-	// Look for the starting and ending points of the relevant HTML for each message
-	parts := strings.Split(bodyText, `<div class="panel panel-default">`)
-	for _, part := range parts {
-		if strings.Contains(part, `Course:`) && strings.Contains(part, `Message:`) {
-			var row []string
-
-			// Extract course name
-			courseStart := strings.Index(part, `<span style="font-family: sans-serif;">`)
-			courseEnd := strings.Index(part[courseStart:], "</span>")
-			if courseStart != -1 && courseEnd != -1 {
-				course := strings.TrimSpace(part[courseStart+len(`<span style="font-family: sans-serif;">`) : courseStart+courseEnd])
-				row = append(row, course)
-			}
-
-			// Extract message content
-			messageStart := strings.Index(part, `<b style="color:black;font-family: sans-serif;">Message:</b>`)
-			messageEnd := strings.Index(part[messageStart:], "</span>")
-			if messageStart != -1 && messageEnd != -1 {
-				message := strings.TrimSpace(part[messageStart+len(`<b style="color:black;font-family: sans-serif;">Message:</b> <span style="font-family: sans-serif;">`) : messageStart+messageEnd])
-				row = append(row, message)
-			}
-
-			// Add extracted row to messages list if both course and message were found
-			if len(row) == 2 {
-				messages = append(messages, row)
-			}
-		}
+	
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
+	if err != nil {
+		return nil, fmt.Errorf("error parsing HTML: %v", err)
 	}
 
+	
+	doc.Find(".panel.panel-default").Each(func(i int, panel *goquery.Selection) {
+		var row []string
+
+		
+		course := panel.Find("span:contains('Course:')").Next().Text()
+		course = strings.TrimSpace(course)
+
+		
+		message := panel.Find("b:contains('Message:')").Next().Text()
+		message = strings.TrimSpace(message)
+
+		
+		if course != "" && message != "" {
+			row = append(row, course, message)
+			messages = append(messages, row)
+		}
+	})
+
+	
 	if len(messages) == 0 {
 		return nil, fmt.Errorf("no class messages found")
 	}
@@ -71,7 +66,7 @@ func extractClassMessages(bodyText string) ([][]string, error) {
 	return messages, nil
 }
 
-// Function to print the class messages in a table format
+
 func printClassMessagesTable(messages [][]string) {
 	fmt.Printf("| %-35s | %-100s |\n", "Course", "Message")
 	fmt.Printf("|%-37s|%-102s|\n", strings.Repeat("-", 37), strings.Repeat("-", 102))
