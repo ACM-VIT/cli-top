@@ -24,13 +24,25 @@ func GetSemDetails(cookies types.Cookies, regNo string) types.SemesterDetails {
 	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentAttendance"
 
 	bodyText, err := FetchReq(regNo, cookies, url, "", "", "POST", "")
-	if err != nil && debug.Debug {
-		fmt.Println(err)
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error fetching semester details:", err)
+		}
+		return types.SemesterDetails{} 
+	}
+
+	if debug.Debug {
+		fmt.Println("---- Response Body Start ----")
+		fmt.Println(string(bodyText))
+		fmt.Println("---- Response Body End ----")
 	}
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
-	if err != nil && debug.Debug {
-		fmt.Println(err)
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error parsing the HTML document:", err)
+		}
+		return types.SemesterDetails{} 
 	}
 
 	var SemNames []string
@@ -54,6 +66,7 @@ func GetSemDetails(cookies types.Cookies, regNo string) types.SemesterDetails {
 		SemIds:   SemIds,
 	}
 }
+
 
 func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) string {
 	semDetails := GetSemDetails(cookies, regNo)
