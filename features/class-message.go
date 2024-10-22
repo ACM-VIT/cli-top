@@ -55,7 +55,7 @@ func extractClassMessages(bodyText []byte) ([][]string, error) {
 			}
 			messageLines = append(messageLines, cleanedText)
 
-			row = append(row, strings.Join(messageLines, "\n")) // Join lines with newline characters
+			row = append(row, strings.Join(messageLines, "\n")) 
 		})
 		if len(row) == 2 {
 			messages = append(messages, row)
