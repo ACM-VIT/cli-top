@@ -157,6 +157,11 @@ func GenerateDAICSFile(events []DAEvent, filePath string) error {
 	if err != nil {
 		return err
 	}
+    _, err = file.WriteString("X-WR-CALNAME:CLI-TOP DA\r\n")
+	if err != nil {
+		return err
+	}
+
 	for _, event := range events {
 		data := fmt.Sprintf("%s-%s-%s", event.SubjectName, event.Title, event.DueDate.Format("20060102"))
 		uid := helpers.GenerateUID(data)
