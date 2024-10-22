@@ -19,15 +19,6 @@ const (
 	Reset  = "\033[0m" 
 )
 
-type LeaveRequest struct {
-	VisitPlace string
-	Reason     string
-	LeaveType  string
-	From       string
-	To         string
-	Status     string
-}
-
 func GetLeaveStatus(regNo string, cookies types.Cookies) {
 	url1 := "https://vtop.vit.ac.in/vtop/hostels/student/leave/1"
 	payload1 := fmt.Sprintf("verifyMenu=true&authorizedID=%s&_csrf=%s&nocache=%d",
@@ -65,7 +56,7 @@ func GetLeaveStatus(regNo string, cookies types.Cookies) {
 		return
 	}
 
-	var leaveRequests []LeaveRequest
+	var leaveRequests []types.LeaveRequest
 
 	doc.Find("table#LeaveAppliedTable tbody tr").Each(func(i int, rowSelection *goquery.Selection) {
 		visitPlace := strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(1).Text())
@@ -76,7 +67,7 @@ func GetLeaveStatus(regNo string, cookies types.Cookies) {
 		status := strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(6).Text())
 
 		if visitPlace != "" {
-			leaveRequests = append(leaveRequests, LeaveRequest{
+			leaveRequests = append(leaveRequests, types.LeaveRequest{
 				VisitPlace: visitPlace,
 				Reason:     reason,
 				LeaveType:  leaveType,
@@ -98,7 +89,7 @@ func formatDate(dateStr string) string {
 	return parsedTime.Format("02/01/06 15:04") 
 }
 
-func GenerateLeaveStatusTable(leaveRequests []LeaveRequest) {
+func GenerateLeaveStatusTable(leaveRequests []types.LeaveRequest) {
 	var buf bytes.Buffer
 	table := tablewriter.NewWriter(&buf)
 

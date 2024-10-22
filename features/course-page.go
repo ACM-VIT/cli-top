@@ -18,11 +18,6 @@ import (
 	"github.com/schollz/progressbar/v3"
 )
 
-type Semester struct {
-	SemName string
-	SemID   string
-}
-
 func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag, courseFlag, facultyFlag int) {
 	semDetails := helpers.GetSemDetails(cookies, regNo)
 	if len(semDetails.SemIds) == 0 {
@@ -44,7 +39,7 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag
 		}
 	}
 
-	selectedSemester := Semester{
+	selectedSemester := types.Semester{
 		SemName: selectedSemName,
 		SemID:   selectedSemId,
 	}
@@ -285,7 +280,7 @@ func fetchSlotIds(regNo string, cookies types.Cookies, semSubId string, classId 
 
 func fetchFacultiesForAllSlotsConcurrently(regNo string, cookies types.Cookies, semSubId string, classId string, slotIds []string) ([]types.Faculty, error) {
 	var wg sync.WaitGroup
-	sem := make(chan struct{}, 10) 
+	sem := make(chan struct{}, 10)
 
 	facultySlices := make([][]types.Faculty, len(slotIds))
 	errorsOccurred := false
@@ -324,7 +319,7 @@ func fetchFacultiesForAllSlotsConcurrently(regNo string, cookies types.Cookies, 
 	}
 
 	uniqueFaculties := helpers.RemoveDuplicateFaculties(allFaculties)
-	helpers.SortFacultiesAlphabetically(uniqueFaculties) 
+	helpers.SortFacultiesAlphabetically(uniqueFaculties)
 
 	return uniqueFaculties, nil
 }
@@ -527,7 +522,7 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 	return materials, nil
 }
 
-func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester Semester, selectedCourse types.Course, selectedFaculty types.Faculty, allMaterials []types.CourseMaterial, selectedMaterials []types.CourseMaterial) error {
+func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester types.Semester, selectedCourse types.Course, selectedFaculty types.Faculty, allMaterials []types.CourseMaterial, selectedMaterials []types.CourseMaterial) error {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		if debug.Debug {
@@ -579,84 +574,90 @@ func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester Sem
 		return err
 	}
 
-	if len(selectedMaterials) == 0 {
-		return downloadSelectedMaterials(regNo, cookies, selectedFaculty, allMaterials, fullDirPath)
-	} else {
-		return downloadSelectedMaterials(regNo, cookies, selectedFaculty, selectedMaterials, fullDirPath)
+	if selectedMaterials == nil {
+		selectedMaterials = allMaterials
 	}
+
+	if helpers.IsRateLimitExceeded() {
+		fmt.Println("Rate limit exceeded. Please try again later.")
+		return fmt.Errorf("rate limit exceeded")
+	}
+
+	return downloadSelectedMaterials(regNo, cookies, selectedFaculty, selectedMaterials, fullDirPath)
 }
+
 
 func downloadSelectedMaterials(
-	regNo string,
-	cookies types.Cookies,
-	selectedFaculty types.Faculty,
-	materials []types.CourseMaterial,
-	fullDirPath string,
+    regNo string,
+    cookies types.Cookies,
+    selectedFaculty types.Faculty,
+    materials []types.CourseMaterial,
+    fullDirPath string,
 ) error {
-	totalFiles := 0
-	for _, material := range materials {
-		totalFiles += len(material.ReferenceMaterials)
-	}
+    totalFiles := 0
+    for _, material := range materials {
+        totalFiles += len(material.ReferenceMaterials)
+    }
 
-	bar := progressbar.Default(int64(totalFiles), "Downloading materials")
+    bar := progressbar.Default(int64(totalFiles), "Downloading materials")
 
-	for _, material := range materials {
-		topicName := sanitizeFilename(material.Topic)
+    for _, material := range materials {
+        topicName := sanitizeFilename(material.Topic)
+        materialIndex := material.Index
+        refMaterialCounter := 1 
 
-		materialIndex := material.Index
+        for _, refMaterial := range material.ReferenceMaterials {
+            downloadURL := "https://vtop.vit.ac.in/vtop/downloadPdf"
+            payloadMap := map[string]string{
+                "_csrf":        cookies.CSRF,
+                "authorizedID": regNo,
+                "semSubId":     selectedFaculty.SemSubID,
+                "classId":      selectedFaculty.ClassID,
+                "materialId":   refMaterial.MaterialID,
+                "materialDate": refMaterial.MaterialDate,
+            }
+            formData := helpers.FormatBodyData(payloadMap)
+            body, err := helpers.FetchReq(regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
+            if err != nil {
+                if debug.Debug {
+                    fmt.Println("Error downloading material:", err)
+                }
+                bar.Add(1)
+                continue
+            }
+            if !isSuccessfulPdfDownload(body) {
+                if debug.Debug {
+                    fmt.Println("Failed to download material, response may indicate an error")
+                }
+                bar.Add(1)
+                continue
+            }
 
-		for _, refMaterial := range material.ReferenceMaterials {
-			downloadURL := "https://vtop.vit.ac.in/vtop/downloadPdf"
-			payloadMap := map[string]string{
-				"_csrf":        cookies.CSRF,
-				"authorizedID": regNo,
-				"semSubId":     selectedFaculty.SemSubID,
-				"classId":      selectedFaculty.ClassID,
-				"materialId":   refMaterial.MaterialID,
-				"materialDate": refMaterial.MaterialDate,
-			}
-			formData := helpers.FormatBodyData(payloadMap)
-			body, err := helpers.FetchReq(regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
-			if err != nil {
-				if debug.Debug {
-					fmt.Println("Error downloading material:", err)
-				}
-				bar.Add(1)
-				continue
-			}
-			if !isSuccessfulPdfDownload(body) {
-				if debug.Debug {
-					fmt.Println("Failed to download material, response may indicate an error")
-				}
-				bar.Add(1)
-				continue
-			}
+            refMaterialName := sanitizeFilename(refMaterial.Name)
 
-			refMaterialName := sanitizeFilename(refMaterial.Name)
+            filename := fmt.Sprintf("%02d_%s_%s.pdf", materialIndex, topicName, refMaterialName)
+            filePath := filepath.Join(fullDirPath, filename)
 
-			filename := fmt.Sprintf("%02d_%s_%s.pdf", materialIndex, topicName, refMaterialName)
-			filePath := filepath.Join(fullDirPath, filename)
+            if _, err := os.Stat(filePath); os.IsNotExist(err) {
+                err = saveFile(body, filePath)
+                if err != nil {
+                    if debug.Debug {
+                        fmt.Println("Error saving file:", err)
+                    }
+                    bar.Add(1)
+                    continue
+                }
+            }
 
-			if _, err := os.Stat(filePath); os.IsNotExist(err) {
-				err = saveFile(body, filePath)
-				if err != nil {
-					if debug.Debug {
-						fmt.Println("Error saving file:", err)
-					}
-					bar.Add(1)
-					continue
-				}
-			}
-
-			bar.Add(1)
-
-			time.Sleep(1 * time.Second)
-		}
-	}
-	fmt.Println("\nCourse materials downloaded successfully")
-	fmt.Printf("\033[34m\033[4m\033]8;;file://%s\033\\%s\033]8;;\033\\\033[0m to open the folder.\n", fullDirPath, "Click Here")
-	return nil
+            bar.Add(1)
+            refMaterialCounter++ 
+        }
+    }
+    fmt.Println("\nCourse materials downloaded successfully")
+    fmt.Printf("\033[34m\033[4m\033]8;;file://%s\033\\%s\033]8;;\033\\\033[0m to open the folder.\n", fullDirPath, "Click Here")
+    return nil
 }
+
 
 func isSuccessfulPdfDownload(body []byte) bool {
 	return strings.HasPrefix(string(body), "%PDF-")
