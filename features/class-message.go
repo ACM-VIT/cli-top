@@ -39,7 +39,7 @@ func extractClassMessages(bodyText []byte) ([][]string, error) {
 	}
 
 	re := regexp.MustCompile(`^[A-Z0-9]+ - | - Online Course`)
-
+	
 	doc.Find("h5").Each(func(i int, h5 *goquery.Selection) {
 		var row []string
 		h5.Find("span").Each(func(i int, span *goquery.Selection) {
