@@ -12,7 +12,7 @@ import (
 )
 
 func FindAndSaveSemIds(doc *goquery.Document, targetClass string, result *[]string) {
-	doc.Find("select." + targetClass + " option").Each(func(i int, s *goquery.Selection) {
+	doc.Find("select."+targetClass+" option").Each(func(i int, s *goquery.Selection) {
 		value, exists := s.Attr("value")
 		if exists {
 			*result = append(*result, value)
@@ -23,12 +23,18 @@ func FindAndSaveSemIds(doc *goquery.Document, targetClass string, result *[]stri
 func GetSemDetails(cookies types.Cookies, regNo string) types.SemesterDetails {
 	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentAttendance"
 
-	bodyText, err := FetchReq(regNo, cookies, url, "", "", "POST", "")
+	bodyText, err := FetchReq(regNo, cookies, url, "", "", "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		if debug.Debug {
 			fmt.Println("Error fetching semester details:", err)
+			fmt.Printf("Response Body: %s\n", string(bodyText))
 		}
-		return types.SemesterDetails{} 
+		return types.SemesterDetails{}
+	}
+
+	if strings.Contains(string(bodyText), "HTTP Status 404") {
+		fmt.Println("Received 404 Not Found. Please try logging in again.")
+		return types.SemesterDetails{}
 	}
 
 	if debug.Debug {
@@ -42,7 +48,7 @@ func GetSemDetails(cookies types.Cookies, regNo string) types.SemesterDetails {
 		if debug.Debug {
 			fmt.Println("Error parsing the HTML document:", err)
 		}
-		return types.SemesterDetails{} 
+		return types.SemesterDetails{}
 	}
 
 	var SemNames []string
@@ -66,7 +72,6 @@ func GetSemDetails(cookies types.Cookies, regNo string) types.SemesterDetails {
 		SemIds:   SemIds,
 	}
 }
-
 
 func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) string {
 	semDetails := GetSemDetails(cookies, regNo)
