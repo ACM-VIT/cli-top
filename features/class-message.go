@@ -45,17 +45,21 @@ func extractClassMessages(bodyText []byte) ([][]string, error) {
 		h5.Find("span").Each(func(i int, span *goquery.Selection) {
 			trimmedText := strings.TrimSpace(span.Text())
 			cleanedText := re.ReplaceAllString(trimmedText, "")
-			cleanedText = strings.ReplaceAll(cleanedText, "\n", " ")
+			cleanedText = strings.ReplaceAll(strings.TrimSpace(cleanedText), "\n", " ")
 
-			// Ensure messages longer than 60 chars split into new lines
 			var messageLines []string
 			for len(cleanedText) > 60 {
-				messageLines = append(messageLines, cleanedText[:60])
-				cleanedText = cleanedText[60:]
+				cutIndex := 60
+
+				if spaceIndex := strings.LastIndex(cleanedText[:cutIndex], " "); spaceIndex != -1 {
+					cutIndex = spaceIndex
+				}
+				messageLines = append(messageLines, cleanedText[:cutIndex])
+				cleanedText = strings.TrimSpace(cleanedText[cutIndex:])
 			}
 			messageLines = append(messageLines, cleanedText)
 
-			row = append(row, strings.Join(messageLines, "\n")) 
+			row = append(row, strings.Join(messageLines, "\n"))
 		})
 		if len(row) == 2 {
 			messages = append(messages, row)
