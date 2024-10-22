@@ -228,6 +228,10 @@ func GenerateExamICSFile(exams []ExamEvent, filePath string) error {
 	if err != nil {
 		return err
 	}
+	_, err = file.WriteString("X-WR-CALNAME:CLI-TOP Exams\r\n")
+	if err != nil {
+		return err
+	}
 	_, err = file.WriteString("BEGIN:VTIMEZONE\r\nTZID:Asia/Kolkata\r\nBEGIN:STANDARD\r\nDTSTART:19700101T000000\r\nTZOFFSETFROM:+0530\r\nTZOFFSETTO:+0530\r\nTZNAME:IST\r\nEND:STANDARD\r\nEND:VTIMEZONE\r\n")
 	if err != nil {
 		return err

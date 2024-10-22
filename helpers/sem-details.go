@@ -58,7 +58,7 @@ func GetSemDetails(cookies types.Cookies, regNo string) types.SemesterDetails {
 func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) string {
 	semDetails := GetSemDetails(cookies, regNo)
 	if len(semDetails.SemIds) == 0 {
-		fmt.Println("Error fetching semester details or no semesters available.")
+		fmt.Println("Error fetching semester details or no semesters available. Try logging out and logging back in.")
 		return ""
 	}
 
