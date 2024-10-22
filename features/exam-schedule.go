@@ -29,7 +29,8 @@ type ExamEvent struct {
 
 func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choice int) {
 	url := "https://vtop.vit.ac.in/vtop/examinations/doSearchExamScheduleForStudent"
-	semesterID := helpers.SelectSemester(regNo, cookies, sem_choice)
+	semDetails := helpers.GetSemDetails(cookies, regNo)
+	semesterID := semDetails.SemIds[0]
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, semesterID, "UTC", "POST", "")
 	if err != nil && debug.Debug {
 		fmt.Println("Error fetching exam schedule:", err)
@@ -153,6 +154,9 @@ func sortExamsByDateAsc(exams []ExamEvent) {
 }
 
 func displayExamScheduleTable(exams []ExamEvent) {
+
+	fmt.Println()
+
 	var tableData [][]string
 	tableData = append(tableData, []string{"Code", "Course Title", "Slot", "Exam Date", "Reporting Time", "Exam Time", "Venue", "Seat", "Seat No.", "Days Left"})
 
@@ -173,11 +177,11 @@ func displayExamScheduleTable(exams []ExamEvent) {
 		}
 
 		daysLeftStr := strconv.Itoa(exam.DaysLeft)
-		color := "\033[32m" 
+		color := "\033[32m"
 		if exam.DaysLeft < 3 {
-			color = "\033[31m" 
+			color = "\033[31m"
 		} else if exam.DaysLeft < 7 {
-			color = "\033[33m" 
+			color = "\033[33m"
 		}
 		reset := "\033[0m"
 		daysLeftColored := color + daysLeftStr + reset
@@ -207,7 +211,7 @@ func displayExamScheduleTable(exams []ExamEvent) {
 
 func GenerateExamICSFile(exams []ExamEvent, filePath string) error {
 	if len(exams) == 0 {
-		return nil 
+		return nil
 	}
 
 	file, err := os.Create(filePath)
@@ -299,38 +303,37 @@ func GenerateExamICSFile(exams []ExamEvent, filePath string) error {
 	return nil
 }
 
-
 func parseExamDateTime(examDate time.Time, examTime string, isStart bool) (string, error) {
-    timeParts := strings.Split(examTime, "-")
-    if len(timeParts) != 2 {
-        return "", fmt.Errorf("invalid exam time format: %s", examTime)
-    }
+	timeParts := strings.Split(examTime, "-")
+	if len(timeParts) != 2 {
+		return "", fmt.Errorf("invalid exam time format: %s", examTime)
+	}
 
-    timeStr := strings.TrimSpace(timeParts[0])
-    if !isStart {
-        timeStr = strings.TrimSpace(timeParts[1])
-    }
+	timeStr := strings.TrimSpace(timeParts[0])
+	if !isStart {
+		timeStr = strings.TrimSpace(timeParts[1])
+	}
 
-    if timeStr == "" || strings.ToLower(timeStr) == "exam time" {
-        return "", fmt.Errorf("invalid exam time format: %s", examTime)
-    }
+	if timeStr == "" || strings.ToLower(timeStr) == "exam time" {
+		return "", fmt.Errorf("invalid exam time format: %s", examTime)
+	}
 
-    layout := "02-Jan-2006 03:04 PM"
+	layout := "02-Jan-2006 03:04 PM"
 
-    dateTimeStr := fmt.Sprintf("%s %s", examDate.Format("02-Jan-2006"), timeStr)
+	dateTimeStr := fmt.Sprintf("%s %s", examDate.Format("02-Jan-2006"), timeStr)
 
-    istLocation, err := time.LoadLocation("Asia/Kolkata")
-    if err != nil {
-        return "", fmt.Errorf("failed to load IST location: %v", err)
-    }
+	istLocation, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		return "", fmt.Errorf("failed to load IST location: %v", err)
+	}
 
-    localDateTime, err := time.ParseInLocation(layout, dateTimeStr, istLocation)
-    if err != nil {
-        if debug.Debug {
-            fmt.Printf("Error parsing date time '%s': %v\n", dateTimeStr, err)
-        }
-        return "", err
-    }
+	localDateTime, err := time.ParseInLocation(layout, dateTimeStr, istLocation)
+	if err != nil {
+		if debug.Debug {
+			fmt.Printf("Error parsing date time '%s': %v\n", dateTimeStr, err)
+		}
+		return "", err
+	}
 
-    return localDateTime.Format("20060102T150405"), nil
+	return localDateTime.Format("20060102T150405"), nil
 }
