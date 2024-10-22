@@ -215,6 +215,7 @@ func GenerateExamICSFile(exams []ExamEvent, filePath string) error {
 		return err
 	}
 	defer file.Close()
+
 	_, err = file.WriteString("BEGIN:VCALENDAR\r\n")
 	if err != nil {
 		return err
@@ -227,6 +228,11 @@ func GenerateExamICSFile(exams []ExamEvent, filePath string) error {
 	if err != nil {
 		return err
 	}
+	_, err = file.WriteString("BEGIN:VTIMEZONE\r\nTZID:Asia/Kolkata\r\nBEGIN:STANDARD\r\nDTSTART:19700101T000000\r\nTZOFFSETFROM:+0530\r\nTZOFFSETTO:+0530\r\nTZNAME:IST\r\nEND:STANDARD\r\nEND:VTIMEZONE\r\n")
+	if err != nil {
+		return err
+	}
+
 	for _, exam := range exams {
 		data := fmt.Sprintf("%s-%s-%s-%s", exam.CourseCode, exam.Slot, exam.ExamDate.Format("20060102"), exam.ExamTime)
 		uid := helpers.GenerateUID(data)
@@ -245,6 +251,7 @@ func GenerateExamICSFile(exams []ExamEvent, filePath string) error {
 			}
 			continue
 		}
+
 		_, err = file.WriteString("BEGIN:VEVENT\r\n")
 		if err != nil {
 			return err
@@ -257,11 +264,11 @@ func GenerateExamICSFile(exams []ExamEvent, filePath string) error {
 		if err != nil {
 			return err
 		}
-		_, err = file.WriteString(fmt.Sprintf("DTSTART:%s\r\n", startDateTime))
+		_, err = file.WriteString(fmt.Sprintf("DTSTART;TZID=Asia/Kolkata:%s\r\n", startDateTime))
 		if err != nil {
 			return err
 		}
-		_, err = file.WriteString(fmt.Sprintf("DTEND:%s\r\n", endDateTime))
+		_, err = file.WriteString(fmt.Sprintf("DTEND;TZID=Asia/Kolkata:%s\r\n", endDateTime))
 		if err != nil {
 			return err
 		}
@@ -280,6 +287,7 @@ func GenerateExamICSFile(exams []ExamEvent, filePath string) error {
 			return err
 		}
 	}
+
 	_, err = file.WriteString("END:VCALENDAR\r\n")
 	if err != nil {
 		return err
@@ -287,32 +295,38 @@ func GenerateExamICSFile(exams []ExamEvent, filePath string) error {
 	return nil
 }
 
+
 func parseExamDateTime(examDate time.Time, examTime string, isStart bool) (string, error) {
-	timeParts := strings.Split(examTime, "-")
-	if len(timeParts) != 2 {
-		return "", fmt.Errorf("invalid exam time format: %s", examTime)
-	}
+    timeParts := strings.Split(examTime, "-")
+    if len(timeParts) != 2 {
+        return "", fmt.Errorf("invalid exam time format: %s", examTime)
+    }
 
-	timeStr := strings.TrimSpace(timeParts[0])
-	if !isStart {
-		timeStr = strings.TrimSpace(timeParts[1])
-	}
+    timeStr := strings.TrimSpace(timeParts[0])
+    if !isStart {
+        timeStr = strings.TrimSpace(timeParts[1])
+    }
 
-	if timeStr == "" || strings.ToLower(timeStr) == "exam time" {
-		return "", fmt.Errorf("invalid exam time format: %s", examTime)
-	}
+    if timeStr == "" || strings.ToLower(timeStr) == "exam time" {
+        return "", fmt.Errorf("invalid exam time format: %s", examTime)
+    }
 
-	layout := "02-Jan-2006 03:04 PM"
+    layout := "02-Jan-2006 03:04 PM"
 
-	dateTimeStr := fmt.Sprintf("%s %s", examDate.Format("02-Jan-2006"), timeStr)
+    dateTimeStr := fmt.Sprintf("%s %s", examDate.Format("02-Jan-2006"), timeStr)
 
-	dateTime, err := time.Parse(layout, dateTimeStr)
-	if err != nil {
-		if debug.Debug {
-			fmt.Printf("Error parsing date time '%s': %v\n", dateTimeStr, err)
-		}
-		return "", err
-	}
+    istLocation, err := time.LoadLocation("Asia/Kolkata")
+    if err != nil {
+        return "", fmt.Errorf("failed to load IST location: %v", err)
+    }
 
-	return dateTime.UTC().Format("20060102T150405Z"), nil
+    localDateTime, err := time.ParseInLocation(layout, dateTimeStr, istLocation)
+    if err != nil {
+        if debug.Debug {
+            fmt.Printf("Error parsing date time '%s': %v\n", dateTimeStr, err)
+        }
+        return "", err
+    }
+
+    return localDateTime.Format("20060102T150405"), nil
 }
