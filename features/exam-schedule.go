@@ -154,6 +154,9 @@ func sortExamsByDateAsc(exams []ExamEvent) {
 }
 
 func displayExamScheduleTable(exams []ExamEvent) {
+
+	fmt.Println()
+
 	var tableData [][]string
 	tableData = append(tableData, []string{"Code", "Course Title", "Slot", "Exam Date", "Reporting Time", "Exam Time", "Venue", "Seat", "Seat No.", "Days Left"})
 
