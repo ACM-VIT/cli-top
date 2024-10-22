@@ -112,7 +112,7 @@ func GenerateLeaveStatusTable(leaveRequests []types.LeaveRequest) {
 		to := leave.To
 		status := colorStatus(leave.Status)
 
-		table.Append([]string{visitPlace, reason, leaveType, from, to, status})
+		table.Append([]string{reason, visitPlace, leaveType, from, to, status})
 	}
 
 	table.Render()
