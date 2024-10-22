@@ -69,7 +69,7 @@ func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choi
 	if err != nil {
 		fmt.Println("Error generating ICS file:", err)
 	} else {
-		serverURL := "https://syllabi.examcooker.in"
+		serverURL := "https://cli-calendar.acmvit.in"
 		uploadedFileURL, err := helpers.UploadICSFile(icsFileName, serverURL)
 		if err != nil {
 			fmt.Println("Error uploading ICS file:", err)
