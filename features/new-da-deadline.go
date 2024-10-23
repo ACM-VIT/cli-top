@@ -1,4 +1,3 @@
-// features/new-da-deadline.go
 package features
 
 import (
@@ -16,11 +15,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-// PrintAllDAs fetches all pending Digital Assignments (DAs) for a student,
-// displays them in a table, allows the user to download a selected DA,
-// and generates an ICS file for all pending DAs.
 func PrintAllDAs(regNo string, cookies types.Cookies, course_name string) {
-	// Fetch semester details
 	allSems, err := helpers.GetSemDetails(cookies, regNo)
 	if err != nil {
 		if debug.Debug {
@@ -35,8 +30,6 @@ func PrintAllDAs(regNo string, cookies types.Cookies, course_name string) {
 	}
 
 	semID := allSems[len(allSems)-1].SemID
-
-	// Fetch all subjects for the semester
 	listOfSubjects := getAllSubs(regNo, cookies, semID)
 	if len(listOfSubjects) == 0 {
 		fmt.Println("No subjects found.")
@@ -46,7 +39,6 @@ func PrintAllDAs(regNo string, cookies types.Cookies, course_name string) {
 	var subjectsWithDAs []types.LastestDA
 	var subjDAs []types.SubjectDAs
 
-	// Fetch DA details for each subject
 	for _, detail := range listOfSubjects {
 		doc := getOneSub(regNo, cookies, detail.ID)
 		tempLatestDA, singleSubAllDa := pendingDAs(doc, detail)
@@ -55,10 +47,8 @@ func PrintAllDAs(regNo string, cookies types.Cookies, course_name string) {
 	}
 
 	var onlyLatestDATable [][]string
-	// Updated headers to include "ID"
 	onlyLatestDATable = append(onlyLatestDATable, []string{"Subject", "Title", "Due Date", "Days Left", "ID"})
 
-	// Populate the table with latest DAs
 	for _, subject := range subjectsWithDAs {
 		var tableRecord []string
 		tableRecord = append(tableRecord, subject.Subject.Name)
@@ -67,37 +57,31 @@ func PrintAllDAs(regNo string, cookies types.Cookies, course_name string) {
 			continue
 		}
 
-		// Truncate DA.Title to prevent table breakage
 		title := helpers.TruncateWithEllipses(subject.DA.Title, 40)
 		tableRecord = append(tableRecord, title)
 		tableRecord = append(tableRecord, subject.DA.DueDate.Format("02-Jan-2006"))
 		tableRecord = append(tableRecord, fmt.Sprintf("%d", subject.DA.DaysLeft))
-		tableRecord = append(tableRecord, subject.Subject.ID) // Ensures 5 columns
+		tableRecord = append(tableRecord, subject.Subject.ID)
 
 		onlyLatestDATable = append(onlyLatestDATable, tableRecord)
 	}
 
-	// Check if there are valid entries to select
 	if len(onlyLatestDATable) <= 1 {
 		fmt.Println("No pending DAs found.")
 		return
 	}
 
-	// Use TableSelectorFuzzy to select a subject
 	DAindex := helpers.TableSelectorFuzzy("subject", onlyLatestDATable, course_name)
 	if DAindex < 1 || DAindex >= len(onlyLatestDATable) {
 		fmt.Println("Invalid subject selection.")
 		return
 	}
 
-	// Fetch the selected subject's ID
 	selectedSubjectID := onlyLatestDATable[DAindex][len(onlyLatestDATable[0])-1]
 
 	var singleSubDownload [][]string
-	// Updated headers to include "Download Link"
 	singleSubDownload = append(singleSubDownload, []string{"Title", "Due Date", "Days Left", "QP", "Last Upload", "Download Link"})
 
-	// Populate singleSubDownload with all DAs for the selected subject
 	for _, everyDA := range subjDAs {
 		if everyDA.Subject.ID == selectedSubjectID {
 			for _, singleDA := range everyDA.DAs {
@@ -114,27 +98,21 @@ func PrintAllDAs(regNo string, cookies types.Cookies, course_name string) {
 		}
 	}
 
-	// Check if there are DAs to download
 	if len(singleSubDownload) <= 1 {
 		fmt.Println("No DAs available for download.")
 	} else {
-		// Use TableSelector to select a DA to download
 		downloadChoice := helpers.TableSelector("DA index", singleSubDownload, 0)
 		if downloadChoice < 1 || downloadChoice >= len(singleSubDownload) {
 			fmt.Println("Invalid DA selection.")
 			return
 		}
 
-		// Fetch the selected DA's download link
 		downloadLink := singleSubDownload[downloadChoice][len(singleSubDownload[downloadChoice])-1]
-
-		// Construct the download URL
 		currentTime := time.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT")
 		currentTime = strings.ReplaceAll(currentTime, "UTC", "GMT")
 		cur := strings.ReplaceAll(currentTime, " ", "%20")
 		url := "https://vtop.vit.ac.in/vtop/" + downloadLink + "?authorizedID=" + regNo + "&_csrf=" + cookies.CSRF + "&x=" + cur
 
-		// Fetch the DA PDF
 		body, err := helpers.FetchReq(regNo, cookies, url, "", "", "GET", "")
 		if err != nil {
 			if debug.Debug {
@@ -144,14 +122,10 @@ func PrintAllDAs(regNo string, cookies types.Cookies, course_name string) {
 			return
 		}
 
-		// Define the Downloads directory based on OS
 		downloadsDir := helpers.GetDownloadsDir()
-
-		// Define the file name and path
 		fileName := singleSubDownload[downloadChoice][0] + ".pdf"
 		filePath := filepath.Join(downloadsDir, fileName)
 
-		// Create the file in the Downloads folder
 		file, err := os.Create(filePath)
 		if err != nil {
 			fmt.Println("Error creating file:", err)
@@ -159,41 +133,33 @@ func PrintAllDAs(regNo string, cookies types.Cookies, course_name string) {
 		}
 		defer file.Close()
 
-		// Write the response body to the file
 		_, err = file.Write(body)
 		if err != nil {
 			fmt.Println("Error writing to file:", err)
 			return
 		}
 
-		// Provide a clickable link to open the Downloads folder
 		fmt.Println()
 		fmt.Printf("\033[34m\033[4m\033]8;;file://%s\033\\%s\033]8;;\033\\\033[0m to open the folder.\n", filePath, "Click Here")
 		fmt.Println()
 
-		// **Generate ICS File for All Pending DAs**
-
-		// Collect all pending DAs across all subjects
 		var icsEvents []helpers.ICSEvent
 		for _, everyDA := range subjDAs {
 			for _, singleDA := range everyDA.DAs {
-				// Only include DAs with valid due dates and not already past
 				if singleDA.DueDate.IsZero() || singleDA.DueDate.Before(time.Now()) {
 					continue
 				}
 
-				// Define start and end times for the entire day up to 23:59 PM
-				startTime := singleDA.DueDate.Format("20060102T000000") // Start of the day
-				endTime := singleDA.DueDate.Format("20060102T235900")   // End of the day
+				startTime := singleDA.DueDate.Format("20060102T000000")
+				endTime := singleDA.DueDate.Format("20060102T235900")
 
-				// Create ICSEvent
 				event := helpers.ICSEvent{
 					UID:         helpers.GenerateUID("DA"),
 					DtStamp:     time.Now().UTC().Format("20060102T150405Z"),
 					DtStart:     startTime,
 					DtEnd:       endTime,
-					Summary:     fmt.Sprintf("DA Deadline: %s", singleDA.Title),
-					Description: fmt.Sprintf("Deadline for DA: %s.", singleDA.Title),
+					Summary:     course_name,
+					Description: singleDA.Title,
 				}
 
 				icsEvents = append(icsEvents, event)
@@ -204,7 +170,7 @@ func PrintAllDAs(regNo string, cookies types.Cookies, course_name string) {
 			icsFileName := "DA_Deadlines.ics"
 			icsFilePath := filepath.Join(downloadsDir, icsFileName)
 
-			err := helpers.GenerateICSFile(icsEvents, icsFilePath)
+			err := helpers.GenerateICSFileWithFilename(icsEvents, icsFilePath, "CLI-TOP DAs")
 			if err != nil {
 				fmt.Println("Error generating ICS file:", err)
 			} else {
@@ -222,7 +188,6 @@ func PrintAllDAs(regNo string, cookies types.Cookies, course_name string) {
 			fmt.Println("No valid DA deadlines found to generate ICS.")
 		}
 	}
-
 }
 
 func getAllSubs(regNo string, cookies types.Cookies, semID string) []types.DAsubject {
