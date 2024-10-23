@@ -18,20 +18,20 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"golang.org/x/net/html"
+	//"golang.org/x/net/html"
 )
 
-func GetTextContent(n *html.Node) string {
-	var textContent string
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		if c.Type == html.TextNode {
-			textContent += c.Data
-		} else if c.Type == html.ElementNode {
-			textContent += GetTextContent(c)
-		}
-	}
-	return textContent
-}
+// func GetTextContent(n *html.Node) string {
+// 	var textContent string
+// 	for c := n.FirstChild; c != nil; c = c.NextSibling {
+// 		if c.Type == html.TextNode {
+// 			textContent += c.Data
+// 		} else if c.Type == html.ElementNode {
+// 			textContent += GetTextContent(c)
+// 		}
+// 	}
+// 	return textContent
+// }
 
 func StrToInt(str string) int {
 	num, err := strconv.Atoi(str)
@@ -157,4 +157,10 @@ func GenerateUID(data string) string {
 	h := sha1.New()
 	h.Write([]byte(data))
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+func ReverseSlice[T any](slice []T) {
+    for i, j := 0, len(slice)-1; i < j; i, j = i+1, j-1 {
+        slice[i], slice[j] = slice[j], slice[i]
+    }
 }
