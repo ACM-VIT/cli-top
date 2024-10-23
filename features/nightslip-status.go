@@ -11,17 +11,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-type NightSlipRequest struct {
-	Venue      string
-	EventType  string
-	Details    string
-	AppliedTo  string
-	FromDate   string
-	ToDate     string
-	FromToTime string
-	Status     string
-}
-
 func GetNightSlipStatus(regNo string, cookies types.Cookies) {
 	url1 := "https://vtop.vit.ac.in/vtop/hostels/late/hour/student/request/1"
 	payload1 := fmt.Sprintf("verifyMenu=true&authorizedID=%s&_csrf=%s&nocache=%d",
@@ -65,7 +54,7 @@ func GetNightSlipStatus(regNo string, cookies types.Cookies) {
 		return
 	}
 
-	var nightSlipRequests []NightSlipRequest
+	var nightSlipRequests []types.NightSlipRequest
 
 	doc.Find("table#LateHourStatusTable tbody tr").Each(func(i int, rowSelection *goquery.Selection) {
 		venue := strings.TrimSpace(rowSelection.Find("td").Eq(2).Text())
@@ -82,7 +71,7 @@ func GetNightSlipStatus(regNo string, cookies types.Cookies) {
 		coloredStatus := helpers.ColorStatus(status)
 
 		if venue != "" {
-			nightSlipRequests = append(nightSlipRequests, NightSlipRequest{
+			nightSlipRequests = append(nightSlipRequests, types.NightSlipRequest{
 				Venue:      venue,
 				EventType:  eventType,
 				Details:    details,

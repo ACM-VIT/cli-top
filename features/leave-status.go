@@ -1,4 +1,3 @@
-// features/leave-status.go
 package features
 
 import (
@@ -11,22 +10,9 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/olekukonko/tablewriter"
 )
 
-// LeaveRequest represents a single leave request status
-type LeaveRequest struct {
-	VisitPlace string
-	Reason     string
-	LeaveType  string
-	From       string
-	To         string
-	Status     string
-}
-
-// GetLeaveStatus fetches and displays the leave status for a given registration number
 func GetLeaveStatus(regNo string, cookies types.Cookies) {
-	// First POST request to initialize the session/menu
 	url1 := "https://vtop.vit.ac.in/vtop/hostels/student/leave/1"
 	payload1 := fmt.Sprintf("verifyMenu=true&authorizedID=%s&_csrf=%s&nocache=%d",
 		regNo,
@@ -41,7 +27,6 @@ func GetLeaveStatus(regNo string, cookies types.Cookies) {
 		return
 	}
 
-	// Second POST request to fetch the actual data
 	url2 := "https://vtop.vit.ac.in/vtop/hostels/student/leave/4"
 	payload2 := fmt.Sprintf("_csrf=%s&authorizedID=%s&status=&form=undefined&control=status&x=%s",
 		cookies.CSRF,
@@ -56,7 +41,6 @@ func GetLeaveStatus(regNo string, cookies types.Cookies) {
 		return
 	}
 
-	// Parse the HTML response
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
 	if err != nil {
 		if debug.Debug {
@@ -65,9 +49,8 @@ func GetLeaveStatus(regNo string, cookies types.Cookies) {
 		return
 	}
 
-	var leaveRequests []LeaveRequest
+	var leaveRequests []types.LeaveRequest
 
-	// Traverse the table rows and extract data
 	doc.Find("table#LeaveAppliedTable tbody tr").Each(func(i int, rowSelection *goquery.Selection) {
 		reason := strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(1).Text())
 		visitPlace := strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(0).Text())
@@ -77,7 +60,7 @@ func GetLeaveStatus(regNo string, cookies types.Cookies) {
 		status := strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(5).Text())
 		coloredStatus := helpers.ColorStatus(status)
 		if visitPlace != "" {
-			leaveRequests = append(leaveRequests, LeaveRequest{
+			leaveRequests = append(leaveRequests, types.LeaveRequest{
 				VisitPlace: visitPlace,
 				Reason:     reason,
 				LeaveType:  leaveType,
@@ -94,10 +77,8 @@ func GetLeaveStatus(regNo string, cookies types.Cookies) {
 		return
 	}
 	var allRequests [][]string
-	// Table headers
 	allRequests = append(allRequests, []string{"VISIT PLACE", "REASON", "LEAVE TYPE", "FROM", "TO", "STATUS"})
 
-	// Populate table rows
 	for _, leave := range leaveRequests {
 		allRequests = append(allRequests, []string{
 			leave.VisitPlace,
@@ -108,50 +89,7 @@ func GetLeaveStatus(regNo string, cookies types.Cookies) {
 			leave.Status,
 		})
 	}
+
 	helpers.PrintTable(allRequests, 0)
 	fmt.Println()
-}
-
-// GenerateLeaveStatusTable creates a formatted table for Leave statuses using tablewriter
-func GenerateLeaveStatusTable(leaveRequests []LeaveRequest) {
-	var buf bytes.Buffer
-	table := tablewriter.NewWriter(&buf)
-
-	table.SetHeader([]string{"VISIT PLACE", "REASON", "LEAVE TYPE", "FROM", "TO", "STATUS"})
-
-	// Table formatting options
-	table.SetBorder(false)
-	table.SetHeaderLine(true)
-	table.SetRowLine(false)
-	table.SetAutoWrapText(false)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetColumnSeparator("│")
-
-	const maxVisitPlaceLength = 30 // Define max length for "Visit Place" field
-
-	for _, leave := range leaveRequests {
-		visitPlace := helpers.TruncateWithEllipses(leave.VisitPlace, maxVisitPlaceLength)
-		reason := leave.Reason
-		leaveType := leave.LeaveType
-		from := leave.From
-		to := leave.To
-		status := leave.Status
-
-		table.Append([]string{visitPlace, reason, leaveType, from, to, status})
-	}
-
-	table.Render()
-	output := buf.String()
-
-	// Replace default table characters with box-drawing characters for better aesthetics
-	output = strings.ReplaceAll(output, "+", "┼")
-	output = strings.ReplaceAll(output, "-", "─")
-	output = strings.ReplaceAll(output, "|", "│")
-
-	// Add left padding for better readability
-	output = helpers.AddLeftPadding(output, 2)
-
-	fmt.Println("\n")
-	fmt.Print(output)
-	fmt.Println("\n")
 }
