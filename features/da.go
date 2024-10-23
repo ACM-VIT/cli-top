@@ -44,6 +44,8 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		subjectIDs     []string
 	)
 
+	today := time.Now().Truncate(24 * time.Hour)
+
 	for _, detail := range listOfSubjects {
 		doc := getOneSub(regNo, cookies, detail.ID)
 		if doc == nil {
@@ -57,7 +59,7 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		subjectIDs = append(subjectIDs, detail.ID)
 
 		for _, da := range singleSubAllDa.DAs {
-			if da.DueDate.After(time.Now()) && !da.DueDate.IsZero() {
+			if da.DueDate.After(today) || da.DueDate.Equal(today) {
 				qpNormalized := strings.TrimSpace(strings.ToLower(da.QP))
 				lastUploadNormalized := strings.TrimSpace(strings.ToLower(da.Last_upload))
 
@@ -145,6 +147,7 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		header := []string{"Subjects", "STATUS"}
 		subjectsTable = append([][]string{header}, subjectsTable...)
 
+
 		if icsGenerated {
 			helpers.GenerateCalendarImportLinks(uploadedFileURL, "DAs")
 		}
@@ -169,29 +172,23 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 					var status string
 					var daysLeft string
 
-					if singleDA.QP == "Yes" {
-						if singleDA.Last_upload != "N/A" && singleDA.Last_upload != "File Not Uploaded" {
-							status = "\033[32mCompleted\033[0m" // Green
-							daysLeft = "N/A"
-						} else {
-							if singleDA.DueDate.Before(time.Now()) && !singleDA.DueDate.IsZero() {
-								status = "\033[31mOverdue  \033[0m" // Red
-								daysLeft = "N/A"
-							} else if singleDA.DueDate.After(time.Now()) && !singleDA.DueDate.IsZero() {
-								status = "\033[33mPending\033[0m" // Yellow
-								daysLeft = strconv.Itoa(singleDA.DaysLeft)
-							} else {
-								status = "\033[33mPending\033[0m" // Yellow
-								daysLeft = "0"
-							}
-						}
+					if singleDA.Last_upload != "N/A" && singleDA.Last_upload != "File Not Uploaded" {
+						status = "\033[32mCompleted\033[0m" // Green
+						daysLeft = "N/A"
 					} else {
-						if singleDA.Last_upload != "N/A" && singleDA.Last_upload != "File Not Uploaded" {
-							status = "\033[32mCompleted\033[0m" // Green
-							daysLeft = "N/A"
-						} else {
+						if singleDA.DueDate.Before(today) {
 							status = "\033[31mOverdue\033[0m" // Red
 							daysLeft = "N/A"
+						} else {
+							daysLeft = strconv.Itoa(singleDA.DaysLeft)
+							// Color coding based on days left
+							if singleDA.DaysLeft < 3 {
+								status = "\033[31mPending  \033[0m" // Red
+							} else if singleDA.DaysLeft < 7 {
+								status = "\033[33mPending  \033[0m" // Yellow
+							} else {
+								status = "\033[34mPending  \033[0m" // Blue
+							}
 						}
 					}
 
@@ -207,13 +204,6 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 						formattedLastUpload = helpers.FormatDateTime(singleDA.Last_upload)
 					} else {
 						formattedLastUpload = singleDA.Last_upload
-					}
-
-					if singleDA.DaysLeft < 0 {
-						daysLeft = "N/A"
-						if singleDA.QP == "Yes" && singleDA.Last_upload == "N/A" {
-							status = "\033[31mOverdue\033[0m" // Red
-						}
 					}
 
 					singleDownloadDA := []string{
@@ -456,11 +446,13 @@ func pendingDAs(doc *goquery.Document, subject types.DAsubject) (types.LatestDA,
 				}
 
 				if !tempDA.DueDate.IsZero() {
-					today := time.Now().UTC()
-					today = time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, time.UTC)
-					dueDateMidnight := time.Date(tempDA.DueDate.Year(), tempDA.DueDate.Month(), tempDA.DueDate.Day(), 0, 0, 0, 0, time.UTC)
+					today := time.Now().UTC().Truncate(24 * time.Hour)
+					dueDateMidnight := tempDA.DueDate.Truncate(24 * time.Hour)
 					diff := dueDateMidnight.Sub(today)
-					tempDA.DaysLeft = int(diff.Hours() / 24)
+					tempDA.DaysLeft = int(diff.Hours() / 24) - 1 
+					if tempDA.DaysLeft < 0 {
+						tempDA.DaysLeft = 0 
+					}
 				} else {
 					tempDA.DaysLeft = 0
 				}
