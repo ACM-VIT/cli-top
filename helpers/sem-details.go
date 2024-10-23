@@ -63,7 +63,6 @@ func GetSemDetails(cookies types.Cookies, regNo string) ([]types.Semester, error
     return allSems, nil
 }
 
-// SelectSemester selects a semester based on user choice
 func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) (types.Semester, error) {
     semDetails, err := GetSemDetails(cookies, regNo)
     var selectedSem types.Semester
@@ -73,6 +72,9 @@ func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) (types.
     if len(semDetails) == 0 {
         return selectedSem, fmt.Errorf("error fetching semester details or no semesters available. Try logging out and logging back in")
     }
+
+    clearInputBuffer()
+
     var nested_sem_list [][]string
     nested_sem_list = append(nested_sem_list, []string{"SemId", "SemName"})
     for i := 0; i < len(semDetails); i++ {
@@ -89,4 +91,12 @@ func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) (types.
     selectedSem = semDetails[choice-1]
 
     return selectedSem, nil
+}
+
+func clearInputBuffer() {
+	reader := bufio.NewReader(os.Stdin)
+	_, err := reader.ReadString('\n')
+	if err != nil && debug.Debug {
+		fmt.Println("Error clearing input buffer:", err)
+	}
 }
