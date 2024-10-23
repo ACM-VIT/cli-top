@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 	"bytes"
@@ -25,64 +24,7 @@ type ICSEvent struct {
 	Description string
 }
 
-func GenerateICSFile(events []ICSEvent, filePath string) error {
-	if len(events) == 0 {
-		return nil
-	}
-
-	file, err := os.Create(filePath)
-	if err != nil {
-		return fmt.Errorf("failed to create ICS file: %v", err)
-	}
-	defer file.Close()
-
-	icsHeaders := []string{
-		"BEGIN:VCALENDAR",
-		"VERSION:2.0",
-		"PRODID:-//CLI-TOP//EN",
-		"X-WR-CALNAME:CLI-TOP Events",
-		"BEGIN:VTIMEZONE",
-		"TZID:Asia/Kolkata",
-		"BEGIN:STANDARD",
-		"DTSTART:19700101T000000",
-		"TZOFFSETFROM:+0530",
-		"TZOFFSETTO:+0530",
-		"TZNAME:IST",
-		"END:STANDARD",
-		"END:VTIMEZONE",
-	}
-	_, err = file.WriteString(strings.Join(icsHeaders, "\r\n") + "\r\n")
-	if err != nil {
-		return fmt.Errorf("failed to write ICS headers: %v", err)
-	}
-
-	for _, event := range events {
-		vevent := []string{
-			"BEGIN:VEVENT",
-			fmt.Sprintf("UID:%s", event.UID),
-			fmt.Sprintf("DTSTAMP:%s", event.DtStamp),
-			fmt.Sprintf("DTSTART;TZID=Asia/Kolkata:%s", event.DtStart),
-			fmt.Sprintf("DTEND;TZID=Asia/Kolkata:%s", event.DtEnd),
-			fmt.Sprintf("SUMMARY:%s", EscapeString(event.Summary)),
-			fmt.Sprintf("DESCRIPTION:%s", EscapeString(event.Description)),
-			"END:VEVENT",
-		}
-
-		_, err = file.WriteString(strings.Join(vevent, "\r\n") + "\r\n")
-		if err != nil {
-			return fmt.Errorf("failed to write VEVENT: %v", err)
-		}
-	}
-
-	_, err = file.WriteString("END:VCALENDAR\r\n")
-	if err != nil {
-		return fmt.Errorf("failed to write ICS footer: %v", err)
-	}
-
-	return nil
-}
-
-func GenerateICSFileWithFilename(events []ICSEvent, filePath string, calName string) error {
+func GenerateICSFileDateOnly(events []ICSEvent, filePath string, calName string) error {
 	if len(events) == 0 {
 		return nil
 	}
@@ -98,15 +40,6 @@ func GenerateICSFileWithFilename(events []ICSEvent, filePath string, calName str
 		"VERSION:2.0",
 		"PRODID:-//CLI-TOP//EN",
 		fmt.Sprintf("X-WR-CALNAME:%s", EscapeString(calName)),
-		"BEGIN:VTIMEZONE",
-		"TZID:Asia/Kolkata",
-		"BEGIN:STANDARD",
-		"DTSTART:19700101T000000",
-		"TZOFFSETFROM:+0530",
-		"TZOFFSETTO:+0530",
-		"TZNAME:IST",
-		"END:STANDARD",
-		"END:VTIMEZONE",
 	}
 	_, err = file.WriteString(strings.Join(icsHeaders, "\r\n") + "\r\n")
 	if err != nil {
@@ -118,8 +51,8 @@ func GenerateICSFileWithFilename(events []ICSEvent, filePath string, calName str
 			"BEGIN:VEVENT",
 			fmt.Sprintf("UID:%s", event.UID),
 			fmt.Sprintf("DTSTAMP:%s", event.DtStamp),
-			fmt.Sprintf("DTSTART;TZID=Asia/Kolkata:%s", event.DtStart),
-			fmt.Sprintf("DTEND;TZID=Asia/Kolkata:%s", event.DtEnd),
+			fmt.Sprintf("DTSTART;VALUE=DATE:%s", event.DtStart),
+			fmt.Sprintf("DTEND;VALUE=DATE:%s", event.DtEnd),
 			fmt.Sprintf("SUMMARY:%s", EscapeString(event.Summary)),
 			fmt.Sprintf("DESCRIPTION:%s", EscapeString(event.Description)),
 			"END:VEVENT",
@@ -140,7 +73,7 @@ func GenerateICSFileWithFilename(events []ICSEvent, filePath string, calName str
 }
 
 func GenerateUID(prefix string) string {
-	bytes := make([]byte, 16) 
+	bytes := make([]byte, 16)
 	_, err := rand.Read(bytes)
 	if err != nil {
 		return fmt.Sprintf("%s-%d", prefix, time.Now().UnixNano())
@@ -153,7 +86,7 @@ func GetDownloadsDir() string {
 	if err != nil {
 		return "."
 	}
-	switch runtime.GOOS {
+	switch strings.ToLower(os.Getenv("GOOS")) {
 	case "windows":
 		return filepath.Join(homeDir, "Downloads")
 	default:
