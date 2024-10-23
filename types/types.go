@@ -94,20 +94,6 @@ type ExamEvent struct {
 	DaysLeft      int
 }
 
-type DAEvent struct {
-	SubjectName string
-	Title       string
-	DueDate     time.Time
-	DaysLeft    int
-}
-
-type SubjectDAs struct {
-	SubjectName string
-	DAs         []DAEvent
-}
-
-
-
 type DAsubject struct {
 	Name string
 	Code string
@@ -115,6 +101,7 @@ type DAsubject struct {
 }
 
 type DAEvent struct {
+	SubjectName string
     Title       string
     DueDate     time.Time
     DaysLeft    int
@@ -124,6 +111,7 @@ type DAEvent struct {
 }
 
 type SubjectDAs struct {
+	SubjectName string
     Subject     DAsubject
     DAs         []DAEvent
 }
