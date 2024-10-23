@@ -99,9 +99,8 @@ After installation, you can access various features of **cli-top** by running sp
 
 - Use **Git** for version control and code management
 - Take up issues and request assignment before starting work
-- Work on branches: Create a new branch for your task and push your changes there
 - Push to the "dev" branch for testing and compatibility checks
-- Main branch pushes require approval from designated maintainers
+- Main and dev branch pushes require approval from designated maintainers
 
 
 ## 👨‍💻 Authors
