@@ -101,17 +101,15 @@ type DAsubject struct {
 }
 
 type DAEvent struct {
-	SubjectName string
     Title       string
     DueDate     time.Time
     DaysLeft    int
-	QP string
+	QP 		string
 	Last_upload string
 	DownloadLink string
 }
 
 type SubjectDAs struct {
-	SubjectName string
     Subject     DAsubject
     DAs         []DAEvent
 }
@@ -125,4 +123,9 @@ type NightSlipRequest struct {
 	ToDate     string
 	FromToTime string
 	Status     string
+}
+
+type LastestDA struct {
+	Subject DAsubject
+	DA     DAEvent
 }
