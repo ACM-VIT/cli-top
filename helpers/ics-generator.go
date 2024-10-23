@@ -1,4 +1,3 @@
-// helpers/ics-generator.go
 package helpers
 
 import (

@@ -125,16 +125,16 @@ type NightSlipRequest struct {
 	Status     string
 }
 
-type LastestDA struct {
+type LatestDA struct {
 	Subject DAsubject
 	DA     DAEvent
 }
 
 type ICSEvent struct {
-	UID         string
-	DtStamp     string
-	DtStart     string
-	DtEnd       string
-	Summary     string
-	Description string
+	UID          string `json:"UID"`
+	DtStamp      string `json:"DTSTAMP"`
+	DtStart      string `json:"DTSTART"`
+	DtEnd        string `json:"DTEND"`
+	Summary      string `json:"SUMMARY"`
+	Description  string `json:"DESCRIPTION"`    
 }

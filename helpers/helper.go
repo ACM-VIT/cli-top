@@ -4,7 +4,6 @@ import (
 	"cli-top/debug"
 	"fmt"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -52,7 +51,7 @@ type UploadResponse struct {
 }
 
 func GenerateCalendarImportLinks(icsURL string, calendarName string) {
-	fmt.Println("Import events into your calendar using the links below:")
+	fmt.Println("Import into your calendar using the links below:")
 	fmt.Println()
 	blueColor := "\033[34m"
 	resetColor := "\033[0m"
@@ -89,11 +88,6 @@ func TruncateWithEllipsis(s string, maxLength int) string {
 		return string(runes[:maxLength])
 	}
 	return string(runes[:maxLength-3]) + "..."
-}
-
-func StripAnsiCodes(s string) string {
-	re := regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
-	return re.ReplaceAllString(s, "")
 }
 
 func ReverseSlice[T any](slice []T) {
@@ -153,4 +147,30 @@ func EscapeString(str string) string {
 	str = strings.ReplaceAll(str, ",", "\\,")
 	str = strings.ReplaceAll(str, "\n", "\\n")
 	return str
+}
+
+func FormatDateTime(dateStr string) string {
+	formats := []string{
+		"02-Jan-2006 03:04 PM", 
+		"02-Jan-2006 15:04",   
+		"02-Jan-2006",          
+		"02/01/2006",          
+		"02/01/06",             
+	}
+
+	var parsedTime time.Time
+	var err error
+
+	for _, format := range formats {
+		parsedTime, err = time.Parse(format, dateStr)
+		if err == nil {
+			break
+		}
+	}
+
+	if err != nil {
+		return dateStr
+	}
+
+	return parsedTime.Format("02/01/06 15:04")
 }
