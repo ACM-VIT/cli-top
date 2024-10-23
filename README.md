@@ -17,17 +17,24 @@ A Command Line Interface (CLI) tool for seamless interaction with the student po
 
 ## Overview
 
-| **Must Have**             | **Good to Have**      | **Can Have**          |
-|-----------------------|--------------------|-------------------|
-| Login (automatic)     | Digital Assignment | Grade View        |
-| Student Info          | Course Page        | Academic Calendar |
-| Spotlight             | Hostel Info        |                   |
-| Time Table            | Receipts           |                   |
-| CGPA View             |                    |                   |
-| Mark view             |                    |                   |
-| Exam Schedule         |                    |                   |
-| Attendance Calculator |                    |                   |
-| Leave Application     |                    |                   |  |
+**Features**
+
+Login
+Mark view
+Digital Assignment
+Course Page
+Academic Calendar
+Exam Schedule
+Attendance Calculator 
+Time Table
+Leave Application
+Receipts
+Grade View
+Student Info
+Hostel Info
+Spotlight   
+CGPA View  
+
 
 **Tech Stack:** GoLang
 -   Charm.sh - Glamour library to format output as Markdown and render it better
@@ -51,8 +58,14 @@ A Command Line Interface (CLI) tool for seamless interaction with the student po
 - [Manav Muthanna](https://github.com/ManavMuthanna)
 - [Sarthak Gupta](https://github.com/gptsarthak)
 
-## Contributors
 
+## Maintainers
+- [Garv Jain](https://github.com/garvjainpb)
+- [Tanmay Paturu](https://github.com/Tintedfireglass)
+- [Shambhavi Paygude](https://github.com/shambhavipaygude)
+
+ 
+## Contributors
 - [Shambhavi Paygude](https://github.com/shambhavipaygude)
 - [Garv Jain](https://github.com/garvjainpb)
 - [Prateek Srivastava](https://github.com/prateek-srivastava001)
@@ -60,6 +73,23 @@ A Command Line Interface (CLI) tool for seamless interaction with the student po
 - [Tanmay Paturu](https://github.com/Tintedfireglass)
 - [Amritsai](https://github.com/gekyxme)
 - [Pritam Satpathy](https://github.com/ps2181)
+- [Prateek Srivastava](https://github.com/prateek-srivastava001)
+- [Kaustav Patro](https://github.com/icky-kp)
+- [Amritsai](https://github.com/gekyxme)
+- [Pritam Satpathy](https://github.com/ps2181)
+- [Harshitaa Kashyap](https://github.com/harshitaak07)
+- [Kaustubh Kanodia](https://github.com/Quasar-025)
+- [Yashika Panda](https://github.com/yashikaa2005)
+- [Ishaan S](https://github.com/theg1239)
+- [Yash  Sinha](https://github.com/yashsinha1224)
+- [Shruthilaya K](https://github.com/shruthilayak11)
+- [Harshit Vootukuri](https://github.com/hvoot36)
+- [Adheesh Garg](https://github.com/qwerty-dvorak)
+- [Vansh Bhatiya](https://github.com/bhatiyavansh)
+- [Aditya Singh](https://github.com/adii2ma)
+- [Srijan Srivastsava](https://github.com/Srijan1202)
+- [Shruthilaya](https://github.com/shruthilayak11)
+- [Shreyas Mishra](https://github.com/ShreyasM09)
 
 
 
