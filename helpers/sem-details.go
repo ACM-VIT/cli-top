@@ -5,6 +5,8 @@ import (
     "cli-top/types"
     "fmt"
     "strings"
+	"bufio"
+	"os"
 
 
     "github.com/PuerkitoBio/goquery"
