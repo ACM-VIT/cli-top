@@ -1,8 +1,6 @@
-// features/nightslip-status.go
 package features
 
 import (
-	"bytes"
 	"cli-top/debug"
 	"cli-top/helpers"
 	"cli-top/types"
@@ -11,7 +9,6 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/olekukonko/tablewriter"
 )
 
 type NightSlipRequest struct {
@@ -55,12 +52,12 @@ func GetNightSlipStatus(regNo string, cookies types.Cookies) {
 	}
 
 	if debug.Debug {
-        fmt.Println("---- Response Body Start ----")
-        fmt.Println(string(bodyText))
-        fmt.Println("---- Response Body End ----")
-    }
+		fmt.Println("---- Response Body Start ----")
+		fmt.Println(string(bodyText))
+		fmt.Println("---- Response Body End ----")
+	}
 
-	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
 	if err != nil {
 		if debug.Debug {
 			fmt.Println("Error parsing HTML:", err)
@@ -79,9 +76,11 @@ func GetNightSlipStatus(regNo string, cookies types.Cookies) {
 		toDate := helpers.FormatDate(strings.TrimSpace(rowSelection.Find("td").Eq(7).Text()))
 		fromToTime := strings.TrimSpace(rowSelection.Find("td").Eq(8).Text())
 		status := strings.TrimSpace(rowSelection.Find("td").Eq(9).Text())
+
+		status = strings.Replace(status, "REQUEST RAISED-", "", -1)
+
 		coloredStatus := helpers.ColorStatus(status)
 
-		// Only append if Venue is not empty (assuming Venue is mandatory)
 		if venue != "" {
 			nightSlipRequests = append(nightSlipRequests, NightSlipRequest{
 				Venue:      venue,
@@ -121,48 +120,4 @@ func GetNightSlipStatus(regNo string, cookies types.Cookies) {
 
 	helpers.PrintTable(allRequests, 0)
 	fmt.Println()
-}
-
-func GenerateNightSlipStatusTable(nightSlipRequests []NightSlipRequest) {
-	var buf bytes.Buffer
-	table := tablewriter.NewWriter(&buf)
-
-	table.SetHeader([]string{"VENUE", "EVENT TYPE", "DETAILS", "APPLIED TO", "FROM DATE", "TO DATE", "FROM/TO TIME", "STATUS"})
-
-	table.SetBorder(false)
-	table.SetHeaderLine(true)
-	table.SetRowLine(false)
-	table.SetAutoWrapText(false)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetColumnSeparator("│")
-
-	const maxVenueLength = 30     
-	const maxEventTypeLength = 20 
-	const maxDetailsLength = 50   
-
-	for _, slip := range nightSlipRequests {
-		venue := helpers.TruncateWithEllipses(slip.Venue, maxVenueLength)
-		eventType := helpers.TruncateWithEllipses(slip.EventType, maxEventTypeLength)
-		details := helpers.TruncateWithEllipses(slip.Details, maxDetailsLength)
-		appliedTo := slip.AppliedTo
-		fromDate := slip.FromDate
-		toDate := slip.ToDate
-		fromToTime := slip.FromToTime
-		status := slip.Status
-
-		table.Append([]string{venue, eventType, details, appliedTo, fromDate, toDate, fromToTime, status})
-	}
-
-	table.Render()
-	output := buf.String()
-
-	output = strings.ReplaceAll(output, "+", "┼")
-	output = strings.ReplaceAll(output, "-", "─")
-	output = strings.ReplaceAll(output, "|", "│")
-
-	output = helpers.AddLeftPadding(output, 2)
-
-	fmt.Println("\n")
-	fmt.Print(output)
-	fmt.Println("\n")
 }
