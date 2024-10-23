@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"os"
 
 	"github.com/PuerkitoBio/goquery"
 	//"golang.org/x/net/html"
@@ -173,4 +174,29 @@ func FormatDateTime(dateStr string) string {
 	}
 
 	return parsedTime.Format("02/01/06 15:04")
+}
+
+func SanitizeFilename(name string) string {
+    replacer := strings.NewReplacer(
+        "/", "_",
+        "\\", "_",
+        ":", "",
+        "*", "_",
+        "?", "",
+        "\"", "_",
+        "<", "_",
+        ">", "_",
+        "|", "_",
+        "\u2013", "-",
+        "\u2014", "-",
+        "\u2018", "'",
+        "\u2019", "'",
+        "\u201C", "\"",
+        "\u201D", "\"",
+    )
+    return replacer.Replace(name)
+}
+
+func SaveFile(data []byte, filePath string) error {
+    return os.WriteFile(filePath, data, 0644)
 }
