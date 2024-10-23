@@ -14,17 +14,9 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-type DAEvent struct {
-	SubjectName string
-	Title       string
-	DueDate     time.Time
-	DaysLeft    int
-}
 
-type SubjectDAs struct {
-	SubjectName string
-	DAs         []DAEvent
-}
+
+
 
 func PrintDAdates(regNo string, cookies types.Cookies) {
 	listOfSubjects := getAllSubs(regNo, cookies)
@@ -32,8 +24,8 @@ func PrintDAdates(regNo string, cookies types.Cookies) {
 		fmt.Println("No subjects found.")
 		return
 	}
-	var subjectsWithDAs []SubjectDAs
-	var allDAs []DAEvent
+	var subjectsWithDAs []types.SubjectDAs
+	var allDAs []types.DAEvent
 	for _, detail := range listOfSubjects {
 		code := detail[2]
 		subjectName := detail[0]
@@ -42,7 +34,7 @@ func PrintDAdates(regNo string, cookies types.Cookies) {
 		if len(pendingAssignments) > 0 {
 			sortDAsByDueDateAsc(pendingAssignments)
 			allDAs = append(allDAs, pendingAssignments...)
-			subjectDAs := SubjectDAs{
+			subjectDAs := types.SubjectDAs{
 				SubjectName: subjectName,
 				DAs:         pendingAssignments,
 			}
@@ -133,13 +125,13 @@ func PrintDAdates(regNo string, cookies types.Cookies) {
 	return
 }
 
-func sortDAsByDueDateAsc(das []DAEvent) {
+func sortDAsByDueDateAsc(das []types.DAEvent) {
 	sort.Slice(das, func(i, j int) bool {
 		return das[i].DueDate.Before(das[j].DueDate)
 	})
 }
 
-func GenerateDAICSFile(events []DAEvent, filePath string) error {
+func GenerateDAICSFile(events []types.DAEvent, filePath string) error {
 	file, err := os.Create(filePath)
 	if err != nil {
 		return err
@@ -210,8 +202,8 @@ func GenerateDAICSFile(events []DAEvent, filePath string) error {
 	return nil
 }
 
-func pendingDAs(doc *goquery.Document, subjectName string) []DAEvent {
-	var events []DAEvent
+func pendingDAs(doc *goquery.Document, subjectName string) []types.DAEvent {
+	var events []types.DAEvent
 	currentDate := time.Now()
 	doc.Find("tr.fixedContent.tableContent").Each(func(i int, s *goquery.Selection) {
 		td := s.Find("td")
@@ -229,7 +221,7 @@ func pendingDAs(doc *goquery.Document, subjectName string) []DAEvent {
 				return
 			}
 			daysLeft := int(date.Sub(currentDate).Hours()/24) + 1
-			daEvent := DAEvent{
+			daEvent := types.DAEvent{
 				SubjectName: subjectName,
 				Title:       title,
 				DueDate:     date,

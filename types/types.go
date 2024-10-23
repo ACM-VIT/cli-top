@@ -81,6 +81,19 @@ type Semester struct {
 	SemID   string
 }
 
+type ExamEvent struct {
+	CourseCode    string
+	CourseTitle   string
+	Slot          string
+	ExamDate      time.Time
+	ReportingTime string
+	ExamTime      string
+	Venue         string
+	Seat          string
+	SeatNo        string
+	DaysLeft      int
+}
+
 type DAsubject struct {
 	Name string
 	Code string
@@ -88,6 +101,7 @@ type DAsubject struct {
 }
 
 type DAEvent struct {
+	SubjectName string
     Title       string
     DueDate     time.Time
     DaysLeft    int
@@ -97,6 +111,7 @@ type DAEvent struct {
 }
 
 type SubjectDAs struct {
+	SubjectName string
     Subject     DAsubject
     DAs         []DAEvent
 }
