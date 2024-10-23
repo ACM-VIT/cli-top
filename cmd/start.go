@@ -199,8 +199,8 @@ func Execute() {
 	coursePageCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
     coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
     coursePageCmd.PersistentFlags().IntVarP(&facultyFlag, "faculty", "f", 0, "Specify the faculty")
-	//daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
-	daDueDatesCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")	
+	daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
+	// daDueDatesCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")	
 
 
 	// Add the flags to the root command
@@ -209,7 +209,7 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
 
 	// Add the commands to the root command
-	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, daDueDatesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd)
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd)
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
@@ -317,15 +317,6 @@ var libraryDuesCmd = &cobra.Command{
 	},
 }
 
-var daDueDatesCmd = &cobra.Command{
-	Use:   "da",
-	Short: "Show Digital Assignment Due Dates",
-	Run: func(cmd *cobra.Command, args []string) {
-		cookies, regNo := readCookiesFromFile()
-		features.PrintDAdates(regNo, cookies)
-	},
-}
-
 var calendarCmd = &cobra.Command{
 	Use:   "cal",
 	Short: "Show Calendar",
@@ -375,11 +366,12 @@ var classMessagesCmd = &cobra.Command{
 }
 
 var daDetailsCmd = &cobra.Command{
-	Use:   "da-details",
+	Use:   "da",
 	Short: "Show Digital Assignment Details",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.PrintAllDAs(regNo, cookies, courseNameFlag)
 	},
 }
+
 

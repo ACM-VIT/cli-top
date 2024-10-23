@@ -1,18 +1,9 @@
 package helpers
 
 import (
-	"bytes"
 	"cli-top/debug"
-	"crypto/sha1"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"io"
-	"mime/multipart"
-	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -56,23 +47,21 @@ func RemoveEmptyStrings(data []string) []string {
 	return cleanedData
 }
 
+type UploadResponse struct {
+	URL string `json:"url"`
+}
+
 func GenerateCalendarImportLinks(icsURL string, calendarName string) {
 	fmt.Println("Import events into your calendar using the links below:")
 	fmt.Println()
 	blueColor := "\033[34m"
 	resetColor := "\033[0m"
-	googleLink := GenerateGoogleCalendarImportLink(icsURL)
+	googleLink := GenerateGoogleCalendarLink(icsURL)
 	googleLinkText := blueColor + "Add to Google Calendar" + resetColor
 	fmt.Println(MakeANSILink(googleLinkText, googleLink))
 	outlookLink := GenerateOutlookCalendarImportLink(icsURL, calendarName)
 	outlookLinkText := blueColor + "Add to Outlook Calendar" + resetColor
 	fmt.Println(MakeANSILink(outlookLinkText, outlookLink))
-}
-
-func GenerateGoogleCalendarImportLink(icsURL string) string {
-	baseURL := "https://calendar.google.com/calendar/r?cid="
-	encodedURL := url.QueryEscape(icsURL)
-	return fmt.Sprintf("%s%s", baseURL, encodedURL)
 }
 
 func GenerateOutlookCalendarImportLink(icsURL string, calendarName string) string {
@@ -86,56 +75,9 @@ func MakeANSILink(text, url string) string {
 	return fmt.Sprintf("\u001B]8;;%s\a%s\u001B]8;;\a", url, text)
 }
 
-func UploadICSFile(filename, serverURL string) (string, error) {
-	file, err := os.Open(filename)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-	var requestBody bytes.Buffer
-	writer := multipart.NewWriter(&requestBody)
-	part, err := writer.CreateFormFile("file", filepath.Base(filename))
-	if err != nil {
-		return "", err
-	}
-	_, err = io.Copy(part, file)
-	if err != nil {
-		return "", err
-	}
-	err = writer.Close()
-	if err != nil {
-		return "", err
-	}
-	req, err := http.NewRequest("POST", serverURL+"/upload", &requestBody)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("server returned non-OK status: %s", resp.Status)
-	}
-	var respData struct {
-		URL string `json:"url"`
-	}
-	err = json.NewDecoder(resp.Body).Decode(&respData)
-	if err != nil {
-		return "", err
-	}
-	return respData.URL, nil
-}
-
-func EscapeString(s string) string {
-	s = strings.ReplaceAll(s, "\\", "\\\\")
-	s = strings.ReplaceAll(s, ";", "\\;")
-	s = strings.ReplaceAll(s, ",", "\\,")
-	s = strings.ReplaceAll(s, "\n", "\\n")
-	return s
+func GenerateGoogleCalendarLink(icsURL string) string {
+	baseURL := "https://calendar.google.com/calendar/r?cid="
+	return fmt.Sprintf("%s%s", baseURL, icsURL)
 }
 
 func TruncateWithEllipsis(s string, maxLength int) string {
@@ -154,22 +96,16 @@ func StripAnsiCodes(s string) string {
 	return re.ReplaceAllString(s, "")
 }
 
-func GenerateUID(data string) string {
-	h := sha1.New()
-	h.Write([]byte(data))
-	return hex.EncodeToString(h.Sum(nil))
-}
-
 func ReverseSlice[T any](slice []T) {
-    for i, j := 0, len(slice)-1; i < j; i, j = i+1, j-1 {
-        slice[i], slice[j] = slice[j], slice[i]
-    }
+	for i, j := 0, len(slice)-1; i < j; i, j = i+1, j-1 {
+		slice[i], slice[j] = slice[j], slice[i]
+	}
 }
 
 const (
-	Red   = "\033[31m"
-	Green = "\033[32m"
-	Reset = "\033[0m"
+	Red    = "\033[31m"
+	Green  = "\033[32m"
+	Reset  = "\033[0m"
 	Yellow = "\033[33m"
 	Blue   = "\033[34m"
 )
@@ -209,4 +145,12 @@ func AddLeftPadding(text string, padding int) string {
 		lines[i] = paddingString + line
 	}
 	return strings.Join(lines, "\n")
+}
+
+func EscapeString(str string) string {
+	str = strings.ReplaceAll(str, "\\", "\\\\")
+	str = strings.ReplaceAll(str, ";", "\\;")
+	str = strings.ReplaceAll(str, ",", "\\,")
+	str = strings.ReplaceAll(str, "\n", "\\n")
+	return str
 }

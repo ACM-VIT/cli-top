@@ -39,7 +39,7 @@ func GetSemDetails(cookies types.Cookies, regNo string) ([]types.Semester, error
     bodyText, err := FetchReq(regNo, cookies, url, "", "", "POST", "")
     if err != nil {
         if debug.Debug {
-            fmt.Println("Error fetching semester details:", err)
+            fmt.Println("Error fetching semester details", err)
         }
         return allSems, err
     }

@@ -82,16 +82,15 @@ type Semester struct {
 }
 
 type ExamEvent struct {
-	CourseCode    string
-	CourseTitle   string
-	Slot          string
-	ExamDate      time.Time
-	ReportingTime string
-	ExamTime      string
-	Venue         string
-	Seat          string
-	SeatNo        string
-	DaysLeft      int
+	CourseCode  string
+	CourseTitle string
+	Slot        string
+	ExamDate    time.Time
+	ExamTime    string
+	Venue       string
+	Seat        string
+	SeatNo      string
+	DaysLeft    int
 }
 
 type DAsubject struct {
@@ -101,17 +100,16 @@ type DAsubject struct {
 }
 
 type DAEvent struct {
-	SubjectName string
-    Title       string
-    DueDate     time.Time
-    DaysLeft    int
-	QP string
-	Last_upload string
+	Title        string
+	Description  string
+	DueDate      time.Time
+	DaysLeft     int
+	QP           string
+	Last_upload  string
 	DownloadLink string
 }
 
 type SubjectDAs struct {
-	SubjectName string
     Subject     DAsubject
     DAs         []DAEvent
 }
@@ -125,4 +123,18 @@ type NightSlipRequest struct {
 	ToDate     string
 	FromToTime string
 	Status     string
+}
+
+type LastestDA struct {
+	Subject DAsubject
+	DA     DAEvent
+}
+
+type ICSEvent struct {
+	UID         string
+	DtStamp     string
+	DtStart     string
+	DtEnd       string
+	Summary     string
+	Description string
 }
