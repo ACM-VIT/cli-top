@@ -74,44 +74,8 @@ func GetMarks(regNo string, cookies types.Cookies, semID string, sem_choice int)
 		maxMarkSumStr := "\033[32m" + strconv.Itoa(maxMarkSum) + "\033[0m"
 		fmt.Println(weightageMarkStr+"/"+maxMarkSumStr)
 		fmt.Println()
-		// renderer, e := glamour.NewTermRenderer(glamour.WithStylePath("dark"), glamour.WithWordWrap(150))
-		// if e != nil {
-		// 	fmt.Println("Error rendering markdown:", err)
-		// 	return
-		// }
-		// markdown, err := renderer.Render(markdownTable)
-		// if err != nil && debug.Debug {
-		// 	fmt.Println("Error rendering Table:", err)
-		// 	return
-		// }
-
-		// subjectDetail, e1 := renderer.Render(subjectDetails[i])
-		// if e1 != nil {
-		// 	fmt.Println("Error rendering SubjectDetails:", err)
-		// 	return
-		// }
-
-		// fmt.Println(subjectDetail)
-		// fmt.Println(markdown)
-		// formattedWeightageSum := fmt.Sprintf("%.1f", weightageSum)
-		// // calculate  percentage
-		// percentage := float64(weightageSum) / float64(weightagePercentageSum) * 100
-		//fmt.Println(cal50(formattedWeightageSum, percentage))
 	}
 }
-
-// Formats the color of the result
-// func cal50(formattedWeightageSum string, percentage float64) string {
-// 	result := ""
-// 	green := fmt.Sprintf("You scored: "+"\033[32m"+"%s/%d"+"\033[0m"+"\t", formattedWeightageSum, weightagePercentageSum)
-// 	red := fmt.Sprintf("You scored: "+"\033[31m"+"%s/%d"+"\033[0m"+"\t", formattedWeightageSum, weightagePercentageSum)
-// 	if percentage >= 50 {
-// 		result = green
-// 	} else {
-// 		result = red
-// 	}
-// 	return result
-// }
 
 func subjectDetails(doc *goquery.Document) []string {
 	var details []string
@@ -229,7 +193,7 @@ func ExtractMarks (element *goquery.Selection) ([][]string,float64,int) {
 		scoredMark := strings.TrimSpace(rowSelection.Find("td").Eq(5).Text())
 		weightageMark := strings.TrimSpace(rowSelection.Find("td").Eq(6).Text())
 		SingleSubTable = append(SingleSubTable, []string{title, maxMark, weightage, status, scoredMark, weightageMark})
-		maxMarkInt, err := strconv.Atoi(maxMark)
+		maxMarkInt, err := strconv.Atoi(weightage)
         if err == nil {
             maxSubjectMarksSum = maxSubjectMarksSum + maxMarkInt
         } 
