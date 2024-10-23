@@ -1,67 +1,137 @@
-![ACM-HEADER](https://user-images.githubusercontent.com/14032427/92643737-e6252e00-f2ff-11ea-8a51-1f1b69caba9f.png)
+![ACM Header](https://user-images.githubusercontent.com/14032427/92643737-e6252e00-f2ff-11ea-8a51-1f1b69caba9f.png)
 
-<h1 align="center"> cli-top </h1>
+<h1 align="center">cli-top</h1>
 
-<p align="center"> 
-A Command Line Interface (CLI) tool for seamless interaction with the student portal, VTOP.
+<p align="center">
+  <strong>A Command Line Interface (CLI) tool for seamless interaction with the student portal, VTOP.</strong>
 </p>
 
-<p>
+<p align="center">
   <a href="https://acmvit.in/" target="_blank">
-    <img alt="made-by-acm" src="https://img.shields.io/badge/MADE%20BY-ACM%20VIT-blue?style=for-the-badge" />
+    <img alt="Made by ACM" src="https://img.shields.io/badge/MADE%20BY-ACM%20VIT-blue?style=for-the-badge"/>
   </a>
-    <!-- Uncomment the below line to add the license badge. Make sure the right license badge is reflected. -->
-    <!-- <img alt="license" src="https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge" /> -->
-    <!-- forks/stars/tech stack in the form of badges from https://shields.io/ -->
+  <!-- Uncomment the below line to add the license badge. Make sure the right license badge is reflected. -->
+  <!-- <img alt="license" src="https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge" /> -->
 </p>
 
-## Overview
+---
 
-| **Must Have**             | **Good to Have**      | **Can Have**          |
-|-----------------------|--------------------|-------------------|
-| Login (automatic)     | Digital Assignment | Grade View        |
-| Student Info          | Course Page        | Academic Calendar |
-| Spotlight             | Hostel Info        |                   |
-| Time Table            | Receipts           |                   |
-| CGPA View             |                    |                   |
-| Mark view             |                    |                   |
-| Exam Schedule         |                    |                   |
-| Attendance Calculator |                    |                   |
-| Leave Application     |                    |                   |  |
+## 🚀 Overview
 
-**Tech Stack:** GoLang
--   Charm.sh - Glamour library to format output as Markdown and render it better
-
-**Project Management:**
-
--   Use Git (version control) for code management.
-
--   Take up the issues and ask for assignment
-
--   Work on branches, i.e., create a new branch for yourself and work on that
-
--   When testing push to "dev" branch and check if code is compatible
-
--   Pushing to the "main" branch has to be approved by one or more people responsible.
+**cli-top** is an easy-to-use tool for VIT students that helps them quickly access important information from the VTOP student portal. Whether it's checking grades, viewing the timetable, or handling assignments, cli-top makes it simple to get what you need.
 
 
 
-## Authors
+## 🌟 Features
+
+- **Login**: Secure login to the VTOP portal
+- **Mark View**: Check your marks for various courses
+- **Digital Assignment**: Manage your digital assignment submissions
+- **Course Page**: Access course materials and updates
+- **Academic Calendar**: Keep track of important academic dates
+- **Exam Schedule**: View upcoming exam schedules
+- **Attendance Calculator**: Calculate your attendance percentage
+- **Time Table**: Easily view your class schedule
+- **Class Messages**: Stay updated with class announcements
+- **Leave Status**: Check the status of your leave applications
+- **Nightslip Status**: Monitor your hostel nightslip requests
+- **Library Dues**: Stay on top of library dues
+- **Receipts**: Access fee receipts and payment history
+- **Grade View**: Review your grades and academic performance
+- **Student Profile**: View personal details
+- **Hostel Info**: Check hostel details 
+- **CGPA View**: Track your cumulative GPA over semesters
+- **Logout**: Securely logout from the CLI
+
+
+
+## 💻 Tech Stack
+
+- **GoLang** : Core programming language
+- **Cobra** : Go library for creating the terminal CLI
+- **Charm.sh (Glamour Library)** : Go library for formatting output as Markdown and rendering it better in the terminal
+
+
+
+## ⚙️ Installation
+
+To install **cli-top**, you can download the binary directly from [cli-top.acmvit.in](https://cli-top.acmvit.in/).
+
+1. **Download the Binary:**
+
+   Visit [cli-top.acmvit.in](https://cli-top.acmvit.in/) to download and configure the appropriate binary for your operating system.
+
+2. **Run the Binary:**
+
+   After downloading, navigate to the folder where the binary is saved and run it from your terminal:
+```bash
+./cli-top
+```
+
+
+## 🔧 Usage
+
+After installation, you can access various features of **cli-top** by running specific commands:
+
+- **Login to VTOP:**
+
+```bash
+./cli-top login 
+```
+
+- **View Marks:**
+
+```bash
+./cli-top marks
+```
+- **Calculate Attendance:**
+```bash
+./cli-top attendance
+```
+- For a full list of commands and features of cli-top, you can run:
+
+```bash
+./cli-top help
+```
+
+
+## ⚙️ Project Management
+
+- Use **Git** for version control and code management
+- Take up issues and request assignment before starting work
+- Push to the "dev" branch for testing and compatibility checks
+- Main and dev branch pushes require approval from designated maintainers
+
+
+## 👨‍💻 Authors
+
 - [Saharsh Bhansali](https://github.com/saharshbhansali)
 - [Manav Muthanna](https://github.com/ManavMuthanna)
 - [Sarthak Gupta](https://github.com/gptsarthak)
 
-## Contributors
 
-- [Shambhavi Paygude](https://github.com/shambhavipaygude)
+## 🔧 Maintainers
+
 - [Garv Jain](https://github.com/garvjainpb)
+- [Tanmay Paturu](https://github.com/Tintedfireglass)
+- [Shambhavi Paygude](https://github.com/shambhavipaygude)
+
+
+## 🤝 Contributors
+
 - [Prateek Srivastava](https://github.com/prateek-srivastava001)
 - [Kaustav Patro](https://github.com/icky-kp)
-- [Tanmay Paturu](https://github.com/Tintedfireglass)
 - [Amritsai](https://github.com/gekyxme)
 - [Pritam Satpathy](https://github.com/ps2181)
-
-
-
-
-
+- [Harshitaa Kashyap](https://github.com/harshitaak07)
+- [Adheesh Garg](https://github.com/qwerty-dvorak)
+- [Ishaan S](https://github.com/theg1239)
+- [Harshit Vootukuri](https://github.com/hvoot36)
+- [Kaustubh Kanodia](https://github.com/Quasar-025)
+- [Yash Sinha](https://github.com/yashsinha1224)
+- [Aditya Singh](https://github.com/adii2ma)
+- [Vansh Bhatiya](https://github.com/bhatiyavansh)
+- [Shreyas Mishra](https://github.com/ShreyasM09)
+- [Yashika Panda](https://github.com/yashikaa2005)
+- [Shruthilaya K](https://github.com/shruthilayak11)
+- [Srijan Srivastava](https://github.com/Srijan1202)
