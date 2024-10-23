@@ -18,6 +18,7 @@ var credCmd = &cobra.Command{
 	Short: "VTOP username and password to be entered",
 	Run: func(cmd *cobra.Command, args []string) {
 		username := promptInput("Enter your username: ")
+		fmt.Println("NOTE: Your password will be visible.")
 		password := promptInput("Enter your password: ")
 		key := GenerateAESKey()
 
