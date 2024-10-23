@@ -5,6 +5,7 @@ import (
 	"cli-top/helpers"
 	types "cli-top/types"
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -15,11 +16,15 @@ import (
 func GetTimeTable(regNo string, cookies types.Cookies, semId string, sem_choice int) {
 	url := "https://vtop.vit.ac.in/vtop/processViewTimeTable"
 
-	schedule := "{(1, '08:00'): ['A1', 'L1'], (1, '09:00'): ['F1'], (1, '10:00'): ['D1'], (1, '11:00'): ['TB1'], (1, '12:00'): ['TG1'], (2, '08:00'): ['B1', 'L7'], (2, '09:00'): ['G1'], (2, '10:00'): ['E1'], (2, '11:00'): ['TC1'], (2, '12:00'): ['TAA1'], (3, '08:00'): ['C1', 'L13'], (3, '09:00'): ['A1'], (3, '10:00'): ['F1'], (3, '11:00'): ['TD1'], (3, '12:00'): ['TBB1'], (4, '08:00'): ['D1', 'L19'], (4, '09:00'): ['B1'], (4, '10:00'): ['G1'], (4, '11:00'): ['TE1'], (4, '12:00'): ['TCC1'], (5, '08:00'): ['E1', 'L25'], (5, '09:00'): ['C1'], (5, '10:00'): ['TA1'], (5, '11:00'): ['TF1'], (5, '12:00'): ['TD1'], (1, '14:00'): ['A2', 'L31'], (1, '15:00'): ['F2'], (1, '16:00'): ['D2'], (1, '17:00'): ['TB2'], (1, '18:00'): ['TG2'], (2, '14:00'): ['B2', 'L37'], (2, '15:00'): ['G2'], (2, '16:00'): ['E2'], (2, '17:00'): ['TC2'], (2, '18:00'): ['TAA2'], (3, '14:00'): ['C2', 'L43'], (3, '15:00'): ['A2'], (3, '16:00'): ['F2'], (3, '17:00'): ['TD2'], (3, '18:00'): ['TBB2'], (4, '14:00'): ['D2', 'L49'], (4, '15:00'): ['B2'], (4, '16:00'): ['G2'], (4, '17:00'): ['TE2'], (4, '18:00'): ['TCC2'], (5, '14:00'): ['E2', 'L55'], (5, '15:00'): ['C2'], (5, '16:00'): ['TA2'], (5, '17:00'): ['TF2'], (5, '18:00'): ['TD2'], (1, '09:50'): ['L3'], (1, '11:40'): ['L5'], (2, '09:50'): ['L9'], (2, '11:40'): ['L11'], (3, '09:50'): ['L15'], (3, '11:40'): ['L17'], (4, '09:50'): ['L21'], (4, '11:40'): ['L23'], (5, '09:50'): ['L27'], (5, '11:40'): ['L29'], (1, '15:50'): ['L33'], (1, '17:40'): ['L35'], (2, '15:50'): ['L39'], (2, '17:40'): ['L41'], (3, '15:50'): ['L45'], (3, '17:40'): ['L47'], (4, '15:50'): ['L51'], (4, '17:40'): ['L53'], (5, '15:50'): ['L57'], (5, '17:40'): ['L59']}"
+	schedule := "{(1, '08:00'): ['A1', 'L1'], (1, '09:00'): ['F1'], (1, '10:00'): ['D1'], (1, '11:00'): ['TB1'], (1, '12:00'): ['TG1'], (2, '08:00'): ['B1', 'L7'], (2, '09:00'): ['G1'], (2, '10:00'): ['E1'], (2, '11:00'): ['TC1'], (2, '12:00'): ['TAA1'], (3, '08:00'): ['C1', 'L13'], (3, '09:00'): ['A1'], (3, '10:00'): ['F1'], (3, '11:00'): ['TD1'], (3, '12:00'): ['TBB1'], (4, '08:00'): ['D1', 'L19'], (4, '09:00'): ['B1'], (4, '10:00'): ['G1'], (4, '11:00'): ['TE1'], (4, '12:00'): ['TCC1'], (5, '08:00'): ['E1', 'L25'], (5, '09:00'): ['C1'], (5, '10:00'): ['TA1'], (5, '11:00'): ['TF1'], (5, '12:00'): ['TD1'], (6, '08:00'): ['V8', 'L71'], (6, '09:00'): ['X11'], (6, '10:00'): ['X12'], (6, '11:00'): ['Y11'], (6, '12:00'): ['Y12'], (7, '08:00'): ['V10', 'L83'], (7, '09:00'): ['Y11'], (7, '10:00'): ['Y12'], (7, '11:00'): ['X11'], (7, '12:00'): ['X12'],(1, '14:00'): ['A2', 'L31'], (1, '15:00'): ['F2'], (1, '16:00'): ['D2'], (1, '17:00'): ['TB2'], (1, '18:00'): ['TG2'], (2, '14:00'): ['B2', 'L37'], (2, '15:00'): ['G2'], (2, '16:00'): ['E2'], (2, '17:00'): ['TC2'], (2, '18:00'): ['TAA2'], (3, '14:00'): ['C2', 'L43'], (3, '15:00'): ['A2'], (3, '16:00'): ['F2'], (3, '17:00'): ['TD2'], (3, '18:00'): ['TBB2'], (4, '14:00'): ['D2', 'L49'], (4, '15:00'): ['B2'], (4, '16:00'): ['G2'], (4, '17:00'): ['TE2'], (4, '18:00'): ['TCC2'], (5, '14:00'): ['E2', 'L55'], (5, '15:00'): ['C2'], (5, '16:00'): ['TA2'], (5, '17:00'): ['TF2'], (5, '18:00'): ['TD2'], (6, '14:00'): ['X21', 'L77'], (6, '15:00'): ['Z21'], (6, '16:00'): ['Y21'], (6, '17:00'): ['W21'], (6, '18:00'): ['W22'], (7, '14:00'): ['Y21', 'L89'], (7, '15:00'): ['Z21'], (7, '16:00'): ['X21'], (7, '17:00'): ['W21'], (7, '18:00'): ['W22'],(1, '09:50'): ['L3'], (1, '11:40'): ['L5'], (2, '09:50'): ['L9'], (2, '11:40'): ['L11'], (3, '09:50'): ['L15'], (3, '11:40'): ['L17'], (4, '09:50'): ['L21'], (4, '11:40'): ['L23'], (5, '09:50'): ['L27'], (5, '11:40'): ['L29'], (6, '09:50'): ['L73'], (6, '11:40'): ['L75'], (7, '09:50'): ['L85'], (7, '11:40'): ['L87'], (1, '15:50'): ['L33'], (1, '17:40'): ['L35'], (2, '15:50'): ['L39'], (2, '17:40'): ['L41'], (3, '15:50'): ['L45'], (3, '17:40'): ['L47'], (4, '15:50'): ['L51'], (4, '17:40'): ['L53'], (5, '15:50'): ['L57'], (5, '17:40'): ['L59'], (6, '15:50'): ['L79'], (6, '17:40'): ['L81'], (7, '15:50'): ['L91'], (7, '17:40'): ['L93']}"
 
-	semesterID := helpers.SelectSemester(regNo, cookies, sem_choice)
+	semester,err := helpers.SelectSemester(regNo, cookies, sem_choice)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
+		return
+	}
 
-	bodyText, err := helpers.FetchReq(regNo, cookies, url, semesterID, "UTC", "POST", "")
+	bodyText, err := helpers.FetchReq(regNo, cookies, url, semester.SemID, "UTC", "POST", "")
 	if err != nil && debug.Debug {
 		fmt.Println(err)
 	}
@@ -28,7 +33,11 @@ func GetTimeTable(regNo string, cookies types.Cookies, semId string, sem_choice 
 	if err != nil && debug.Debug {
 		fmt.Println(err)
 	}
-	findAndSaveTimeTable(doc, schedule)
+	// Making a map, that maps the courseCode to the courseName
+	courseMap := getCourseName(doc)
+
+	findAndSaveTimeTable(doc, schedule, courseMap)
+
 }
 
 func parsePythonDict(schedule string) map[types.KeyStruct][]string {
@@ -75,7 +84,7 @@ func parsePythonDict(schedule string) map[types.KeyStruct][]string {
 
 	return pythonDict
 }
-func checkTime(goMap map[int][][]string, pythonDict map[types.KeyStruct][]string) {
+func checkTime(goMap map[int][][]string, pythonDict map[types.KeyStruct][]string, courseMap map[string]string) {
 	var sortedKeys []int
 	for key := range goMap {
 		sortedKeys = append(sortedKeys, key)
@@ -85,27 +94,6 @@ func checkTime(goMap map[int][][]string, pythonDict map[types.KeyStruct][]string
 	for _, key := range sortedKeys {
 		value := goMap[key]
 
-		dayName := ""
-		switch key {
-		case 1:
-			dayName = "Monday"
-		case 2:
-			dayName = "Tuesday"
-		case 3:
-			dayName = "Wednesday"
-		case 4:
-			dayName = "Thursday"
-		case 5:
-			dayName = "Friday"
-		case 6:
-			dayName = "Saturday"
-		case 7:
-			dayName = "Sunday"
-		}
-
-		fmt.Printf("\033[1m%s\033[0m\n\n", dayName)
-
-		// Create a slice to hold the timetable entries for sorting
 		var dayEntries []string
 
 		for _, row := range value {
@@ -138,7 +126,8 @@ func checkTime(goMap map[int][][]string, pythonDict map[types.KeyStruct][]string
 									end := fmt.Sprintf("%02d:%02d", hour, min)
 
 									// Create an entry string for sorting
-									entry := fmt.Sprintf("%s to %s\t| %s\t\t| %s\t| %s\t\t", keyPy.Time, end, slot, courseCode, venue)
+
+									entry := fmt.Sprintf("%s to %s\t| %s\t\t| %-50s| %s\t\t", keyPy.Time, end, slot, courseMap[courseCode], venue)
 									dayEntries = append(dayEntries, entry)
 								}
 							}
@@ -155,6 +144,28 @@ func checkTime(goMap map[int][][]string, pythonDict map[types.KeyStruct][]string
 			return timeI < timeJ
 		})
 
+		dayName := ""
+		switch key {
+		case 1:
+			dayName = "Monday"
+		case 2:
+			dayName = "Tuesday"
+		case 3:
+			dayName = "Wednesday"
+		case 4:
+			dayName = "Thursday"
+		case 5:
+			dayName = "Friday"
+		case 6:
+			dayName = "Saturday"
+		case 7:
+			dayName = "Sunday"
+		}
+		if dayEntries != nil {
+			fmt.Printf("\033[1m%s\033[0m\n\n", dayName) //Check if there is any entry for the day and print
+
+		}
+
 		// Print the sorted timetable entries for the current day
 		for _, entry := range dayEntries {
 			fmt.Println(entry)
@@ -163,7 +174,7 @@ func checkTime(goMap map[int][][]string, pythonDict map[types.KeyStruct][]string
 	}
 }
 
-func findAndSaveTimeTable(doc *goquery.Document, schedule string) {
+func findAndSaveTimeTable(doc *goquery.Document, schedule string, courseMap map[string]string) {
 
 	//fmt.Println("printing inside func")
 	//fmt.Println(schedule)
@@ -188,7 +199,7 @@ func findAndSaveTimeTable(doc *goquery.Document, schedule string) {
 					text := strings.TrimSpace(cell.Text())
 					row = append(row, text)
 
-					indices = append(indices, j-2)
+					indices = append(indices, j)
 				} else {
 					row = append(row, "null")
 				}
@@ -204,12 +215,14 @@ func findAndSaveTimeTable(doc *goquery.Document, schedule string) {
 		//var count int
 		count := 0
 		for i, subRow := range rows {
-			if i > 3 && i < 14 {
+			if i > 3 && i < 17 {
 				subject = append(subject, subRow)
 				count += 1
 			}
+
 			//fmt.Println()
 		}
+		// fmt.Println(rows)
 
 		var subjectDayWise map[int][][]string
 		subjectDayWise = make(map[int][][]string)
@@ -226,7 +239,7 @@ func findAndSaveTimeTable(doc *goquery.Document, schedule string) {
 				key++
 			}
 		}
-		checkTime(subjectDayWise, pythonDict)
+		checkTime(subjectDayWise, pythonDict, courseMap)
 
 	} else {
 		fmt.Println("Table with ID 'timeTableStyle' not found")
@@ -255,6 +268,35 @@ func separateArray(arr []int) [][]int {
 		result = append(result, arr[start:])
 	}
 	return result
+}
+func getCourseName(doc *goquery.Document) map[string]string {
+	courseMap := make(map[string]string)
+	table := doc.Find("table.table")
+
+	if table.Length() > 0 {
+		// Updated regex to match the actual format
+		re := regexp.MustCompile(`^([A-Z]{4}\d{3}[A-Z]?)\s*-\s*(.+?)\s*(?:\(.*\))?$`)
+
+		table.Find("tbody tr").Each(func(i int, row *goquery.Selection) {
+
+			courseCell := row.Find("td").Eq(2) // Third column (index 2)
+			cellText := strings.TrimSpace(courseCell.Text())
+
+			matches := re.FindStringSubmatch(cellText)
+			if len(matches) == 3 {
+				courseCode := matches[1]
+				courseName := strings.TrimSpace(matches[2])
+				courseMap[courseCode] = courseName
+
+			} else {
+
+			}
+		})
+	} else {
+		fmt.Println("Table with class 'table' not found")
+	}
+
+	return courseMap
 }
 
 func printTableTimeTable(title string, data [][]string, builder *strings.Builder) {
