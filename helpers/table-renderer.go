@@ -4,6 +4,7 @@ import (
     "fmt"
     "strings"
 	"regexp"
+	"strconv"
 )
 
 func StripAnsiCodes(str string) string {
@@ -32,31 +33,84 @@ func TableSelector(subject string ,nestedList [][]string, choice int) int {
     return choice
 } 
 
-func TableSelectorFuzzy(subject string ,nestedList [][]string, choice string) int {
-	if choice != "" {
-		for i, v := range nestedList {
-			if FuzzyMatch(choice, v[0]) {
-				return i
-			}
-		}
-	}
-	fmt.Println("")
-	PrintTable(nestedList,1)
-	fmt.Println("")
-	fmt.Print("Choose a ",subject,": ")
-	_, err := fmt.Scan(&choice)
-	if err != nil {
-		fmt.Println("Invalid input. Please enter a valid ",subject)
-		return -1
-	}
-	for i, v := range nestedList {
-		if FuzzyMatch(choice, v[0]) {
-			fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n",subject, v[0])
-			return i
-		}
-	}
-	return -1
+func TableSelectorFuzzy(subject string, nestedList [][]string, choice string) int {
+
+    if choice != "" {
+        var matchedResults [][]string
+        for _, v := range nestedList {
+            combinedData := strings.Join(v[1:], " ") 
+
+            if strictFuzzyMatch(choice, combinedData) {
+                matchedResults = append(matchedResults, []string{v[0], v[1], strings.Join(v[2:], " ")})
+            }
+        }
+
+        if len(matchedResults) > 0 {
+            fmt.Println("\nMatching results:")
+            PrintTable(matchedResults, 1) 
+
+            for {
+                fmt.Print("Choose an index from the matching results: ")
+                var indexInput string
+                _, err := fmt.Scanln(&indexInput)
+                if err != nil {
+                    fmt.Println("Invalid input. Please enter a valid number.")
+                    continue
+                }
+
+                indexInput = strings.TrimSpace(indexInput)
+                index, err := strconv.Atoi(indexInput)
+                if err != nil || index < 1 || index > len(matchedResults) {
+                    fmt.Println("Invalid selection. Please enter a valid number.")
+                    continue
+                }
+
+                fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, strings.Join(matchedResults[index-1][1:], " "))
+                return index - 1 
+            }
+        } else {
+            fmt.Println("No matching result found. Please try again.")
+            return -1
+        }
+    }
+
+    fmt.Println("")
+    PrintTable(nestedList, 1)
+    fmt.Println("")
+
+    for {
+        fmt.Print("Choose a ", subject, ": ")
+        var userChoice string
+        _, err := fmt.Scanln(&userChoice)
+        if err != nil {
+            fmt.Println("Invalid input. Please enter a valid ", subject)
+            continue
+        }
+
+        userChoice = strings.TrimSpace(userChoice)
+        if userChoice == "" {
+            fmt.Println("Please enter a valid choice.")
+            continue
+        }
+
+        for i, v := range nestedList {
+            combinedData := strings.Join(v[1:], " ") 
+            if strictFuzzyMatch(userChoice, combinedData) {
+                fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, combinedData)
+                return i
+            }
+        }
+
+        fmt.Println("No matching result found. Please try again.")
+    }
 }
+
+func strictFuzzyMatch(input string, data string) bool {
+    input = strings.TrimSpace(input)
+
+    return strings.Contains(data, input)
+}
+
 
 func PrintTable(nestedList [][]string, indexStatus int) int {
 	if len(nestedList) == 0 {

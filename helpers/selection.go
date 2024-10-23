@@ -1,18 +1,15 @@
 package helpers
 
 import (
-	"bufio"
 	"bytes"
 	"cli-top/debug"
 	"cli-top/types"
 	"fmt"
-	"os"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/charmbracelet/glamour"
 	"github.com/olekukonko/tablewriter"
 )
 
@@ -151,25 +148,8 @@ func SelectFaculty(faculties []types.Faculty, facultyFlag int) (types.Faculty, e
 		return types.Faculty{}, fmt.Errorf("no faculties available for selection")
 	}
 
-	renderer, err := glamour.NewTermRenderer(
-		glamour.WithStylePath("dark"),
-		glamour.WithWordWrap(0),
-	)
-	if err != nil && debug.Debug {
-		fmt.Println("Error creating glamour renderer:", err)
-	}
-
 	if facultyFlag > 0 && facultyFlag <= len(faculties) {
-		selectedFaculty := faculties[facultyFlag-1]
-		redactedName := RedactERPID(selectedFaculty.Name)
-		successMessage := fmt.Sprintf("# You selected Faculty: %s", redactedName)
-
-		renderedMessage, err := renderer.Render(successMessage)
-		if err != nil && debug.Debug {
-			fmt.Println("Error rendering selected faculty message:", err)
-		}
-		fmt.Print(renderedMessage)
-		return selectedFaculty, nil
+		return faculties[facultyFlag-1], nil
 	}
 
 	if len(faculties) <= 15 {
@@ -188,30 +168,20 @@ func SelectFaculty(faculties []types.Faculty, facultyFlag int) (types.Faculty, e
 			fmt.Println("Invalid selection. Please enter a valid number.")
 			return types.Faculty{}, fmt.Errorf("invalid faculty selection")
 		}
-		selectedFaculty := faculties[index-1]
-		redactedName := RedactERPID(selectedFaculty.Name)
-		successMessage := fmt.Sprintf("# You selected Faculty: %s", redactedName)
-
-		renderedMessage, err := renderer.Render(successMessage)
-		if err != nil && debug.Debug {
-			fmt.Println("Error rendering selected faculty message:", err)
-		}
-		fmt.Print(renderedMessage)
-		return selectedFaculty, nil
+		return faculties[index-1], nil
 	}
-
-	reader := bufio.NewReader(os.Stdin)
-	displayFaculties := faculties
 
 	for {
 		fmt.Print("\nEnter search query (or press Enter to list all, type 'exit' to cancel): ")
-		query, err := reader.ReadString('\n')
+		var query string
+		_, err := fmt.Scanln(&query)
 		if err != nil {
 			if debug.Debug {
 				fmt.Println("Error reading input:", err)
 			}
 			return types.Faculty{}, fmt.Errorf("error reading input")
 		}
+
 		query = strings.TrimSpace(query)
 
 		if strings.ToLower(query) == "exit" {
@@ -219,18 +189,17 @@ func SelectFaculty(faculties []types.Faculty, facultyFlag int) (types.Faculty, e
 			return types.Faculty{}, fmt.Errorf("selection cancelled")
 		}
 
+		var displayFaculties []types.Faculty
 		if query != "" {
-			filtered := []types.Faculty{}
 			for _, faculty := range faculties {
 				if FuzzyMatch(query, faculty.Name) {
-					filtered = append(filtered, faculty)
+					displayFaculties = append(displayFaculties, faculty)
 				}
 			}
-			if len(filtered) == 0 {
+			if len(displayFaculties) == 0 {
 				fmt.Println("No faculties matched your search. Try again.")
 				continue
 			}
-			displayFaculties = filtered
 		} else {
 			displayFaculties = faculties
 		}
@@ -238,13 +207,15 @@ func SelectFaculty(faculties []types.Faculty, facultyFlag int) (types.Faculty, e
 		GenerateFacultyDetailsTable(displayFaculties, query)
 		fmt.Println()
 		fmt.Print("Enter the number of the faculty to select (or type 's' to search again, 'exit' to cancel): ")
-		selection, err := reader.ReadString('\n')
+		var selection string
+		_, err = fmt.Scanln(&selection)
 		if err != nil {
 			if debug.Debug {
 				fmt.Println("Error reading selection:", err)
 			}
 			return types.Faculty{}, fmt.Errorf("error reading selection")
 		}
+
 		selection = strings.TrimSpace(selection)
 
 		if strings.ToLower(selection) == "s" {
@@ -261,17 +232,7 @@ func SelectFaculty(faculties []types.Faculty, facultyFlag int) (types.Faculty, e
 			continue
 		}
 
-		selectedFaculty := displayFaculties[index-1]
-		redactedName := RedactERPID(selectedFaculty.Name)
-		successMessage := fmt.Sprintf("# You selected Faculty: %s", redactedName)
-
-		renderedMessage, err := renderer.Render(successMessage)
-		if err != nil && debug.Debug {
-			fmt.Println("Error rendering selected faculty message:", err)
-		}
-		fmt.Print(renderedMessage)
-
-		return selectedFaculty, nil
+		return displayFaculties[index-1], nil
 	}
 }
 
@@ -328,24 +289,28 @@ func GenerateCourseMaterialsTable(materials []types.CourseMaterial) {
 }
 
 func SelectCourseMaterials(materials []types.CourseMaterial) ([]types.CourseMaterial, error) {
-	reader := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Print("Enter the index numbers of the topics to download (e.g., 1,2,3), or 0 for bulk download: ")
-		input, err := reader.ReadString('\n')
+		var input string
+		_, err := fmt.Scanln(&input)
 		if err != nil {
 			if debug.Debug {
 				fmt.Println("Error reading input:", err)
 			}
 			return nil, err
 		}
+
 		input = strings.TrimSpace(input)
+
 		if input == "" {
 			fmt.Println("No input provided.")
 			continue
 		}
+
 		if input == "0" {
 			return materials, nil
 		}
+
 		indicesStr := strings.Split(input, ",")
 		indexSet := make(map[int]struct{})
 		var invalidIndices []string
@@ -362,17 +327,21 @@ func SelectCourseMaterials(materials []types.CourseMaterial) ([]types.CourseMate
 			}
 			indexSet[idx] = struct{}{}
 		}
+
 		if len(invalidIndices) > 0 {
 			fmt.Println("Invalid indices:", strings.Join(invalidIndices, ", "))
 		}
+
 		if len(indexSet) == 0 {
 			fmt.Println("No valid indices selected.")
 			continue
 		}
+
 		var selectedMaterials []types.CourseMaterial
 		for idx := range indexSet {
 			selectedMaterials = append(selectedMaterials, materials[idx-1])
 		}
+
 		return selectedMaterials, nil
 	}
 }
