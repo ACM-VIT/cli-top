@@ -96,20 +96,30 @@ func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) (types.
     }
     selectedSem = semDetails[choice-1]
 
-	clearInputBuffer()
-
+	_ = clearInputBuffer()
     return selectedSem, nil
+
 }
 
 // clearInputBuffer clears the input buffer by reading until a newline is encountered.
 // Note: This function will block if there's no pending input.
 func clearInputBuffer() error {
-    _, err := reader.ReadString('\n')
-    if err != nil {
-        if debug.Debug {
-            fmt.Println("Error clearing input buffer:", err)
+    for {
+        
+        if reader.Buffered() == 0 {
+            return nil
         }
-        return err
+         
+        b, err := reader.ReadByte()
+        if err != nil {
+            if debug.Debug {
+                fmt.Println("Error clearing input buffer:", err)
+            }
+            return err
+        }
+
+        if b == '\n' {
+            return nil
+        }
     }
-    return nil
 }
