@@ -181,6 +181,22 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+func init() {
+	// Set the custom usage template
+	rootCmd.SetUsageTemplate(`Usage:
+  {{.CommandPath}} [global flags] <subcommand> [subcommand flags] [arguments]
+
+Global Flags:
+{{.PersistentFlags.FlagUsages | trimTrailingWhitespaces}}
+
+{{if .HasAvailableSubCommands}}
+Available Subcommands:
+{{range .Commands}}{{if (and .IsAvailableCommand (not .Hidden))}}
+  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}
+
+Use "{{.CommandPath}} <subcommand> --help" for more information about a subcommand.`)
+}
+
 func Execute() {
 	killSwitch := helpers.CheckKillSwitch()
 	if killSwitch == 2 {
@@ -197,11 +213,10 @@ func Execute() {
 	calendarCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	calendarCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
 	coursePageCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
-    coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
-    coursePageCmd.PersistentFlags().IntVarP(&facultyFlag, "faculty", "f", 0, "Specify the faculty")
+	coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
+	coursePageCmd.PersistentFlags().IntVarP(&facultyFlag, "faculty", "f", 0, "Specify the faculty")
 	daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
-	// daDueDatesCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")	
-
+	// daDueDatesCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
 
 	// Add the flags to the root command
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
@@ -300,12 +315,12 @@ var examScheduleCmd = &cobra.Command{
 }
 
 var coursePageCmd = &cobra.Command{
-    Use:   "course-page",
-    Short: "Download course materials for a selected semester, course, and faculty",
-    Run: func(cmd *cobra.Command, args []string) {
-        cookies, regNo := readCookiesFromFile()
-        features.ExecuteCoursePageDownload(regNo, cookies, semesterFlag, courseFlag, facultyFlag)
-    },
+	Use:   "course-page",
+	Short: "Download course materials for a selected semester, course, and faculty",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.ExecuteCoursePageDownload(regNo, cookies, semesterFlag, courseFlag, facultyFlag)
+	},
 }
 
 var libraryDuesCmd = &cobra.Command{
@@ -373,5 +388,3 @@ var daDetailsCmd = &cobra.Command{
 		features.PrintAllDAs(regNo, cookies, courseNameFlag)
 	},
 }
-
-
