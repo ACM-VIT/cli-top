@@ -42,6 +42,9 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 
 	for _, detail := range listOfSubjects {
 		doc := getOneSub(regNo, cookies, detail.ID)
+		if doc == nil {
+			continue
+		}
 		tempLatestDA, singleSubAllDa := pendingDAs(doc, detail)
 		subjDAs = append(subjDAs, singleSubAllDa)
 		subjectsWithDAs = append(subjectsWithDAs, tempLatestDA)
@@ -51,19 +54,16 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 	onlyLatestDATable = append(onlyLatestDATable, []string{"Subject", "Title", "Due Date", "Days Left", "ID"})
 
 	for _, subject := range subjectsWithDAs {
-		var tableRecord []string
-		tableRecord = append(tableRecord, subject.Subject.Name)
-
 		if subject.DA.Title == "" {
 			continue
 		}
-
+		var tableRecord []string
+		tableRecord = append(tableRecord, subject.Subject.Name)
 		title := helpers.TruncateWithEllipses(subject.DA.Title, 40)
 		tableRecord = append(tableRecord, title)
 		tableRecord = append(tableRecord, subject.DA.DueDate.Format("02-Jan-2006"))
 		tableRecord = append(tableRecord, fmt.Sprintf("%d", subject.DA.DaysLeft))
 		tableRecord = append(tableRecord, subject.Subject.ID)
-
 		onlyLatestDATable = append(onlyLatestDATable, tableRecord)
 	}
 
@@ -79,6 +79,7 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 	}
 
 	selectedSubjectID := onlyLatestDATable[DAindex][len(onlyLatestDATable[0])-1]
+	selectedSubjectName := onlyLatestDATable[DAindex][0]
 
 	var singleSubDownload [][]string
 	singleSubDownload = append(singleSubDownload, []string{"Title", "Due Date", "Days Left", "QP", "Last Upload", "Download Link"})
@@ -144,8 +145,11 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		fmt.Printf("\033[34m\033[4m\033]8;;file://%s\033\\%s\033]8;;\033\\\033[0m to open the folder.\n", filePath, "Click Here")
 		fmt.Println()
 
-		var icsEvents []helpers.ICSEvent
+		var icsEvents []types.ICSEvent
 		for _, everyDA := range subjDAs {
+			if everyDA.Subject.ID != selectedSubjectID {
+				continue
+			}
 			for _, singleDA := range everyDA.DAs {
 				if singleDA.DueDate.IsZero() || singleDA.DueDate.Before(time.Now()) {
 					continue
@@ -154,13 +158,13 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 				startDate := singleDA.DueDate.Format("20060102")
 				endDate := singleDA.DueDate.AddDate(0, 0, 1).Format("20060102")
 
-				event := helpers.ICSEvent{
+				event := types.ICSEvent{
 					UID:         helpers.GenerateUID("DA"),
 					DtStamp:     time.Now().UTC().Format("20060102T150405Z"),
 					DtStart:     startDate,
 					DtEnd:       endDate,
-					Summary:     fmt.Sprintf("%s - %s", courseName, singleDA.Title),
-					Description: fmt.Sprintf("DA due for %s: %s", courseName, singleDA.Title),
+					Summary:     fmt.Sprintf("%s - %s", selectedSubjectName, singleDA.Title),
+					Description: fmt.Sprintf("DA due for %s: %s", selectedSubjectName, singleDA.Title),
 				}
 
 				icsEvents = append(icsEvents, event)
@@ -168,7 +172,7 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		}
 
 		if len(icsEvents) > 0 {
-			icsFileName := fmt.Sprintf("%s_DA_Deadlines.ics", strings.ReplaceAll(courseName, " ", "_"))
+			icsFileName := fmt.Sprintf("%s_DA_Deadlines.ics", strings.ReplaceAll(selectedSubjectName, " ", "_"))
 			icsFilePath := filepath.Join(downloadsDir, icsFileName)
 
 			err := helpers.GenerateICSFileDateOnly(icsEvents, icsFilePath, "CLI-TOP DA")

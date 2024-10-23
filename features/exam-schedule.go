@@ -83,12 +83,12 @@ func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choi
 
 	displayExamScheduleTable(upcomingExams)
 
-	var icsEvents []helpers.ICSEvent
+	var icsEvents []types.ICSEvent
 	for _, exam := range upcomingExams {
 		startDate := exam.ExamDate.Format("20060102")
 		endDate := exam.ExamDate.AddDate(0, 0, 1).Format("20060102")
 
-		event := helpers.ICSEvent{
+		event := types.ICSEvent{
 			UID:         helpers.GenerateUID("Exam"),
 			DtStamp:     time.Now().UTC().Format("20060102T150405Z"),
 			DtStart:     startDate,
