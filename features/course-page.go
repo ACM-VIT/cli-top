@@ -18,29 +18,10 @@ import (
 )
 
 func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag, courseFlag, facultyFlag int) {
-	semDetails := helpers.GetSemDetails(cookies, regNo)
-	if len(semDetails.SemIds) == 0 {
-		fmt.Println("Error fetching semester details or no semesters available. Try logging out and logging back in again.")
+	selectedSemester,err := helpers.SelectSemester(regNo, cookies, semesterFlag)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 		return
-	}
-
-	selectedSemId := helpers.SelectSemester(regNo, cookies, semesterFlag)
-	if selectedSemId == "" {
-		fmt.Println("Error selecting semester.")
-		return
-	}
-
-	selectedSemName := "Unknown"
-	for i, id := range semDetails.SemIds {
-		if id == selectedSemId {
-			selectedSemName = semDetails.SemNames[i]
-			break
-		}
-	}
-
-	selectedSemester := types.Semester{
-		SemName: selectedSemName,
-		SemID:   selectedSemId,
 	}
 
 	selectedCourse, err := fetchAndSelectCourse(regNo, cookies, selectedSemester.SemID, courseFlag)
