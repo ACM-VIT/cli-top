@@ -12,14 +12,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-const (
-	green  = "\033[32m"
-	red    = "\033[31m"
-	reset  = "\033[0m"
-	yellow = "\033[33m"
-	blue   = "\033[34m"
-)
-
 func PrintCal(regNo string, cookies types.Cookies, sem_choice int, classGrpFlag int) {
 	url := "https://vtop.vit.ac.in/vtop/getDateForSemesterPreview"
 	semester,err := helpers.SelectSemester(regNo, cookies, sem_choice)
@@ -197,18 +189,18 @@ func generateCalendarLines(month string, colour []int) []string {
 		if day == 0 {
 			currentLine.WriteString("   ") // Three spaces for blank days
 		} else {
-			color := reset
+			color := helpers.Reset
 			switch day {
 			case 1:
-				color = blue
+				color = helpers.Blue
 			case 2:
-				color = red
+				color = helpers.Red
 			case 3:
-				color = green
+				color = helpers.Green
 			}
 
 			// Use consistent spacing for all numbers
-			currentLine.WriteString(fmt.Sprintf("%s%2d%s ", color, dayOfMonth, reset))
+			currentLine.WriteString(fmt.Sprintf("%s%2d%s ", color, dayOfMonth, helpers.Reset))
 			dayOfMonth++
 		}
 	}

@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	//"golang.org/x/net/html"
@@ -163,4 +164,49 @@ func ReverseSlice[T any](slice []T) {
     for i, j := 0, len(slice)-1; i < j; i, j = i+1, j-1 {
         slice[i], slice[j] = slice[j], slice[i]
     }
+}
+
+const (
+	Red   = "\033[31m"
+	Green = "\033[32m"
+	Reset = "\033[0m"
+	Yellow = "\033[33m"
+	Blue   = "\033[34m"
+)
+
+func FormatDate(dateStr string) string {
+	parsedTime, err := time.Parse("02-Jan-2006 15:04", dateStr)
+	if err != nil {
+		parsedTime, err = time.Parse("02-Jan-2006", dateStr)
+		if err != nil {
+			return dateStr
+		}
+	}
+	return parsedTime.Format("02/01/06")
+}
+
+func ColorStatus(status string) string {
+	upperStatus := strings.ToUpper(status)
+	if strings.Contains(upperStatus, "PENDING") {
+		return Red + status + Reset
+	} else if strings.Contains(upperStatus, "APPROVED") {
+		return Green + status + Reset
+	}
+	return status
+}
+
+func TruncateWithEllipses(text string, maxLength int) string {
+	if len(text) > maxLength {
+		return text[:maxLength-3] + "..."
+	}
+	return text
+}
+
+func AddLeftPadding(text string, padding int) string {
+	paddingString := strings.Repeat(" ", padding)
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		lines[i] = paddingString + line
+	}
+	return strings.Join(lines, "\n")
 }
