@@ -14,18 +14,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-type ExamEvent struct {
-	CourseCode    string
-	CourseTitle   string
-	Slot          string
-	ExamDate      time.Time
-	ReportingTime string
-	ExamTime      string
-	Venue         string
-	Seat          string
-	SeatNo        string
-	DaysLeft      int
-}
+
 
 func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choice int) {
 	url := "https://vtop.vit.ac.in/vtop/examinations/doSearchExamScheduleForStudent"
@@ -53,7 +42,7 @@ func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choi
 	}
 	sortExamsByDateAsc(examSchedule)
 
-	upcomingExams := []ExamEvent{}
+	upcomingExams := []types.ExamEvent{}
 	for _, exam := range examSchedule {
 		if exam.DaysLeft >= 0 {
 			upcomingExams = append(upcomingExams, exam)
@@ -84,8 +73,8 @@ func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choi
 	}
 }
 
-func parseExamSchedule(doc *goquery.Document) ([]ExamEvent, error) {
-	var exams []ExamEvent
+func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
+	var exams []types.ExamEvent
 
 	doc.Find("table.customTable tbody tr").Each(func(i int, s *goquery.Selection) {
 		cells := s.Find("td")
@@ -122,7 +111,7 @@ func parseExamSchedule(doc *goquery.Document) ([]ExamEvent, error) {
 
 			daysLeft := int(examDate.Sub(time.Now()).Hours() / 24)
 
-			examEvent := ExamEvent{
+			examEvent := types.ExamEvent{
 				CourseCode:    courseCode,
 				CourseTitle:   courseTitle,
 				Slot:          slot,
@@ -147,13 +136,13 @@ func parseExamSchedule(doc *goquery.Document) ([]ExamEvent, error) {
 	return exams, nil
 }
 
-func sortExamsByDateAsc(exams []ExamEvent) {
+func sortExamsByDateAsc(exams []types.ExamEvent) {
 	sort.Slice(exams, func(i, j int) bool {
 		return exams[i].ExamDate.Before(exams[j].ExamDate)
 	})
 }
 
-func displayExamScheduleTable(exams []ExamEvent) {
+func displayExamScheduleTable(exams []types.ExamEvent) {
 
 	fmt.Println()
 
@@ -209,7 +198,7 @@ func displayExamScheduleTable(exams []ExamEvent) {
 	}
 }
 
-func GenerateExamICSFile(exams []ExamEvent, filePath string) error {
+func GenerateExamICSFile(exams []types.ExamEvent, filePath string) error {
 	if len(exams) == 0 {
 		return nil
 	}

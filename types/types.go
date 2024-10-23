@@ -1,5 +1,9 @@
 package types
 
+import (
+	"time"
+)
+
 type Cookies struct {
 	SERVERID   string
 	CSRF       string
@@ -83,3 +87,29 @@ type Semester struct {
 	SemName string
 	SemID   string
 }
+
+type ExamEvent struct {
+	CourseCode    string
+	CourseTitle   string
+	Slot          string
+	ExamDate      time.Time
+	ReportingTime string
+	ExamTime      string
+	Venue         string
+	Seat          string
+	SeatNo        string
+	DaysLeft      int
+}
+
+type DAEvent struct {
+	SubjectName string
+	Title       string
+	DueDate     time.Time
+	DaysLeft    int
+}
+
+type SubjectDAs struct {
+	SubjectName string
+	DAs         []DAEvent
+}
+
