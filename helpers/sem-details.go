@@ -1,14 +1,18 @@
 package helpers
 
 import (
+    "bufio"
     "cli-top/debug"
     "cli-top/types"
     "fmt"
+    "os"
     "strings"
-
 
     "github.com/PuerkitoBio/goquery"
 )
+
+// Initialize a single reader instance for the package
+var reader = bufio.NewReader(os.Stdin)
 
 // FindAndSaveSemIds finds and saves semester IDs from the document
 func FindAndSaveSemIds(doc *goquery.Document) ([]types.Semester, error) {
@@ -18,10 +22,8 @@ func FindAndSaveSemIds(doc *goquery.Document) ([]types.Semester, error) {
         var exists bool
         tempSem.SemID, exists = s.Attr("value")
         tempSem.SemName = s.Text()
-        if exists {
-            if tempSem.SemID != "" {
-                allsems = append(allsems, tempSem)
-            }
+        if exists && tempSem.SemID != "" {
+            allsems = append(allsems, tempSem)
         }
     })
     if len(allsems) == 0 {
@@ -73,6 +75,12 @@ func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) (types.
     if len(semDetails) == 0 {
         return selectedSem, fmt.Errorf("error fetching semester details or no semesters available. Try logging out and logging back in")
     }
+
+    // Depending on your application flow, ensure that input reading is handled appropriately
+    // For example, if TableSelector reads input from the user, consider placing clearInputBuffer() there
+
+    // clearInputBuffer() // Uncomment if necessary and ensure it doesn't cause blocking
+
     var nested_sem_list [][]string
     nested_sem_list = append(nested_sem_list, []string{"SemId", "SemName"})
     for i := 0; i < len(semDetails); i++ {
@@ -88,5 +96,20 @@ func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) (types.
     }
     selectedSem = semDetails[choice-1]
 
+	clearInputBuffer()
+
     return selectedSem, nil
+}
+
+// clearInputBuffer clears the input buffer by reading until a newline is encountered.
+// Note: This function will block if there's no pending input.
+func clearInputBuffer() error {
+    _, err := reader.ReadString('\n')
+    if err != nil {
+        if debug.Debug {
+            fmt.Println("Error clearing input buffer:", err)
+        }
+        return err
+    }
+    return nil
 }
