@@ -1,3 +1,4 @@
+// features/new-da-deadline.go
 package features
 
 import (
@@ -15,7 +16,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-func PrintAllDAs(regNo string, cookies types.Cookies, course_name string) {
+func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 	allSems, err := helpers.GetSemDetails(cookies, regNo)
 	if err != nil {
 		if debug.Debug {
@@ -71,7 +72,7 @@ func PrintAllDAs(regNo string, cookies types.Cookies, course_name string) {
 		return
 	}
 
-	DAindex := helpers.TableSelectorFuzzy("subject", onlyLatestDATable, course_name)
+	DAindex := helpers.TableSelectorFuzzy("subject", onlyLatestDATable, courseName)
 	if DAindex < 1 || DAindex >= len(onlyLatestDATable) {
 		fmt.Println("Invalid subject selection.")
 		return
@@ -150,16 +151,16 @@ func PrintAllDAs(regNo string, cookies types.Cookies, course_name string) {
 					continue
 				}
 
-				startTime := singleDA.DueDate.Format("20060102T000000")
-				endTime := singleDA.DueDate.Format("20060102T235900")
+				startDate := singleDA.DueDate.Format("20060102")
+				endDate := singleDA.DueDate.AddDate(0, 0, 1).Format("20060102")
 
 				event := helpers.ICSEvent{
 					UID:         helpers.GenerateUID("DA"),
 					DtStamp:     time.Now().UTC().Format("20060102T150405Z"),
-					DtStart:     startTime,
-					DtEnd:       endTime,
-					Summary:     course_name,
-					Description: singleDA.Title,
+					DtStart:     startDate,
+					DtEnd:       endDate,
+					Summary:     fmt.Sprintf("%s - %s", courseName, singleDA.Title),
+					Description: fmt.Sprintf("DA due for %s: %s", courseName, singleDA.Title),
 				}
 
 				icsEvents = append(icsEvents, event)
@@ -167,10 +168,10 @@ func PrintAllDAs(regNo string, cookies types.Cookies, course_name string) {
 		}
 
 		if len(icsEvents) > 0 {
-			icsFileName := "DA_Deadlines.ics"
+			icsFileName := fmt.Sprintf("%s_DA_Deadlines.ics", strings.ReplaceAll(courseName, " ", "_"))
 			icsFilePath := filepath.Join(downloadsDir, icsFileName)
 
-			err := helpers.GenerateICSFileWithFilename(icsEvents, icsFilePath, "CLI-TOP DAs")
+			err := helpers.GenerateICSFileDateOnly(icsEvents, icsFilePath, "CLI-TOP DA")
 			if err != nil {
 				fmt.Println("Error generating ICS file:", err)
 			} else {
@@ -297,6 +298,7 @@ func pendingDAs(doc *goquery.Document, subject types.DAsubject) (types.LastestDA
 				lastUpdated = "N/A"
 			}
 			tempDA.Title = title
+			tempDA.Description = fmt.Sprintf("DA due for %s: %s", subject.Name, title)
 			tempDA.DueDate = date
 			tempDA.DaysLeft = int(date.Sub(time.Now()).Hours()/24) + 1
 			tempDA.QP = qp

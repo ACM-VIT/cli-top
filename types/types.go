@@ -82,16 +82,15 @@ type Semester struct {
 }
 
 type ExamEvent struct {
-	CourseCode    string
-	CourseTitle   string
-	Slot          string
-	ExamDate      time.Time
-	ReportingTime string
-	ExamTime      string
-	Venue         string
-	Seat          string
-	SeatNo        string
-	DaysLeft      int
+	CourseCode  string
+	CourseTitle string
+	Slot        string
+	ExamDate    time.Time
+	ExamTime    string
+	Venue       string
+	Seat        string
+	SeatNo      string
+	DaysLeft    int
 }
 
 type DAsubject struct {
@@ -101,11 +100,12 @@ type DAsubject struct {
 }
 
 type DAEvent struct {
-    Title       string
-    DueDate     time.Time
-    DaysLeft    int
-	QP 		string
-	Last_upload string
+	Title        string
+	Description  string
+	DueDate      time.Time
+	DaysLeft     int
+	QP           string
+	Last_upload  string
 	DownloadLink string
 }
 

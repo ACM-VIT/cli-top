@@ -147,12 +147,10 @@ func AddLeftPadding(text string, padding int) string {
 	return strings.Join(lines, "\n")
 }
 
-func EscapeString(text string) string {
-	replacer := strings.NewReplacer(
-		"\\", "\\\\",
-		";", "\\;",
-		",", "\\,",
-		"\n", "\\n",
-	)
-	return replacer.Replace(text)
+func EscapeString(str string) string {
+	str = strings.ReplaceAll(str, "\\", "\\\\")
+	str = strings.ReplaceAll(str, ";", "\\;")
+	str = strings.ReplaceAll(str, ",", "\\,")
+	str = strings.ReplaceAll(str, "\n", "\\n")
+	return str
 }

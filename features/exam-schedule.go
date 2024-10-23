@@ -15,12 +15,9 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-// GetExamSchedule fetches, processes, and displays the exam schedule for a student,
-// and generates an ICS file for calendar integration.
 func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choice int) {
 	url := "https://vtop.vit.ac.in/vtop/examinations/doSearchExamScheduleForStudent"
 
-	// Fetch semester details
 	semDetails, err := helpers.GetSemDetails(cookies, regNo)
 	if err != nil {
 		if debug.Debug {
@@ -37,7 +34,6 @@ func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choi
 
 	semesterID := semDetails[len(semDetails)-1].SemID
 
-	// Fetch exam schedule data
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, semesterID, "UTC", "POST", "")
 	if err != nil {
 		if debug.Debug {
@@ -51,7 +47,6 @@ func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choi
 		fmt.Println("HTML Response:\n", string(bodyText))
 	}
 
-	// Parse the HTML response
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
 	if err != nil {
 		if debug.Debug {
@@ -61,7 +56,6 @@ func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choi
 		return
 	}
 
-	// Parse exam schedule from the document
 	examSchedule, err := parseExamSchedule(doc)
 	if err != nil {
 		fmt.Println("Error parsing exam schedule:", err)
@@ -73,10 +67,8 @@ func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choi
 		return
 	}
 
-	// Sort exams by date in ascending order
 	sortExamsByDateAsc(examSchedule)
 
-	// Filter upcoming exams (days left >= 0)
 	upcomingExams := []types.ExamEvent{}
 	for _, exam := range examSchedule {
 		if exam.DaysLeft >= 0 {
@@ -89,22 +81,18 @@ func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choi
 		return
 	}
 
-	// Display the exam schedule in a table
 	displayExamScheduleTable(upcomingExams)
 
-	// **Map types.ExamEvent to helpers.ICSEvent**
 	var icsEvents []helpers.ICSEvent
 	for _, exam := range upcomingExams {
-		// Define start and end times for the entire exam day up to 23:59 PM
-		startTime := exam.ExamDate.Format("20060102T000000") // Start of the day
-		endTime := exam.ExamDate.Format("20060102T235900")   // End of the day
+		startDate := exam.ExamDate.Format("20060102")
+		endDate := exam.ExamDate.AddDate(0, 0, 1).Format("20060102")
 
-		// Create ICSEvent
 		event := helpers.ICSEvent{
 			UID:         helpers.GenerateUID("Exam"),
 			DtStamp:     time.Now().UTC().Format("20060102T150405Z"),
-			DtStart:     startTime,
-			DtEnd:       endTime,
+			DtStart:     startDate,
+			DtEnd:       endDate,
 			Summary:     fmt.Sprintf("Exam: %s - %s", exam.Slot, exam.CourseTitle),
 			Description: fmt.Sprintf("Exam for %s (%s) scheduled on %s at %s.",
 				exam.CourseTitle, exam.CourseCode, exam.ExamDate.Format("02-Jan-2006"), exam.Venue),
@@ -113,11 +101,10 @@ func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choi
 		icsEvents = append(icsEvents, event)
 	}
 
-	// Generate ICS file for the exam schedule
 	icsFileName := "Exam_Schedule.ics"
 	icsFilePath := filepath.Join(helpers.GetDownloadsDir(), icsFileName)
 
-	err = helpers.GenerateICSFile(icsEvents, icsFilePath)
+	err = helpers.GenerateICSFileDateOnly(icsEvents, icsFilePath, "CLI-TOP DA")
 	if err != nil {
 		fmt.Println("Error generating ICS file:", err)
 	} else {
@@ -134,7 +121,6 @@ func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choi
 	}
 }
 
-// parseExamSchedule parses the exam schedule from the HTML document.
 func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
 	var exams []types.ExamEvent
 
@@ -196,19 +182,16 @@ func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
 	return exams, nil
 }
 
-// sortExamsByDateAsc sorts the exams slice in ascending order based on ExamDate.
 func sortExamsByDateAsc(exams []types.ExamEvent) {
 	sort.Slice(exams, func(i, j int) bool {
 		return exams[i].ExamDate.Before(exams[j].ExamDate)
 	})
 }
 
-// displayExamScheduleTable displays the exam schedule in a formatted table.
 func displayExamScheduleTable(exams []types.ExamEvent) {
 	fmt.Println()
 
 	var tableData [][]string
-	// Table headers
 	tableData = append(tableData, []string{
 		"Code", "Course Title", "Slot", "Exam Date", "Exam Time", "Venue", "Seat", "Seat No.", "Days Left",
 	})
