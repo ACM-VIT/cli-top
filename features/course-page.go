@@ -1,6 +1,7 @@
 package features
 
 import (
+	"cli-top/debug"
 	"cli-top/helpers"
 	"cli-top/types"
 	"fmt"
