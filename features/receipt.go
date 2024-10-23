@@ -6,10 +6,12 @@ import (
 	"cli-top/helpers"
 	"cli-top/types"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/olekukonko/tablewriter"
 )
 
 func GetReceipt(regNo string, cookies types.Cookies) {
@@ -27,30 +29,29 @@ func GetReceipt(regNo string, cookies types.Cookies) {
 		return
 	}
 
-	// Initialize the nested list for receipts
-	var receipts [][]string
-	// Add the header row
-	receipts = append(receipts, []string{"SERIAL", "RECEIPT NUMBER", "DATE", "AMOUNT"})
+	// Create table
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"SERIAL", "RECEIPT NUMBER", "DATE", "AMOUNT", "CAMPUS CODE"})
 
-	// Iterate through the table rows and extract data
+	// Skip the first row if it's not a header
 	doc.Find("table.table-bordered tbody tr").Each(func(i int, rowSelection *goquery.Selection) {
 		if i == 0 && strings.TrimSpace(rowSelection.Find("th").First().Text()) != "SERIAL" {
 			return
 		}
 
 		// Extract data from each cell in the row
-		var row []string
-		row = append(row, strconv.Itoa(i)) // Add serial number
+		row := []string{strconv.Itoa(i)}
 		rowSelection.Find("td").Each(func(j int, cellSelection *goquery.Selection) {
-			if j < 4 { // Exclude the "VIEW" column
+			// Exclude the VIEW column
+			if j < 4 {
 				cellText := strings.TrimSpace(cellSelection.Text())
 				row = append(row, cellText)
 			}
 		})
-		// Append the row to the receipts list
-		receipts = append(receipts, row)
+		// Append the row to the table
+		table.Append(row)
 	})
 
-	// Print the table using the helpers.PrintTable function
-	helpers.PrintTable(receipts, 0)
+	// Render the table
+	table.Render()
 }

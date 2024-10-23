@@ -5,7 +5,6 @@ import (
 	"cli-top/helpers"
 	types "cli-top/types"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -14,12 +13,8 @@ import (
 func GetGrades(regNo string, cookies types.Cookies, semId string, sem_choice int) {
 	url := "https://vtop.vit.ac.in/vtop/examinations/examGradeView/doStudentGradeView"
 
-	semester,err := helpers.SelectSemester(regNo, cookies, sem_choice)
-	if err != nil && debug.Debug {
-		fmt.Println(err)
-		return
-	}
-	bodyText, err := helpers.FetchReq(regNo, cookies, url, semester.SemID, "UTC", "POST", "")
+	semesterID := helpers.SelectSemester(regNo, cookies, sem_choice)
+	bodyText, err := helpers.FetchReq(regNo, cookies, url, semesterID, "UTC", "POST", "")
 	if err != nil && debug.Debug {
 		fmt.Println(err)
 	}
@@ -88,11 +83,7 @@ func printTableGrade(title string, data [][]string, builder *strings.Builder) {
 }
 
 func printFormattedRowGrade(row []string, builder *strings.Builder, count int) {
-	snum,err := strconv.Atoi(row[0])
-	if err != nil && debug.Debug {
-		fmt.Println(err)
-	}
-	if snum == count-1 {
+	if strToInt(row[0]) == count-1 {
 		builder.WriteString(fmt.Sprintf("| \x1b[32m%-5s\x1b[0m | \x1b[32m%-11s\x1b[0m | \x1b[32m%-50s\x1b[0m | \x1b[32m%-25s\x1b[0m | \x1b[32m%-3s\x1b[0m | \x1b[32m%-3s\x1b[0m | \x1b[32m%-3s\x1b[0m | \x1b[32m%-3s\x1b[0m | \x1b[32m%-6s\x1b[0m | \x1b[32m%-6s\x1b[0m |\n",
 			row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[9], row[10]))
 	} else {
