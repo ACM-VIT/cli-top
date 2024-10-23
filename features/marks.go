@@ -1,5 +1,3 @@
-// features/marks.go
-
 package features
 
 import (
@@ -11,21 +9,23 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/charmbracelet/glamour"
 	"golang.org/x/net/html"
 )
 
-var weightageSum float64       // Total sum of weightage marks
-var weightagePercentageSum int // Total sum of weightage percentage
+var scoredWeightageMarksSum float64       // Total sum of weightage marks
+var maxMarksSum int // Total sum of weightage percentage
 
 func GetMarks(regNo string, cookies types.Cookies, semID string, sem_choice int) {
 	url := "https://vtop.vit.ac.in/vtop/examinations/doStudentMarkView"
+	semester,err := helpers.SelectSemester(regNo, cookies, sem_choice)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
+		return
+	}
 
-	semesterID := helpers.SelectSemester(regNo, cookies, sem_choice)
+	payload := fmt.Sprintf("------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"authorizedID\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"semesterSubId\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"_csrf\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J--\r\n", regNo, semester.SemID, cookies.CSRF)
 
-	payload := fmt.Sprintf("------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"authorizedID\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"semesterSubId\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"_csrf\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J--\r\n", regNo, semesterID, cookies.CSRF)
-
-	bodyText, err := helpers.FetchReq(regNo, cookies, url, semesterID, payload, "POST", "marks")
+	bodyText, err := helpers.FetchReq(regNo, cookies, url, semester.SemID, payload, "POST", "marks")
 	if err != nil && debug.Debug {
 		fmt.Println(err)
 	}
@@ -45,60 +45,36 @@ func GetMarks(regNo string, cookies types.Cookies, semID string, sem_choice int)
 	// Check if elements were found
 	if len(elements) == 0 {
 		fmt.Println()
-		in := `# No Data Found`
-
-		out, _ := glamour.Render(in, "dark")
-		fmt.Print(out)
+		in := "No Data Found"
+		// Use ANSI escape codes to format the message
+		out := fmt.Sprintf("\033[1;31m%s\033[0m", in) // Bold red text
+		fmt.Println(out)
 		return
 	}
-
 	// Convert HTML elements to Markdown tables
 	for i, element := range elements {
 		// Convert each element to Markdown
-		weightageSum = 0
-		weightagePercentageSum = 0
-		markdownTable, err := convertHTMLElementToMarkdown(element)
+		//markdownTable, err := convertHTMLElementToMarkdown(element)
+		OneSubTable,weightageMark,maxMarkSum := ExtractMarks(element)
 		if err != nil && debug.Debug {
+			fmt.Println(OneSubTable)
 			fmt.Println(err)
 		}
-
-		renderer, e := glamour.NewTermRenderer(glamour.WithStylePath("dark"), glamour.WithWordWrap(150))
-		if e != nil {
-			fmt.Println("Error rendering markdown:", err)
+		if ((len(OneSubTable) == 1) || (len(OneSubTable) == 0)) {
+			fmt.Println("No Data Found for", subjectDetails[i])
 			return
 		}
-		markdown, err := renderer.Render(markdownTable)
-		if err != nil && debug.Debug {
-			fmt.Println("Error rendering Table:", err)
-			return
-		}
+		// for _,stuff :=range OneSubTable {
 
-		subjectDetail, e1 := renderer.Render(subjectDetails[i])
-		if e1 != nil {
-			fmt.Println("Error rendering SubjectDetails:", err)
-			return
-		}
-
-		fmt.Println(subjectDetail)
-		fmt.Println(markdown)
-		formattedWeightageSum := fmt.Sprintf("%.1f", weightageSum)
-		// calculate  percentage
-		percentage := float64(weightageSum) / float64(weightagePercentageSum) * 100
-		fmt.Println(cal50(formattedWeightageSum, percentage))
+		// }
+		course_detail := "\033[1;34m" + subjectDetails[i] + "\033[0m"
+		fmt.Println(course_detail)
+		helpers.PrintTable(OneSubTable,1)
+		weightageMarkStr := "\033[32m" + fmt.Sprintf("%.2f", weightageMark) + "\033[0m"
+		maxMarkSumStr := "\033[32m" + strconv.Itoa(maxMarkSum) + "\033[0m"
+		fmt.Println(weightageMarkStr+"/"+maxMarkSumStr)
+		fmt.Println()
 	}
-}
-
-// Formats the color of the result
-func cal50(formattedWeightageSum string, percentage float64) string {
-	result := ""
-	green := fmt.Sprintf("You scored: "+"\033[32m"+"%s/%d"+"\033[0m"+"\t", formattedWeightageSum, weightagePercentageSum)
-	red := fmt.Sprintf("You scored: "+"\033[31m"+"%s/%d"+"\033[0m"+"\t", formattedWeightageSum, weightagePercentageSum)
-	if percentage >= 50 {
-		result = green
-	} else {
-		result = red
-	}
-	return result
 }
 
 func subjectDetails(doc *goquery.Document) []string {
@@ -113,7 +89,6 @@ func subjectDetails(doc *goquery.Document) []string {
 
 		// Extract data from each column
 		td := s.Find("td")
-		code := td.Eq(1).Text()
 		subject := td.Eq(2).Text()
 		name := td.Eq(3).Text()
 		ctype := td.Eq(4).Text()
@@ -122,7 +97,7 @@ func subjectDetails(doc *goquery.Document) []string {
 		// Add more lines as needed for other columns
 
 		// Print or use the extracted data
-		detail := fmt.Sprintf("## CourseCode: %s, CourseTitle: %s,  CourseType: %s, Faculty: %s, Slot: %s, ClassNbr: %s\n", subject, name, ctype, fac, slot, code)
+		detail := fmt.Sprintf("# CourseCode: %s, CourseTitle: %s,  CourseType: %s, Faculty: %s, Slot: %s\n", subject, name, ctype, fac, slot)
 		// Print or use other extracted data as needed
 
 		details = append(details, detail)
@@ -152,7 +127,6 @@ func convertHTMLElementToMarkdown(element *goquery.Selection) (string, error) {
 				text := strings.TrimSpace(cellSelection.Text())
 				row = append(row, text)
 			})
-			printFormattedRowMarks(row, &markdownTable)
 		}
 	})
 
@@ -165,21 +139,21 @@ func printTableMarks(title string, data [][]string, builder *strings.Builder) {
 	builder.WriteString("|-------|---------------------------------------------|---------|------------|---------|------------|---------------|\n")
 }
 
-func printFormattedRowMarks(row []string, builder *strings.Builder) {
-	weightage, err := strconv.ParseFloat(row[6], 3)
-	if err != nil && debug.Debug {
-		fmt.Print("Error converting weightage to float:", err)
-	}
-	weightagePercentage, err := strconv.ParseInt(row[3], 10, 64)
-	if err != nil && debug.Debug {
-		fmt.Print("Error converting weightage Percentage to int")
-	}
+// func printFormattedRowMarks(row []string, builder *strings.Builder) {
+// 	weightage, err := strconv.ParseFloat(row[6], 3)
+// 	if err != nil && debug.Debug {
+// 		fmt.Print("Error converting weightage to float:", err)
+// 	}
+// 	weightagePercentage, err := strconv.ParseInt(row[3], 10, 64)
+// 	if err != nil && debug.Debug {
+// 		fmt.Print("Error converting weightage Percentage to int")
+// 	}
 
-	weightageSum += weightage
-	weightagePercentageSum += int(weightagePercentage)
-	builder.WriteString(fmt.Sprintf("| %-5s | %-45s | %-7s | %-10s | %-7s | %-10s | %-13s |\n",
-		row[0], row[1], row[2], row[3], row[4], row[5], row[6]))
-}
+// 	weightageSum += weightage
+// 	weightagePercentageSum += int(weightagePercentage)
+// 	builder.WriteString(fmt.Sprintf("| %-5s | %-45s | %-7s | %-10s | %-7s | %-10s | %-13s |\n",
+// 		row[0], row[1], row[2], row[3], row[4], row[5], row[6]))
+// }
 
 func findElementsByClass(doc *goquery.Document, class string) []*goquery.Selection {
 	var result []*goquery.Selection
@@ -203,4 +177,31 @@ func hasClass(n *html.Node, class string) bool {
 		}
 	}
 	return false
+}
+
+func ExtractMarks (element *goquery.Selection) ([][]string,float64,int) {
+	// Find all elements with the specified class
+	var SingleSubTable [][]string 
+	weightageMarkSum := 0.0
+	maxSubjectMarksSum := 0
+	//SingleSubTable = append(SingleSubTable, []string{"Title", "MaxMark", "Weightage%", "Status", "ScoredMark", "WeightageMark"})
+	element.Find("tbody tr").Each(func(_ int, rowSelection *goquery.Selection) {
+		title := strings.TrimSpace(rowSelection.Find("td").Eq(1).Text())
+		maxMark := strings.TrimSpace(rowSelection.Find("td").Eq(2).Text())
+		weightage := strings.TrimSpace(rowSelection.Find("td").Eq(3).Text())
+		status := strings.TrimSpace(rowSelection.Find("td").Eq(4).Text())
+		scoredMark := strings.TrimSpace(rowSelection.Find("td").Eq(5).Text())
+		weightageMark := strings.TrimSpace(rowSelection.Find("td").Eq(6).Text())
+		SingleSubTable = append(SingleSubTable, []string{title, maxMark, weightage, status, scoredMark, weightageMark})
+		maxMarkInt, err := strconv.Atoi(weightage)
+        if err == nil {
+            maxSubjectMarksSum = maxSubjectMarksSum + maxMarkInt
+        } 
+		weightageFloat, err := strconv.ParseFloat(weightageMark, 64)
+        if err == nil {
+            weightageMarkSum = weightageMarkSum + weightageFloat
+        } 	
+	})
+
+	return SingleSubTable,weightageMarkSum,maxSubjectMarksSum
 }

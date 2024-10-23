@@ -1,177 +1,115 @@
 package helpers
 
 import (
-	"bytes"
-	"cli-top/debug"
-	"cli-top/types"
-	"fmt"
-	"strings"
+    "bufio"
+    "cli-top/debug"
+    "cli-top/types"
+    "fmt"
+    "os"
+    "strings"
 
-	"github.com/PuerkitoBio/goquery"
-	"github.com/charmbracelet/glamour"
+    "github.com/PuerkitoBio/goquery"
 )
 
-func FindAndSaveSemIds(doc *goquery.Document, targetClass string, result *[]string) {
-	// Find all <option> elements within <select> tags with the specified class
-	//fmt.Println(targetClass, doc)
-	//selection := doc.Find("select.form-select option")
-	//fmt.Println("Number of elements found:", selection.Length())
+// Initialize a single reader instance for the package
+var reader = bufio.NewReader(os.Stdin)
 
-	doc.Find("select." + targetClass + " option").Each(func(i int, s *goquery.Selection) {
-
-		value, exists := s.Attr("value")
-		//fmt.Println(value)
-		if exists {
-			*result = append(*result, value)
-		}
-	})
+// FindAndSaveSemIds finds and saves semester IDs from the document
+func FindAndSaveSemIds(doc *goquery.Document) ([]types.Semester, error) {
+    var allsems []types.Semester
+    doc.Find("select.form-select option").Each(func(i int, s *goquery.Selection) {
+        var tempSem types.Semester
+        var exists bool
+        tempSem.SemID, exists = s.Attr("value")
+        tempSem.SemName = s.Text()
+        if exists && tempSem.SemID != "" {
+            allsems = append(allsems, tempSem)
+        }
+    })
+    if len(allsems) == 0 {
+        return nil, fmt.Errorf("no semesters found")
+    }
+    return allsems, nil
 }
 
-func GetSemDetails(cookies types.Cookies, regNo string) types.SemesterDetails {
-	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentAttendance"
+// GetSemDetails fetches semester details
+func GetSemDetails(cookies types.Cookies, regNo string) ([]types.Semester, error) {
+    url := "https://vtop.vit.ac.in/vtop/academics/common/StudentAttendance"
+    var allSems []types.Semester
+    bodyText, err := FetchReq(regNo, cookies, url, "", "", "POST", "")
+    if err != nil {
+        if debug.Debug {
+            fmt.Println("Error fetching semester details:", err)
+        }
+        return allSems, err
+    }
 
-	//fmt.Println(regNo, cookies)
-	bodyText, err := FetchReq(regNo, cookies, url, "", "", "POST", "")
-	if err != nil && debug.Debug {
-		fmt.Println(err)
-	}
+    if debug.Debug {
+        fmt.Println("---- Response Body Start ----")
+        fmt.Println(string(bodyText))
+        fmt.Println("---- Response Body End ----")
+    }
 
-	// Use goquery to parse the HTML
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
-	if err != nil && debug.Debug {
-		fmt.Println(err)
-	}
-	//fmt.Println(string(bodyText))
-
-	// Create a slice to store the extracted data
-	var SemNames []string
-	var SemIds []string
-
-	var tempIds []string
-	// Find and save the semester IDs
-	FindAndSaveSemIds(doc, "form-select", &tempIds)
-	//fmt.Printf("%q", tempIds)
-	SemIds = RemoveEmptyStrings(tempIds)
-	//fmt.Printf("%q", SemIds)
-
-	// fmt.Printf("%q\n", SemIds)
-
-	for _, semId := range SemIds {
-		optionText := FindOptionWithTagValue(doc, semId)
-
-		if optionText != "" {
-			SemNames = append(SemNames, optionText)
-
-		} else {
-			// Handle the case where no <option> tag is found with the specified SemId
-			SemNames = append(SemNames, "Unknown")
-		}
-	}
-
-	// Reverse SemIds and SemNames
-	reverseSemIds := make([]string, len(SemIds))
-	reverseSemNames := make([]string, len(SemNames))
-	for i := 0; i < len(SemIds); i++ {
-		reverseIndex := len(SemIds) - 1 - i
-		reverseSemIds[i] = SemIds[reverseIndex]
-		reverseSemNames[i] = SemNames[reverseIndex]
-	}
-
-	// Save the reversed values back to SemDetails
-	SemIds = reverseSemIds
-	SemNames = reverseSemNames
-
-	//fmt.Println("\nget wroking")
-	// Return the encapsulated struct
-	return types.SemesterDetails{
-		SemNames: SemNames,
-		SemIds:   SemIds,
-	}
+    doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
+    if err != nil {
+        if debug.Debug {
+            fmt.Println("Error parsing the HTML document:", err)
+        }
+        return allSems, err
+    }
+    allSems, err = FindAndSaveSemIds(doc)
+    if err != nil {
+        return allSems, err
+    }
+    ReverseSlice(allSems)
+    return allSems, nil
 }
 
-func PrintSemDetails(regNo string, cookies types.Cookies) {
-	semDetails := GetSemDetails(cookies, regNo)
-	//fmt.Println(len(semDetails.SemNames))
-	//fmt.Println(len(semDetails.SemIds))
-	if len(semDetails.SemIds) == 0 {
-		fmt.Println("Error fetching semester details or no semesters available.")
-		return
-	}
+// SelectSemester selects a semester based on user choice
+func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) (types.Semester, error) {
+    semDetails, err := GetSemDetails(cookies, regNo)
+    var selectedSem types.Semester
+    if err != nil {
+        return selectedSem, err
+    }
+    if len(semDetails) == 0 {
+        return selectedSem, fmt.Errorf("error fetching semester details or no semesters available. Try logging out and logging back in")
+    }
 
-	// Generate Markdown table text
-	markdownTable := GenerateSemDetailsMarkdownTable(semDetails)
+    // Depending on your application flow, ensure that input reading is handled appropriately
+    // For example, if TableSelector reads input from the user, consider placing clearInputBuffer() there
 
-	// Render Markdown using glamour
-	rendered, err := glamour.Render(markdownTable, "dark")
-	if err != nil && debug.Debug {
-		fmt.Println("Error rendering Markdown:", err)
-		return
-	}
+    // clearInputBuffer() // Uncomment if necessary and ensure it doesn't cause blocking
 
-	// Print the rendered Markdown
-	fmt.Println(rendered)
+    var nested_sem_list [][]string
+    nested_sem_list = append(nested_sem_list, []string{"SemId", "SemName"})
+    for i := 0; i < len(semDetails); i++ {
+        nested_sem_list = append(nested_sem_list, []string{semDetails[i].SemID, semDetails[i].SemName})
+    }
+
+    choice := TableSelector("semester", nested_sem_list, sem_choice)
+    if choice == -1 {
+        return selectedSem, fmt.Errorf("invalid semester selection")
+    }
+    if choice < 1 || choice > len(semDetails) {
+        return selectedSem, fmt.Errorf("invalid semester selection")
+    }
+    selectedSem = semDetails[choice-1]
+
+	clearInputBuffer()
+
+    return selectedSem, nil
 }
 
-func GenerateSemDetailsMarkdownTable(semDetails types.SemesterDetails) string {
-	var buf bytes.Buffer
-
-	// Table header
-	buf.WriteString("| Index | SemId          | SemName                   |\n")
-	buf.WriteString("|-------|----------------|---------------------------|\n")
-
-	// Iterate through SemIds and SemNames using a for loop 
-	for i := len(semDetails.SemIds) - 1; i >= 0; i-- { // reversed to correctly reflect the order of semesters UX change
-		index := fmt.Sprintf("%d", len(semDetails.SemIds)-i)
-		semId := semDetails.SemIds[i]
-		semName := semDetails.SemNames[i]
-
-		// Table row
-		buf.WriteString(fmt.Sprintf("| %-5s | %-14s | %-25s |\n", index, semId, semName))
-	}
-
-	return buf.String()
-}
-
-func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) string {
-
-	selectedSemId := ""
-	selectedSemName := ""
-
-	var choice int
-	if sem_choice == 0 {
-		PrintSemDetails(regNo, cookies)
-		fmt.Print("Choose a semester: ")
-		fmt.Scanln(&choice)
-	} else {
-		choice = sem_choice
-	}
-	semDet := GetSemDetails(cookies, regNo)
-
-	if choice < 1 || choice > len(semDet.SemIds) {
-		fmt.Println("Invalid choice.")
-	} else {
-		reverseIndex := len(semDet.SemIds) - choice 
-		selectedSemId = semDet.SemIds[reverseIndex] // reversed here too
-		selectedSemName = semDet.SemNames[reverseIndex] // reversed here too
-	}
-
-	// Format the string with glamour
-	formattedSelection := fmt.Sprintf("\n# You selected SemId: %s, SemName: %s\n", selectedSemId, selectedSemName)
-
-	// Render and print the formatted string
-	renderer, err := glamour.NewTermRenderer(glamour.WithStylePath("dark"), glamour.WithWordWrap(150))
-	if err != nil && debug.Debug {
-		fmt.Println("Error creating glamour renderer:", err)
-	}
-
-	output, err := renderer.Render(formattedSelection)
-	if err != nil && debug.Debug {
-		fmt.Println("Error rendering formatted string:", err)
-	}
-
-	fmt.Print(output)
-
-	fmt.Println()
-
-	return selectedSemId
+// clearInputBuffer clears the input buffer by reading until a newline is encountered.
+// Note: This function will block if there's no pending input.
+func clearInputBuffer() error {
+    _, err := reader.ReadString('\n')
+    if err != nil {
+        if debug.Debug {
+            fmt.Println("Error clearing input buffer:", err)
+        }
+        return err
+    }
+    return nil
 }
