@@ -89,11 +89,11 @@ func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choi
 		endDate := exam.ExamDate.AddDate(0, 0, 1).Format("20060102")
 
 		event := types.ICSEvent{
-			UID:         helpers.GenerateUID("Exam"),
-			DtStamp:     time.Now().UTC().Format("20060102T150405Z"),
-			DtStart:     startDate,
-			DtEnd:       endDate,
-			Summary:     fmt.Sprintf("Exam: %s - %s", exam.Slot, exam.CourseTitle),
+			UID:     helpers.GenerateUID("Exam"),
+			DtStamp: time.Now().UTC().Format("20060102T150405Z"),
+			DtStart: startDate,
+			DtEnd:   endDate,
+			Summary: fmt.Sprintf("Exam: %s - %s", exam.Slot, exam.CourseTitle),
 			Description: fmt.Sprintf("Exam for %s (%s) scheduled on %s at %s.",
 				exam.CourseTitle, exam.CourseCode, exam.ExamDate.Format("02-Jan-2006"), exam.Venue),
 		}
@@ -104,7 +104,7 @@ func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choi
 	icsFileName := "Exam_Schedule.ics"
 	icsFilePath := filepath.Join(helpers.GetDownloadsDir(), icsFileName)
 
-	err = helpers.GenerateICSFileDateOnly(icsEvents, icsFilePath, "CLI-TOP DA")
+	err = helpers.GenerateICSFileDateOnly(icsEvents, icsFilePath, "CLI-TOP Exams")
 	if err != nil {
 		fmt.Println("Error generating ICS file:", err)
 	} else {
