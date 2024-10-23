@@ -18,8 +18,12 @@ import (
 
 func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choice int) {
 	url := "https://vtop.vit.ac.in/vtop/examinations/doSearchExamScheduleForStudent"
-	semDetails := helpers.GetSemDetails(cookies, regNo)
-	semesterID := semDetails.SemIds[0]
+	semDetails,err := helpers.GetSemDetails(cookies, regNo)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
+		return
+	}
+	semesterID := semDetails[len(semDetails)-1].SemID
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, semesterID, "UTC", "POST", "")
 	if err != nil && debug.Debug {
 		fmt.Println("Error fetching exam schedule:", err)
@@ -54,6 +58,8 @@ func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choi
 		return
 	}
 
+	displayExamScheduleTable(upcomingExams)
+
 	icsFileName := "Exam_Schedule.ics"
 	err = GenerateExamICSFile(upcomingExams, icsFileName)
 	if err != nil {
@@ -65,7 +71,6 @@ func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choi
 			fmt.Println("Error uploading ICS file:", err)
 			fmt.Println("Please import the 'Exam_Schedule.ics' file manually.")
 		} else {
-			displayExamScheduleTable(upcomingExams)
 			fmt.Println()
 			fmt.Println("ICS file generated and saved successfully.")
 			helpers.GenerateCalendarImportLinks(uploadedFileURL, "Exams")
@@ -194,7 +199,7 @@ func displayExamScheduleTable(exams []types.ExamEvent) {
 	if len(tableData) == 1 {
 		fmt.Println("No upcoming exams scheduled!")
 	} else {
-		helpers.PrintTable(tableData)
+		helpers.PrintTable(tableData,1)
 	}
 }
 

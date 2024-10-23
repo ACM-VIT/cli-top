@@ -1,8 +1,6 @@
 package types
 
-import (
-	"time"
-)
+import "time"
 
 type Cookies struct {
 	SERVERID   string
@@ -20,11 +18,6 @@ type Request struct {
 	URL     string
 	Referer string
 	Cookies string
-}
-
-type SemesterDetails struct {
-	SemNames []string
-	SemIds   []string
 }
 
 type KeyStruct struct {
@@ -113,3 +106,24 @@ type SubjectDAs struct {
 	DAs         []DAEvent
 }
 
+
+
+type DAsubject struct {
+	Name string
+	Code string
+	ID   string	
+}
+
+type DAEvent struct {
+    Title       string
+    DueDate     time.Time
+    DaysLeft    int
+	QP string
+	Last_upload string
+	DownloadLink string
+}
+
+type SubjectDAs struct {
+    Subject     DAsubject
+    DAs         []DAEvent
+}
