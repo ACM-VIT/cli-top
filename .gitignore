@@ -3,7 +3,6 @@ ViBoot/
 captcha.jpg
 captcha.png
 output.jpg
-temp.txt
 output_image.jpg
 .vscode/
 .env
@@ -19,6 +18,3 @@ output_image.jpg
 
 # Ignore Binary
 cli-top*
-
-*.ics
-/.vs
