@@ -25,8 +25,12 @@ func GetClassMessage(regNo string, cookies types.Cookies) {
 		return
 	}
 
+	if len(messages) == 1 {
+		fmt.Println("No class messages found")
+		return
+	}
 	fmt.Println()
-	helpers.PrintTable(messages)
+	helpers.PrintTable(messages,1)
 	fmt.Println()
 }
 

@@ -51,9 +51,10 @@ func GetNightSlipStatus(regNo string, cookies types.Cookies) {
 			tableData = append(tableData, row)
 		}
 	})
+	fmt.Println()
 
 	if len(tableData) > 1 {
-		helpers.PrintTable(tableData)
+		helpers.PrintTable(tableData,0)
 	} else {
 		fmt.Println("No night slip status found.")
 	}

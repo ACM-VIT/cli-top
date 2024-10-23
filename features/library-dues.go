@@ -6,11 +6,8 @@ import (
 	"cli-top/helpers"
 	"cli-top/types"
 	"fmt"
-	"os"
-	"strconv"
 	"strings"
 	"github.com/PuerkitoBio/goquery"
-	"github.com/olekukonko/tablewriter"
 )
 
 func GetLibraryDues(regNo string, cookies types.Cookies) {
@@ -29,20 +26,21 @@ func GetLibraryDues(regNo string, cookies types.Cookies) {
 	}
 
 	// Create table
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"SERIAL", "TYPE", "AMOUNT"})
+	var AllDuesTable [][]string
+	AllDuesTable = append(AllDuesTable, []string{ "TYPE", "AMOUNT"})
 
 	doc.Find("table.table-bordered tbody tr").Each(func(i int, rowSelection *goquery.Selection) {
-		// Extract data from each cell in the row
-		row := []string{strconv.Itoa(i + 1)}
+		row := []string{}
 		rowSelection.Find("td").Each(func(j int, cellSelection *goquery.Selection) {
 			cellText := strings.TrimSpace(cellSelection.Text())
 			row = append(row, cellText)
 		})
 		// Append the row to the table
-		table.Append(row)
+		AllDuesTable = append(AllDuesTable, row)
 	})
 
 	// Render the table
-	table.Render()
+	fmt.Println()
+	helpers.PrintTable(AllDuesTable, 1)
+	fmt.Println()
 }

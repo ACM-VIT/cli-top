@@ -60,12 +60,12 @@ func GetLeaveStatus(regNo string, cookies types.Cookies) {
 
 	doc.Find("table#LeaveAppliedTable tbody tr").Each(func(i int, rowSelection *goquery.Selection) {
 		visitPlace := strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(1).Text())
-		reason := strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(2).Text())
-		leaveType := strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(3).Text())
-		from := formatDate(strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(4).Text()))
-		to := formatDate(strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(5).Text()))
-		status := strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(6).Text())
-
+		reason := strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(0).Text())
+		leaveType := strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(2).Text())
+		from := formatDate(strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(3).Text()))
+		to := formatDate(strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(4).Text()))
+		status := strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(5).Text())
+		coloredStatus := colorStatus(status)
 		if visitPlace != "" {
 			leaveRequests = append(leaveRequests, types.LeaveRequest{
 				VisitPlace: visitPlace,
@@ -73,12 +73,24 @@ func GetLeaveStatus(regNo string, cookies types.Cookies) {
 				LeaveType:  leaveType,
 				From:       from,
 				To:         to,
-				Status:     status,
+				Status:     coloredStatus,
 			})
 		}
 	})
 
-	GenerateLeaveStatusTable(leaveRequests)
+	fmt.Println()
+	if len(leaveRequests) == 0 {
+		fmt.Println("No leave requests found.")
+		return
+	}
+	var AllRequests [][]string
+	AllRequests = append(AllRequests, []string{"VISIT PLACE", "REASON", "LEAVE TYPE", "FROM", "TO", "STATUS"})
+	for _, leave := range leaveRequests {
+		AllRequests = append(AllRequests, []string{leave.VisitPlace, leave.Reason, leave.LeaveType, leave.From, leave.To, leave.Status})
+	}
+	helpers.PrintTable(AllRequests,0)
+	fmt.Println()
+
 }
 
 func formatDate(dateStr string) string {

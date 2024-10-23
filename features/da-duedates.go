@@ -85,7 +85,7 @@ func PrintDAdates(regNo string, cookies types.Cookies) {
 					daysLeftColored,
 				})
 			}
-			helpers.PrintTable(tableData)
+			helpers.PrintTable(tableData,1)
 			fmt.Println()
 			fmt.Println("ICS file generated and saved successfully.")
 			helpers.GenerateCalendarImportLinks(uploadedFileURL, "DAs")
@@ -126,7 +126,7 @@ func PrintDAdates(regNo string, cookies types.Cookies) {
 				daysLeftColored,
 			})
 		}
-		helpers.PrintTable(courseTable)
+		helpers.PrintTable(courseTable,1)
 		fmt.Println()
 	}
 	fmt.Println("Program terminated.")
@@ -243,12 +243,15 @@ func pendingDAs(doc *goquery.Document, subjectName string) []DAEvent {
 
 func getAllSubs(regNo string, cookies types.Cookies) [][]string {
 	url := "https://vtop.vit.ac.in/vtop/examinations/doDigitalAssignment"
-	semDetails := helpers.GetSemDetails(cookies, regNo)
-	if len(semDetails.SemIds) == 0 {
+	semDetails,err := helpers.GetSemDetails(cookies, regNo)
+    if err != nil && debug.Debug {
+        fmt.Printf("Error fetching semesters: %v\n", err)
+    }
+	if len(semDetails) == 0 {
 		fmt.Println("No semesters found.")
 		return nil
 	}
-	semID := semDetails.SemIds[0]
+	semID := semDetails[0].SemID
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, semID, "UTC", "POST", "")
 	if err != nil && debug.Debug {
 		fmt.Printf("Error fetching subjects: %v\n", err)
