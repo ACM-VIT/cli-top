@@ -13,6 +13,7 @@ import (
 	"time"
 	"bytes"
 	"encoding/json"
+	"mime/multipart"
 )
 
 type ICSEvent struct {
@@ -40,6 +41,63 @@ func GenerateICSFile(events []ICSEvent, filePath string) error {
 		"VERSION:2.0",
 		"PRODID:-//CLI-TOP//EN",
 		"X-WR-CALNAME:CLI-TOP Events",
+		"BEGIN:VTIMEZONE",
+		"TZID:Asia/Kolkata",
+		"BEGIN:STANDARD",
+		"DTSTART:19700101T000000",
+		"TZOFFSETFROM:+0530",
+		"TZOFFSETTO:+0530",
+		"TZNAME:IST",
+		"END:STANDARD",
+		"END:VTIMEZONE",
+	}
+	_, err = file.WriteString(strings.Join(icsHeaders, "\r\n") + "\r\n")
+	if err != nil {
+		return fmt.Errorf("failed to write ICS headers: %v", err)
+	}
+
+	for _, event := range events {
+		vevent := []string{
+			"BEGIN:VEVENT",
+			fmt.Sprintf("UID:%s", event.UID),
+			fmt.Sprintf("DTSTAMP:%s", event.DtStamp),
+			fmt.Sprintf("DTSTART;TZID=Asia/Kolkata:%s", event.DtStart),
+			fmt.Sprintf("DTEND;TZID=Asia/Kolkata:%s", event.DtEnd),
+			fmt.Sprintf("SUMMARY:%s", EscapeString(event.Summary)),
+			fmt.Sprintf("DESCRIPTION:%s", EscapeString(event.Description)),
+			"END:VEVENT",
+		}
+
+		_, err = file.WriteString(strings.Join(vevent, "\r\n") + "\r\n")
+		if err != nil {
+			return fmt.Errorf("failed to write VEVENT: %v", err)
+		}
+	}
+
+	_, err = file.WriteString("END:VCALENDAR\r\n")
+	if err != nil {
+		return fmt.Errorf("failed to write ICS footer: %v", err)
+	}
+
+	return nil
+}
+
+func GenerateICSFileWithFilename(events []ICSEvent, filePath string, calName string) error {
+	if len(events) == 0 {
+		return nil
+	}
+
+	file, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to create ICS file: %v", err)
+	}
+	defer file.Close()
+
+	icsHeaders := []string{
+		"BEGIN:VCALENDAR",
+		"VERSION:2.0",
+		"PRODID:-//CLI-TOP//EN",
+		fmt.Sprintf("X-WR-CALNAME:%s", EscapeString(calName)),
 		"BEGIN:VTIMEZONE",
 		"TZID:Asia/Kolkata",
 		"BEGIN:STANDARD",
@@ -110,15 +168,34 @@ func UploadICSFile(filePath string, serverURL string) (string, error) {
 	}
 	defer file.Close()
 
-	fileBytes, err := io.ReadAll(file)
+	var requestBody bytes.Buffer
+	writer := multipart.NewWriter(&requestBody)
+
+	part, err := writer.CreateFormFile("file", filepath.Base(filePath))
 	if err != nil {
-		return "", fmt.Errorf("failed to read ICS file: %v", err)
+		return "", fmt.Errorf("failed to create form file: %v", err)
+	}
+
+	_, err = io.Copy(part, file)
+	if err != nil {
+		return "", fmt.Errorf("failed to copy file: %v", err)
+	}
+
+	err = writer.Close()
+	if err != nil {
+		return "", fmt.Errorf("failed to close writer: %v", err)
 	}
 
 	uploadURL := serverURL + "/upload"
 
-	// Make POST request to upload the file
-	resp, err := http.Post(uploadURL, "text/calendar", bytes.NewBuffer(fileBytes))
+	req, err := http.NewRequest("POST", uploadURL, &requestBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to create POST request: %v", err)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to upload ICS file: %v", err)
 	}
@@ -128,13 +205,13 @@ func UploadICSFile(filePath string, serverURL string) (string, error) {
 		return "", fmt.Errorf("upload failed with status: %s", resp.Status)
 	}
 
-	// Parse the JSON response to extract the URL
-	var uploadResponse UploadResponse
+	var uploadResponse struct {
+		URL string `json:"url"`
+	}
 	err = json.NewDecoder(resp.Body).Decode(&uploadResponse)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse upload response: %v", err)
 	}
 
-	// Return the extracted URL
 	return uploadResponse.URL, nil
 }
