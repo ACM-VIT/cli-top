@@ -129,3 +129,12 @@ type LastestDA struct {
 	Subject DAsubject
 	DA     DAEvent
 }
+
+type ICSEvent struct {
+	UID         string
+	DtStamp     string
+	DtStart     string
+	DtEnd       string
+	Summary     string
+	Description string
+}

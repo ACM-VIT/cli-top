@@ -1,30 +1,24 @@
+// helpers/ics-generator.go
 package helpers
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
-	"bytes"
-	"encoding/json"
-	"mime/multipart"
+
+	"cli-top/types"
 )
 
-type ICSEvent struct {
-	UID         string
-	DtStamp     string
-	DtStart     string
-	DtEnd       string
-	Summary     string
-	Description string
-}
-
-func GenerateICSFileDateOnly(events []ICSEvent, filePath string, calName string) error {
+func GenerateICSFileDateOnly(events []types.ICSEvent, filePath string, calName string) error {
 	if len(events) == 0 {
 		return nil
 	}
