@@ -3,7 +3,13 @@ package helpers
 import (
     "fmt"
     "strings"
+	"regexp"
 )
+
+func StripAnsiCodes(str string) string {
+    re := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+    return re.ReplaceAllString(str, "")
+}
 
 func TableSelector(subject string ,nestedList [][]string, choice int) int {
     if choice != 0 {
@@ -96,14 +102,15 @@ func PrintTable(nestedList [][]string, indexStatus int) int {
 	// Compute the maximum width for each column
 	maxwidth := make([]int, len(normalizedList[0]))
 	for i, v := range normalizedList[0] {
-		maxwidth[i] = len(v)
-	}
+        maxwidth[i] = len(StripAnsiCodes(v))
+		}
 	for _, row := range normalizedList {
 		for j, v := range row {
 			// Handle multiline cells and find the longest line
 			for _, line := range strings.Split(v, "\n") {
-				if len(line) > maxwidth[j] {
-					maxwidth[j] = len(line)
+				lineLength := len(StripAnsiCodes(line))
+				if lineLength > maxwidth[j] {
+					maxwidth[j] = lineLength
 				}
 			}
 		}
