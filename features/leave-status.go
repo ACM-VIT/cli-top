@@ -10,13 +10,6 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/olekukonko/tablewriter"
-)
-
-const (
-	Red    = "\033[31m"
-	Green  = "\033[32m"
-	Reset  = "\033[0m" 
 )
 
 func GetLeaveStatus(regNo string, cookies types.Cookies) {
@@ -62,10 +55,10 @@ func GetLeaveStatus(regNo string, cookies types.Cookies) {
 		reason := strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(1).Text())
 		visitPlace := strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(0).Text())
 		leaveType := strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(2).Text())
-		from := formatDate(strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(3).Text()))
-		to := formatDate(strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(4).Text()))
+		from := helpers.FormatDate(strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(3).Text()))
+		to := helpers.FormatDate(strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(4).Text()))
 		status := strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(5).Text())
-		coloredStatus := colorStatus(status)
+		coloredStatus := helpers.ColorStatus(status)
 		if visitPlace != "" {
 			leaveRequests = append(leaveRequests, types.LeaveRequest{
 				VisitPlace: visitPlace,
@@ -77,93 +70,26 @@ func GetLeaveStatus(regNo string, cookies types.Cookies) {
 			})
 		}
 	})
-	// fmt.Println(leaveRequests)
 
 	fmt.Println()
 	if len(leaveRequests) == 0 {
 		fmt.Println("No leave requests found.")
 		return
 	}
-	var AllRequests [][]string
-	// fmt.Println(AllRequests)
-	AllRequests = append(AllRequests, []string{"VISIT PLACE", "REASON", "LEAVE TYPE", "FROM", "TO", "STATUS"})
-	for _, leave := range leaveRequests {
-		AllRequests = append(AllRequests, []string{leave.VisitPlace, leave.Reason, leave.LeaveType, leave.From, leave.To, leave.Status})
-	}
-	helpers.PrintTable(AllRequests,0)
-		fmt.Println()
-
-}
-
-func formatDate(dateStr string) string {
-	parsedTime, err := time.Parse("02-Jan-2006 15:04", dateStr)
-	if err != nil {
-		return dateStr
-	}
-	return parsedTime.Format("02/01/06 15:04") 
-}
-
-func GenerateLeaveStatusTable(leaveRequests []types.LeaveRequest) {
-	var buf bytes.Buffer
-	table := tablewriter.NewWriter(&buf)
-
-	table.SetHeader([]string{"VISIT PLACE", "REASON", "LEAVE TYPE", "FROM", "TO", "STATUS"})
-
-	table.SetBorder(false)
-	table.SetHeaderLine(true)
-	table.SetRowLine(false)
-	table.SetAutoWrapText(false)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetColumnSeparator("│")
-
-	const maxVisitPlaceLength = 30 // Define max length for "Visit Place" field
+	var allRequests [][]string
+	allRequests = append(allRequests, []string{"VISIT PLACE", "REASON", "LEAVE TYPE", "FROM", "TO", "STATUS"})
 
 	for _, leave := range leaveRequests {
-		visitPlace := truncateWithEllipses(leave.VisitPlace, maxVisitPlaceLength)
-		reason := leave.Reason
-		leaveType := leave.LeaveType
-		from := leave.From
-		to := leave.To
-		status := colorStatus(leave.Status)
-
-		table.Append([]string{reason, visitPlace, leaveType, from, to, status})
+		allRequests = append(allRequests, []string{
+			leave.VisitPlace,
+			leave.Reason,
+			leave.LeaveType,
+			leave.From,
+			leave.To,
+			leave.Status,
+		})
 	}
 
-	table.Render()
-	output := buf.String()
-
-	output = strings.ReplaceAll(output, "+", "┼")
-	output = strings.ReplaceAll(output, "-", "─")
-	output = strings.ReplaceAll(output, "|", "│")
-
-	output = addLeftPadding(output, 2)
-
-	fmt.Println("\n")
-	fmt.Print(output)
-	fmt.Println("\n")
-}
-
-func truncateWithEllipses(text string, maxLength int) string {
-	if len(text) > maxLength {
-		return text[:maxLength-3] + "..." // Add ellipses if text exceeds max length
-	}
-	return text
-}
-
-func colorStatus(status string) string {
-	if strings.Contains(status, "APPROVAL PENDING") {
-		return Red + status + Reset
-	} else if strings.Contains(status, "APPROVED") {
-		return Green + status + Reset
-	}
-	return status
-}
-
-func addLeftPadding(text string, padding int) string {
-	paddingString := strings.Repeat(" ", padding)
-	lines := strings.Split(text, "\n")
-	for i, line := range lines {
-		lines[i] = paddingString + line
-	}
-	return strings.Join(lines, "\n")
+	helpers.PrintTable(allRequests, 0)
+	fmt.Println()
 }

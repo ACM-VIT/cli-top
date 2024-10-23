@@ -115,3 +115,14 @@ type SubjectDAs struct {
     Subject     DAsubject
     DAs         []DAEvent
 }
+
+type NightSlipRequest struct {
+	Venue      string
+	EventType  string
+	Details    string
+	AppliedTo  string
+	FromDate   string
+	ToDate     string
+	FromToTime string
+	Status     string
+}
