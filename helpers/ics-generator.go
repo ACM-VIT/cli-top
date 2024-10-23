@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 	"bytes"
-	"mime/multipart"
+	"encoding/json"
 )
 
 type ICSEvent struct {
@@ -103,49 +103,22 @@ func GetDownloadsDir() string {
 	}
 }
 
-// UploadICSFile uploads the ICS file to the specified server and returns the uploaded file URL.
 func UploadICSFile(filePath string, serverURL string) (string, error) {
-	// Open the file
 	file, err := os.Open(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to open ICS file: %v", err)
 	}
 	defer file.Close()
 
-	// Prepare a buffer to hold the multipart form data
-	var body bytes.Buffer
-	writer := multipart.NewWriter(&body)
-
-	// Create the file field in the multipart form data
-	part, err := writer.CreateFormFile("file", filepath.Base(filePath))
+	fileBytes, err := io.ReadAll(file)
 	if err != nil {
-		return "", fmt.Errorf("failed to create form file: %v", err)
+		return "", fmt.Errorf("failed to read ICS file: %v", err)
 	}
 
-	// Copy the file content to the multipart field
-	_, err = io.Copy(part, file)
-	if err != nil {
-		return "", fmt.Errorf("failed to copy file content: %v", err)
-	}
+	uploadURL := serverURL + "/upload"
 
-	// Close the multipart writer to finalize the form data
-	err = writer.Close()
-	if err != nil {
-		return "", fmt.Errorf("failed to close multipart writer: %v", err)
-	}
-
-	// Create a new POST request with the multipart form data
-	req, err := http.NewRequest("POST", serverURL+"/upload", &body)
-	if err != nil {
-		return "", fmt.Errorf("failed to create upload request: %v", err)
-	}
-
-	// Set the content type to multipart/form-data
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-
-	// Send the request
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	// Make POST request to upload the file
+	resp, err := http.Post(uploadURL, "text/calendar", bytes.NewBuffer(fileBytes))
 	if err != nil {
 		return "", fmt.Errorf("failed to upload ICS file: %v", err)
 	}
@@ -155,11 +128,13 @@ func UploadICSFile(filePath string, serverURL string) (string, error) {
 		return "", fmt.Errorf("upload failed with status: %s", resp.Status)
 	}
 
-	// Read the server's response (URL of the uploaded file)
-	uploadedURL, err := io.ReadAll(resp.Body)
+	// Parse the JSON response to extract the URL
+	var uploadResponse UploadResponse
+	err = json.NewDecoder(resp.Body).Decode(&uploadResponse)
 	if err != nil {
-		return "", fmt.Errorf("failed to read upload response: %v", err)
+		return "", fmt.Errorf("failed to parse upload response: %v", err)
 	}
 
-	return string(uploadedURL), nil
+	// Return the extracted URL
+	return uploadResponse.URL, nil
 }

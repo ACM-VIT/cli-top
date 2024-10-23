@@ -47,23 +47,21 @@ func RemoveEmptyStrings(data []string) []string {
 	return cleanedData
 }
 
+type UploadResponse struct {
+	URL string `json:"url"`
+}
+
 func GenerateCalendarImportLinks(icsURL string, calendarName string) {
 	fmt.Println("Import events into your calendar using the links below:")
 	fmt.Println()
 	blueColor := "\033[34m"
 	resetColor := "\033[0m"
-	googleLink := GenerateGoogleCalendarImportLink(icsURL)
+	googleLink := GenerateGoogleCalendarLink(icsURL)
 	googleLinkText := blueColor + "Add to Google Calendar" + resetColor
 	fmt.Println(MakeANSILink(googleLinkText, googleLink))
 	outlookLink := GenerateOutlookCalendarImportLink(icsURL, calendarName)
 	outlookLinkText := blueColor + "Add to Outlook Calendar" + resetColor
 	fmt.Println(MakeANSILink(outlookLinkText, outlookLink))
-}
-
-func GenerateGoogleCalendarImportLink(icsURL string) string {
-	baseURL := "https://calendar.google.com/calendar/r?cid="
-	encodedURL := url.QueryEscape(icsURL)
-	return fmt.Sprintf("%s%s", baseURL, encodedURL)
 }
 
 func GenerateOutlookCalendarImportLink(icsURL string, calendarName string) string {
@@ -75,6 +73,11 @@ func GenerateOutlookCalendarImportLink(icsURL string, calendarName string) strin
 
 func MakeANSILink(text, url string) string {
 	return fmt.Sprintf("\u001B]8;;%s\a%s\u001B]8;;\a", url, text)
+}
+
+func GenerateGoogleCalendarLink(icsURL string) string {
+	baseURL := "https://calendar.google.com/calendar/r?cid="
+	return fmt.Sprintf("%s%s", baseURL, icsURL)
 }
 
 func TruncateWithEllipsis(s string, maxLength int) string {
@@ -94,15 +97,15 @@ func StripAnsiCodes(s string) string {
 }
 
 func ReverseSlice[T any](slice []T) {
-    for i, j := 0, len(slice)-1; i < j; i, j = i+1, j-1 {
-        slice[i], slice[j] = slice[j], slice[i]
-    }
+	for i, j := 0, len(slice)-1; i < j; i, j = i+1, j-1 {
+		slice[i], slice[j] = slice[j], slice[i]
+	}
 }
 
 const (
-	Red   = "\033[31m"
-	Green = "\033[32m"
-	Reset = "\033[0m"
+	Red    = "\033[31m"
+	Green  = "\033[32m"
+	Reset  = "\033[0m"
 	Yellow = "\033[33m"
 	Blue   = "\033[34m"
 )
