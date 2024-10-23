@@ -72,17 +72,6 @@ func SplitFacultyNameFull(facultyName string) []string {
 	return parts
 }
 
-func addLeftPadding(output string, spaces int) string {
-	pad := strings.Repeat(" ", spaces)
-	lines := strings.Split(output, "\n")
-	for i, line := range lines {
-		if strings.TrimSpace(line) != "" {
-			lines[i] = pad + line
-		}
-	}
-	return strings.Join(lines, "\n")
-}
-
 func ReplaceCrossWithPlus(input string) string {
 	return strings.ReplaceAll(input, "┼", "+")
 }
@@ -118,7 +107,7 @@ func GenerateFacultyDetailsTable(faculties []types.Faculty, query string) {
 	output = strings.ReplaceAll(output, "-", "─")
 	output = strings.ReplaceAll(output, "|", "│")
 
-	output = addLeftPadding(output, 2)
+	output = AddLeftPadding(output, 2)
 
 	fmt.Print(output)
 	fmt.Println()
@@ -151,7 +140,7 @@ func GenerateCourseDetailsTable(courses []types.Course) {
 	output = strings.ReplaceAll(output, "-", "─")
 	output = strings.ReplaceAll(output, "|", "│")
 
-	output = addLeftPadding(output, 2)
+	output = AddLeftPadding(output, 2)
 
 	fmt.Print(output)
 	fmt.Println()
@@ -332,7 +321,7 @@ func GenerateCourseMaterialsTable(materials []types.CourseMaterial) {
 	output = strings.ReplaceAll(output, "-", "─")
 	output = strings.ReplaceAll(output, "|", "│")
 
-	output = addLeftPadding(output, 2)
+	output = AddLeftPadding(output, 2)
 
 	fmt.Print(output)
 	fmt.Println()
