@@ -189,18 +189,18 @@ func generateCalendarLines(month string, colour []int) []string {
 		if day == 0 {
 			currentLine.WriteString("   ") // Three spaces for blank days
 		} else {
-			color := reset
+			color := helpers.Reset
 			switch day {
 			case 1:
-				color = Blue
+				color = helpers.Blue
 			case 2:
-				color = Red
+				color = helpers.Red
 			case 3:
-				color = Green
+				color = helpers.Green
 			}
 
 			// Use consistent spacing for all numbers
-			currentLine.WriteString(fmt.Sprintf("%s%2d%s ", color, dayOfMonth, reset))
+			currentLine.WriteString(fmt.Sprintf("%s%2d%s ", color, dayOfMonth, helpers.Reset))
 			dayOfMonth++
 		}
 	}
