@@ -34,7 +34,6 @@ A Command Line Interface (CLI) tool for seamless interaction with the student po
 - Grade View
 - Student Profile 
 - Hostel Info
-- Spotlight   
 - CGPA View  
 - Logout
 
