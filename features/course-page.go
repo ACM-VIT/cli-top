@@ -1,7 +1,6 @@
 package features
 
 import (
-	"cli-top/debug"
 	"cli-top/helpers"
 	"cli-top/types"
 	"fmt"
@@ -53,14 +52,12 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag
 	selectedCourseName := selectedCourse.Name
 	formattedSelection := fmt.Sprintf("\n# You selected Course: %s\n", selectedCourseName)
 	renderer, err := glamour.NewTermRenderer(glamour.WithStylePath("dark"), glamour.WithWordWrap(150))
-	if err != nil && debug.Debug {
-		fmt.Println("Error creating glamour renderer:", err)
+	if err == nil {
+		output, err := renderer.Render(formattedSelection)
+		if err == nil {
+			fmt.Print(output)
+		}
 	}
-	output, err := renderer.Render(formattedSelection)
-	if err != nil && debug.Debug {
-		fmt.Println("Error rendering formatted string:", err)
-	}
-	fmt.Print(output)
 
 	slotIds, err := fetchSlotIds(regNo, cookies, selectedSemester.SemID, selectedCourse.ID)
 	if err != nil {
@@ -146,23 +143,11 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string, 
 	formData := helpers.FormatBodyData(payloadMap)
 	body, err := helpers.FetchReq(regNo, cookies, getCourseURL, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error fetching courses:", err)
-		}
 		return types.Course{}, err
-	}
-
-	if debug.Debug {
-		fmt.Println("---- Courses Response Body Start ----")
-		fmt.Println(string(body))
-		fmt.Println("---- Courses Response Body End ----")
 	}
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
 	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error parsing courses HTML:", err)
-		}
 		return types.Course{}, err
 	}
 
@@ -179,27 +164,18 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string, 
 	})
 
 	if len(courses) == 0 {
-		if debug.Debug {
-			fmt.Println("No courses found for the selected semester.")
-		}
 		return types.Course{}, fmt.Errorf("no courses found for the selected semester")
 	}
 
 	selectedCourse := types.Course{}
 	if courseFlag > 0 && courseFlag <= len(courses) {
 		selectedCourse = courses[courseFlag-1]
-		if debug.Debug {
-			fmt.Printf("Selected Course: %s (ID: %s)\n", selectedCourse.Name, selectedCourse.ID)
-		}
 	} else {
 		helpers.GenerateCourseDetailsTable(courses)
 		fmt.Print("Select a Course by entering the number: ")
 		var index int
 		_, err = fmt.Scanln(&index)
 		if err != nil {
-			if debug.Debug {
-				fmt.Println("Invalid input for course selection:", err)
-			}
 			return types.Course{}, fmt.Errorf("invalid input for course selection")
 		}
 
@@ -209,10 +185,6 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string, 
 		}
 
 		selectedCourse = courses[index-1]
-
-		if debug.Debug {
-			fmt.Printf("Selected Course: %s (ID: %s)\n", selectedCourse.Name, selectedCourse.ID)
-		}
 	}
 
 	return selectedCourse, nil
@@ -233,23 +205,11 @@ func fetchSlotIds(regNo string, cookies types.Cookies, semSubId string, classId 
 	formData := helpers.FormatBodyData(payloadMap)
 	body, err := helpers.FetchReq(regNo, cookies, getSlotURL, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error fetching slots:", err)
-		}
 		return nil, err
-	}
-
-	if debug.Debug {
-		fmt.Println("---- Slots Response Body Start ----")
-		fmt.Println(string(body))
-		fmt.Println("---- Slots Response Body End ----")
 	}
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
 	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error parsing slots HTML:", err)
-		}
 		return nil, err
 	}
 
@@ -265,14 +225,7 @@ func fetchSlotIds(regNo string, cookies types.Cookies, semSubId string, classId 
 	})
 
 	if len(slots) == 0 {
-		if debug.Debug {
-			fmt.Println("No slots found for the selected course.")
-		}
 		return nil, fmt.Errorf("no slots found for the selected course")
-	}
-
-	if debug.Debug {
-		fmt.Printf("Available Slots: %v\n", slots)
 	}
 
 	return slots, nil
@@ -291,19 +244,15 @@ func fetchFacultiesForAllSlotsConcurrently(regNo string, cookies types.Cookies, 
 		sem <- struct{}{}
 		go func(i int, slotId string) {
 			defer wg.Done()
+			defer func() { <-sem }()
 			faculties, err := fetchFaculties(regNo, cookies, semSubId, classId, slotId)
 			if err != nil {
-				if debug.Debug {
-					fmt.Printf("Error fetching faculties for slot %s: %v\n", slotId, err)
-				}
 				mu.Lock()
 				errorsOccurred = true
 				mu.Unlock()
-				<-sem
 				return
 			}
 			facultySlices[i] = faculties
-			<-sem
 		}(i, slotId)
 	}
 
@@ -340,30 +289,15 @@ func fetchFaculties(regNo string, cookies types.Cookies, semSubId string, classI
 	formData := helpers.FormatBodyData(payloadMap)
 	body, err := helpers.FetchReq(regNo, cookies, getFacultyURL, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error fetching faculty details:", err)
-		}
 		return nil, err
 	}
 
-	if debug.Debug {
-		fmt.Println("---- Faculties Response Body Start ----")
-		fmt.Println(string(body))
-		fmt.Println("---- Faculties Response Body End ----")
-	}
-
 	if strings.Contains(string(body), "HTTP Status 404") {
-		if debug.Debug {
-			fmt.Println("Received 404 Not Found when fetching faculty details.")
-		}
 		return nil, fmt.Errorf("received 404 Not Found when fetching faculty details")
 	}
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
 	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error parsing faculty list HTML:", err)
-		}
 		return nil, err
 	}
 
@@ -389,9 +323,6 @@ func fetchFaculties(regNo string, cookies types.Cookies, semSubId string, classI
 
 		matches := re.FindStringSubmatch(onclick)
 		if len(matches) != 4 {
-			if debug.Debug {
-				fmt.Println("Regex did not match correctly for onclick:", onclick)
-			}
 			return
 		}
 
@@ -412,9 +343,6 @@ func fetchFaculties(regNo string, cookies types.Cookies, semSubId string, classI
 	})
 
 	if len(faculties) == 0 {
-		if debug.Debug {
-			fmt.Println("No faculties found for slot ID:", slotId)
-		}
 		return nil, fmt.Errorf("no faculties found for slot ID: %s", slotId)
 	}
 
@@ -436,6 +364,7 @@ func fetchCourseMaterialsPage(regNo string, cookies types.Cookies, selectedFacul
 	if err != nil {
 		return "", err
 	}
+
 	return string(body), nil
 }
 
@@ -452,7 +381,10 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 			return
 		}
 		indexStr := strings.TrimSpace(cells.Eq(0).Text())
-		index, _ := strconv.Atoi(indexStr)
+		index, err := strconv.Atoi(indexStr)
+		if err != nil {
+			index = len(materials) + 1
+		}
 		date := strings.TrimSpace(cells.Eq(1).Text())
 		dayOrderSlot := strings.TrimSpace(cells.Eq(2).Text())
 		dayOrderSlot = helpers.ReplaceCrossWithPlus(dayOrderSlot)
@@ -525,9 +457,6 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester types.Semester, selectedCourse types.Course, selectedFaculty types.Faculty, allMaterials []types.CourseMaterial, selectedMaterials []types.CourseMaterial) error {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error getting user's home directory:", err)
-		}
 		return err
 	}
 
@@ -539,8 +468,10 @@ func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester typ
 		courseFolderName = fmt.Sprintf("%s_%s_%s", courseParts[0], courseParts[1], courseParts[2])
 	} else if len(courseParts) == 2 {
 		courseFolderName = fmt.Sprintf("%s_%s", courseParts[0], courseParts[1])
-	} else {
+	} else if len(courseParts) == 1 {
 		courseFolderName = courseParts[0]
+	} else {
+		courseFolderName = "Unknown_Course"
 	}
 	courseFolderName = sanitizeFilename(courseFolderName)
 
@@ -556,11 +487,14 @@ func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester typ
 	facultyNameNoERP := helpers.RedactERPID(selectedFaculty.Name)
 	facultyParts := helpers.SplitFacultyNameFull(facultyNameNoERP)
 	var facultyFolderName string
-	facultyNamePart := strings.ReplaceAll(facultyParts[0], " ", "-")
 	if len(facultyParts) >= 2 {
+		facultyNamePart := strings.ReplaceAll(facultyParts[0], " ", "-")
 		facultyFolderName = fmt.Sprintf("%s_%s_%s", slotID, facultyNamePart, facultyParts[1])
-	} else {
+	} else if len(facultyParts) == 1 {
+		facultyNamePart := strings.ReplaceAll(facultyParts[0], " ", "-")
 		facultyFolderName = fmt.Sprintf("%s_%s", slotID, facultyNamePart)
+	} else {
+		facultyFolderName = "Unknown_Faculty"
 	}
 	facultyFolderName = sanitizeFilename(facultyFolderName)
 
@@ -568,9 +502,6 @@ func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester typ
 
 	err = os.MkdirAll(fullDirPath, os.ModePerm)
 	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error creating directory:", err)
-		}
 		return err
 	}
 
@@ -583,84 +514,147 @@ func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester typ
 		return fmt.Errorf("rate limit exceeded")
 	}
 
+	if _, err := os.Stat(fullDirPath); os.IsNotExist(err) {
+		return fmt.Errorf("download directory does not exist: %s", fullDirPath)
+	}
+
 	return downloadSelectedMaterials(regNo, cookies, selectedFaculty, selectedMaterials, fullDirPath)
 }
 
-
 func downloadSelectedMaterials(
-    regNo string,
-    cookies types.Cookies,
-    selectedFaculty types.Faculty,
-    materials []types.CourseMaterial,
-    fullDirPath string,
+	regNo string,
+	cookies types.Cookies,
+	selectedFaculty types.Faculty,
+	materials []types.CourseMaterial,
+	fullDirPath string,
 ) error {
-    totalFiles := 0
-    for _, material := range materials {
-        totalFiles += len(material.ReferenceMaterials)
-    }
+	totalFiles := 0
+	for _, material := range materials {
+		totalFiles += len(material.ReferenceMaterials)
+	}
 
-    bar := progressbar.Default(int64(totalFiles), "Downloading materials")
+	if totalFiles == 0 {
+		fmt.Println("No files to download.")
+		return nil
+	}
 
-    for _, material := range materials {
-        topicName := sanitizeFilename(material.Topic)
-        materialIndex := material.Index
-        refMaterialCounter := 1 
+	bar := progressbar.NewOptions(totalFiles,
+		progressbar.OptionSetDescription("Downloading materials..."),
+		progressbar.OptionShowCount(),
+		progressbar.OptionSetWidth(15),
+		progressbar.OptionThrottle(65*time.Millisecond),
+		progressbar.OptionShowIts(),
+		progressbar.OptionClearOnFinish(),
+	)
 
-        for _, refMaterial := range material.ReferenceMaterials {
-            downloadURL := "https://vtop.vit.ac.in/vtop/downloadPdf"
-            payloadMap := map[string]string{
-                "_csrf":        cookies.CSRF,
-                "authorizedID": regNo,
-                "semSubId":     selectedFaculty.SemSubID,
-                "classId":      selectedFaculty.ClassID,
-                "materialId":   refMaterial.MaterialID,
-                "materialDate": refMaterial.MaterialDate,
-            }
-            formData := helpers.FormatBodyData(payloadMap)
-            body, err := helpers.FetchReq(regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
-            if err != nil {
-                if debug.Debug {
-                    fmt.Println("Error downloading material:", err)
-                }
-                bar.Add(1)
-                continue
-            }
-            if !isSuccessfulPdfDownload(body) {
-                if debug.Debug {
-                    fmt.Println("Failed to download material, response may indicate an error")
-                }
-                bar.Add(1)
-                continue
-            }
+	var wg sync.WaitGroup
+	var mu sync.Mutex
 
-            refMaterialName := sanitizeFilename(refMaterial.Name)
+	sem := make(chan struct{}, 5)
 
-            filename := fmt.Sprintf("%02d_%s_%s.pdf", materialIndex, topicName, refMaterialName)
-            filePath := filepath.Join(fullDirPath, filename)
+	for _, material := range materials {
+		topicName := sanitizeFilename(material.Topic)
+		materialIndex := material.Index
 
-            if _, err := os.Stat(filePath); os.IsNotExist(err) {
-                err = saveFile(body, filePath)
-                if err != nil {
-                    if debug.Debug {
-                        fmt.Println("Error saving file:", err)
-                    }
-                    bar.Add(1)
-                    continue
-                }
-            }
+		for _, refMaterial := range material.ReferenceMaterials {
+			sem <- struct{}{}
+			wg.Add(1)
 
-            bar.Add(1)
-            refMaterialCounter++ 
-        }
-    }
-    fmt.Println("\nCourse materials downloaded successfully")
-    fmt.Printf("\033[34m\033[4m\033]8;;file://%s\033\\%s\033]8;;\033\\\033[0m to open the folder.\n", fullDirPath, "Click Here")
-    return nil
+			go func(material types.CourseMaterial, refMaterial types.ReferenceMaterial) {
+				defer wg.Done()
+				defer func() { <-sem }()
+				downloadURL := "https://vtop.vit.ac.in/vtop/downloadPdf"
+				payloadMap := map[string]string{
+					"_csrf":        cookies.CSRF,
+					"authorizedID": regNo,
+					"semSubId":     selectedFaculty.SemSubID,
+					"classId":      selectedFaculty.ClassID,
+					"materialId":   refMaterial.MaterialID,
+					"materialDate": refMaterial.MaterialDate,
+					"x":            time.Now().UTC().Format(time.RFC1123),
+				}
+				formData := helpers.FormatBodyData(payloadMap)
+
+				body, err := helpers.FetchReq(regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
+				if err != nil {
+					mu.Lock()
+					bar.Add(1)
+					mu.Unlock()
+					return
+				}
+
+				if !isSuccessfulDownload(body) {
+					mu.Lock()
+					bar.Add(1)
+					mu.Unlock()
+					return
+				}
+
+				refMaterialName := sanitizeFilename(refMaterial.Name)
+				ext := getFileExtension(refMaterialName, body)
+				filename := fmt.Sprintf("%02d_%s_%s%s", materialIndex, topicName, refMaterialName, ext)
+				filePath := filepath.Join(fullDirPath, filename)
+
+				if _, err := os.Stat(filePath); os.IsNotExist(err) {
+					err = saveFile(body, filePath)
+					if err != nil {
+						mu.Lock()
+						bar.Add(1)
+						mu.Unlock()
+						return
+					}
+				}
+
+				mu.Lock()
+				bar.Add(1)
+				mu.Unlock()
+			}(material, refMaterial)
+		}
+	}
+
+	wg.Wait()
+	bar.Finish()
+	fmt.Println("\nCourse materials downloaded successfully")
+	fmt.Printf("\033[34m\033[4m\033]8;;file://%s\033\\%s\033]8;;\033\\\033[0m to open the folder.\n", fullDirPath, "Click Here")
+	return nil
 }
 
+func isSuccessfulDownload(body []byte) bool {
+	if len(body) < 4 {
+		return false
+	}
+	signature := string(body[:4])
+	switch signature {
+	case "%PDF":
+		return true
+	case "PK\x03\x04":
+		return true
+	case "PK\x05\x06":
+		return false
+	case "PK\x07\x08":
+		return false
+	default:
+		return false
+	}
+}
 
-func isSuccessfulPdfDownload(body []byte) bool {
-	return strings.HasPrefix(string(body), "%PDF-")
+func getFileExtension(filename string, body []byte) string {
+	ext := filepath.Ext(filename)
+	if ext != "" {
+		return ext
+	}
+	if len(body) >= 4 {
+		signature := string(body[:4])
+		switch signature {
+		case "%PDF":
+			return ".pdf"
+		case "PK\x03\x04":
+			return ".pptx"
+		default:
+			return ""
+		}
+	}
+	return ""
 }
 
 func sanitizeFilename(name string) string {
