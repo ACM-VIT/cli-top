@@ -22,16 +22,20 @@ const (
 
 func PrintCal(regNo string, cookies types.Cookies, sem_choice int, classGrpFlag int) {
 	url := "https://vtop.vit.ac.in/vtop/getDateForSemesterPreview"
-	semesterID := helpers.SelectSemester(regNo, cookies, sem_choice)
+	semester,err := helpers.SelectSemester(regNo, cookies, sem_choice)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
+		return
+	}
 	payloadMap := map[string]string{
 		"_csrf":         cookies.CSRF,
 		"paramReturnId": "getDateForSemesterPreview",
-		"semSubId":      semesterID,
+		"semSubId":      semester.SemID,
 		"authorizedID":  regNo,
 		"x":             fmt.Sprintf("%d", time.Now().Unix()),
 	}
 	formData := helpers.FormatBodyData(payloadMap)
-	bodyText, err := helpers.FetchReq(regNo, cookies, url, semesterID, formData, "POST", "")
+	bodyText, err := helpers.FetchReq(regNo, cookies, url, semester.SemID, formData, "POST", "")
 	if err != nil && debug.Debug {
 		fmt.Println(err)
 	}
@@ -46,13 +50,13 @@ func PrintCal(regNo string, cookies types.Cookies, sem_choice int, classGrpFlag 
 	payloadMap = map[string]string{
 		"_csrf":         cookies.CSRF,
 		"paramReturnId": "getListForSemester",
-		"semSubId":      semesterID,
+		"semSubId":      semester.SemID,
 		"classGroupId":  grp_list[grp][1],
 		"authorizedID":  regNo,
 		"x":             fmt.Sprintf("%d", time.Now().Unix()),
 	}
 	formData = helpers.FormatBodyData(payloadMap)
-	bodyText, err = helpers.FetchReq(regNo, cookies, url, semesterID, formData, "POST", "")
+	bodyText, err = helpers.FetchReq(regNo, cookies, url, semester.SemID, formData, "POST", "")
 	if err != nil && debug.Debug {
 		fmt.Println(err)
 	}
@@ -86,14 +90,14 @@ func PrintCal(regNo string, cookies types.Cookies, sem_choice int, classGrpFlag 
 		payloadMap = map[string]string{
 			"_csrf":        cookies.CSRF,
 			"calDate":      date,
-			"semSubId":     semesterID,
+			"semSubId":     semester.SemID,
 			"classGroupId": grp_list[grp][1],
 			"authorizedID": regNo,
 			"x":            fmt.Sprintf("%d", time.Now().Unix()),
 		}
 		formData = helpers.FormatBodyData(payloadMap)
 
-		bodyText, err = helpers.FetchReq(regNo, cookies, url, semesterID, formData, "POST", "")
+		bodyText, err = helpers.FetchReq(regNo, cookies, url, semester.SemID, formData, "POST", "")
 		if err != nil && debug.Debug {
 			fmt.Println(err)
 		}

@@ -9,16 +9,16 @@ func TableSelector(subject string ,nestedList [][]string, choice int) int {
     if choice != 0 {
 		return choice
 	}
-    fmt.Println("\n")
-    PrintTable(nestedList)
-    fmt.Println("\n")
+    fmt.Println("")
+    PrintTable(nestedList,1)
+    fmt.Println("")
     fmt.Print("Choose a ",subject,": ")
     _, err := fmt.Scan(&choice)
 	if err != nil {
 		fmt.Println("Invalid input. Please enter a valid number.")
 		return -1
 	}
-	if choice < 1 || choice > len(nestedList) {
+	if choice < 1 || choice > len(nestedList)-1 {
 		fmt.Println("Invalid choice.")
 		return -1
 	}
@@ -26,33 +26,33 @@ func TableSelector(subject string ,nestedList [][]string, choice int) int {
     return choice
 } 
 
-func TableSelectorFuzzy(subject string ,nestedList [][]string, choice string) string {
+func TableSelectorFuzzy(subject string ,nestedList [][]string, choice string) int {
 	if choice != "" {
-		for _, v := range nestedList {
+		for i, v := range nestedList {
 			if FuzzyMatch(choice, v[0]) {
-				return v[len(v)-1]
+				return i
 			}
 		}
 	}
-	fmt.Println("\n")
-	PrintTable(nestedList)
-	fmt.Println("\n")
+	fmt.Println("")
+	PrintTable(nestedList,1)
+	fmt.Println("")
 	fmt.Print("Choose a ",subject,": ")
 	_, err := fmt.Scan(&choice)
 	if err != nil {
-		fmt.Println("Invalid input. Please enter a valid code.")
-		return ""
+		fmt.Println("Invalid input. Please enter a valid ",subject)
+		return -1
 	}
-	for _, v := range nestedList {
+	for i, v := range nestedList {
 		if FuzzyMatch(choice, v[0]) {
 			fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n",subject, v[0])
-			return v[len(v)-1]
+			return i
 		}
 	}
-	return ""
+	return -1
 }
 
-func PrintTable(nestedList [][]string) int {
+func PrintTable(nestedList [][]string, indexStatus int) int {
 	if len(nestedList) == 0 {
 		fmt.Println("Ummm are you sure you are printing the right thing?")
 		return 1
@@ -83,12 +83,14 @@ func PrintTable(nestedList [][]string) int {
 	}
 
 	// Prepend 'INDEX' to the header row
-	normalizedList[0] = append([]string{"INDEX"}, normalizedList[0]...)
+	if indexStatus == 1 {
+		normalizedList[0] = append([]string{"INDEX"}, normalizedList[0]...)
 
-	// Add index numbers to the remaining rows
-	for i := 1; i < len(normalizedList); i++ {
-		index := fmt.Sprintf("%d", i)
-		normalizedList[i] = append([]string{index}, normalizedList[i]...)
+		// Add index numbers to the remaining rows
+		for i := 1; i < len(normalizedList); i++ {
+			index := fmt.Sprintf("%d", i)
+			normalizedList[i] = append([]string{index}, normalizedList[i]...)
+		}
 	}
 
 	// Compute the maximum width for each column
