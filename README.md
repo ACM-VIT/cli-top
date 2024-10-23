@@ -68,7 +68,6 @@ A Command Line Interface (CLI) tool for seamless interaction with the student po
 
  
 ## Contributors
-- [Pritam Satpathy](https://github.com/ps2181)
 - [Prateek Srivastava](https://github.com/prateek-srivastava001)
 - [Kaustav Patro](https://github.com/icky-kp)
 - [Amritsai](https://github.com/gekyxme)
