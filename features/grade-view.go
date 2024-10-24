@@ -15,9 +15,13 @@ func GetGrades(regNo string, cookies types.Cookies, semId string, sem_choice int
 	url := "https://vtop.vit.ac.in/vtop/examinations/examGradeView/doStudentGradeView"
 
 	semester,err := helpers.SelectSemester(regNo, cookies, sem_choice)
-	if err != nil && debug.Debug {
-		fmt.Println(err)
-		return
+	if err != nil {
+		if debug.Debug {
+			fmt.Printf("Error fetching semesters: %v\n", err)
+		} else {
+			fmt.Println()
+			return
+		}
 	}
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, semester.SemID, "UTC", "POST", "")
 	if err != nil && debug.Debug {

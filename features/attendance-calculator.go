@@ -6,8 +6,6 @@ import (
 	types "cli-top/types"
 	"fmt"
 	"math"
-
-	//"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -18,8 +16,13 @@ import (
 func GetAttendance(regNo string, cookies types.Cookies, semId string, sem_choice int) {
 	url := "https://vtop.vit.ac.in/vtop/processViewStudentAttendance"
 	semDetails, err := helpers.GetSemDetails(cookies, regNo)
-	if err != nil && debug.Debug {
-		fmt.Printf("Error fetching semesters: %v\n", err)
+	if err != nil {
+		if debug.Debug {
+			fmt.Printf("Error fetching semesters: %v\n", err)
+		} else {
+			fmt.Println(err)
+			return
+		}
 
 	}
 	if len(semDetails) == 0 {
