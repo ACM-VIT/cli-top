@@ -177,7 +177,7 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 						daysLeft = "N/A"
 					} else {
 						if singleDA.DueDate.Before(today) {
-							status = "\033[31mOverdue\033[0m" // Red
+							status = "\033[31mNot Submitted\033[0m" // Red
 							daysLeft = "N/A"
 						} else {
 							daysLeft = strconv.Itoa(singleDA.DaysLeft)
