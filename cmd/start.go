@@ -194,7 +194,8 @@ Available Subcommands:
 {{range .Commands}}{{if (and .IsAvailableCommand (not .Hidden))}}
   {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}
 
-Use "{{.CommandPath}} <subcommand> --help" for more information about a subcommand.`)
+Use "{{.CommandPath}} <subcommand> --help" for more information about a subcommand.
+`)
 }
 
 func Execute() {
