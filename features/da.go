@@ -271,8 +271,19 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 				return
 			}
 
+			var selectedSubjectName string
+			for _, detail := range listOfSubjects {
+				if detail.ID == selectedSubjectID {
+					selectedSubjectName = detail.Name
+					break
+				}
+			}
+			selectedSubjectName = strings.ReplaceAll(selectedSubjectName, "/", "_")
+			selectedSubjectName = strings.ReplaceAll(selectedSubjectName, "\\", "_")
+
+			// Append the subject name to the file name
+			fileName := fmt.Sprintf("%s_%s.pdf", selectedSubjectName,selectedDA[0])
 			downloadsDir := helpers.GetDownloadsDir()
-			fileName := selectedDA[0] + ".pdf"
 			filePath := filepath.Join(downloadsDir, fileName)
 
 			file, err := os.Create(filePath)
