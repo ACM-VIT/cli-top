@@ -14,7 +14,7 @@ import (
 
 func PrintCal(regNo string, cookies types.Cookies, sem_choice int, classGrpFlag int) {
 	url := "https://vtop.vit.ac.in/vtop/getDateForSemesterPreview"
-	semester,err := helpers.SelectSemester(regNo, cookies, sem_choice)
+	semester, err := helpers.SelectSemester(regNo, cookies, sem_choice)
 	if err != nil && debug.Debug {
 		fmt.Println(err)
 		return
@@ -37,7 +37,7 @@ func PrintCal(regNo string, cookies types.Cookies, sem_choice int, classGrpFlag 
 	}
 	grp_list := extractclassgrp(doc)
 	grp_list = append([][]string{{"CLASS GROUP"}}, grp_list...)
-	grp := helpers.TableSelector("class group",grp_list, classGrpFlag)
+	grp := helpers.TableSelector("class group", grp_list, classGrpFlag)
 	url = "https://vtop.vit.ac.in/vtop/getListForSemester"
 	payloadMap = map[string]string{
 		"_csrf":         cookies.CSRF,
@@ -238,7 +238,7 @@ func extractclassgrp(doc *goquery.Document) [][]string {
 	doc.Find("select#classGroupId").Each(func(i int, s *goquery.Selection) {
 		s.Find("option").Each(func(i int, option *goquery.Selection) {
 			value, _ := option.Attr("value")
-			text := option.Text()
+			text := strings.TrimSpace(option.Text())
 			grp_list = append(grp_list, []string{text, value})
 		})
 	})
