@@ -3,21 +3,13 @@ package features
 import (
 	"bytes"
 	"fmt"
-
-	// "io"
-
-	// "net/http"
-	// "net/url"
 	"strings"
-	// "time"
 	"cli-top/debug"
 	"cli-top/types"
 
-	// "github.com/charmbracelet/glamour"
 	"cli-top/helpers"
 
 	"github.com/PuerkitoBio/goquery"
-	// "golang.org/x/net/html"
 )
 
 func PrintHostelInfo(regNo string, cookies types.Cookies, url string) {

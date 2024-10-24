@@ -49,8 +49,6 @@
 
 - **GoLang** : Core programming language
 - **Cobra** : Go library for creating the terminal CLI
-- **Charm.sh (Glamour Library)** : Go library for formatting output as Markdown and rendering it better in the terminal
-
 
 
 ## ⚙️ Installation
