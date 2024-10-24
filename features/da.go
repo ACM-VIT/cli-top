@@ -16,6 +16,10 @@ import (
 )
 
 func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
+	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
+        fmt.Println("Please login first using the cli-top login command")
+        return
+    }
 	allSems, err := helpers.GetSemDetails(cookies, regNo)
 	if err != nil {
 		if debug.Debug {
@@ -177,7 +181,7 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 						daysLeft = "N/A"
 					} else {
 						if singleDA.DueDate.Before(today) {
-							status = "\033[31mOverdue\033[0m" // Red
+							status = "\033[31mNot Submitted\033[0m" // Red
 							daysLeft = "N/A"
 						} else {
 							daysLeft = strconv.Itoa(singleDA.DaysLeft)
