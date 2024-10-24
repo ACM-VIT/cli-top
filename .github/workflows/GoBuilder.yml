@@ -1,0 +1,124 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: build cli-top binary
+
+on:
+  push:
+    branches: ["main", "release"]
+  pull_request:
+    branches: ["main", "release"]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.21"
+
+      - name: Install dependencies
+        run: |
+          go mod tidy
+          go get .
+
+      - name: Build
+        run: |
+          go build -o ./build/linux/ -v ./...
+          chmod +x ./build/linux/cli-top 
+          # mv ./build/linux/cli-top ./build/linux/cli-top.lin
+
+      - name: Upload a Linux Binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: cli-top-linux
+          path: ./build/linux/cli-top
+          # name: cli-top
+          # path: ./build/linux/cli-top.lin
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.21"
+
+      - name: Install dependencies
+        run: |
+          go mod tidy
+          go get .
+
+      - name: Build
+        run: |
+          go build -o ./build/windows/ -v ./...
+
+      - name: Upload Windows Executable
+        uses: actions/upload-artifact@v3
+        with:
+          name: cli-top-windows
+          path: ./build/windows/cli-top.exe
+          # name: cli-top
+
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.21"
+
+      - name: Install dependencies
+        run: |
+          go mod tidy
+          go get .
+
+      - name: Build
+        run: |
+          go build -o ./build/macos/ -v ./...
+          chmod +x ./build/macos/cli-top
+          # mv ./build/macos/cli-top ./build/macos/cli-top.mac
+
+      - name: Upload MacOS Binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: cli-top-macos
+          path: ./build/macos/cli-top
+          # name: cli-top
+          # path: ./build/macos/cli-top.mac
+
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.21"
+
+      - name: Install dependencies
+        run: |
+          go mod tidy
+          go get .
+
+      - name: Build
+        run: |
+          GOOS=linux GOARCH=arm64 go build -o ./build/android/ -v ./...
+          chmod +x ./build/android/cli-top
+          # mv ./build/android/cli-top ./build/android/cli-top.mac
+
+      - name: Upload Android Binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: cli-top-android
+          path: ./build/android/cli-top
+          # name: cli-top
+          # path: ./build/android/cli-top.arm64
