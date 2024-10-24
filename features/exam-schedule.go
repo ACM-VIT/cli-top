@@ -16,6 +16,10 @@ import (
 )
 
 func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choice int) {
+	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
+        fmt.Println("Please login first using the cli-top login command")
+        return
+    }
 	url := "https://vtop.vit.ac.in/vtop/examinations/doSearchExamScheduleForStudent"
 
 	semDetails, err := helpers.GetSemDetails(cookies, regNo)

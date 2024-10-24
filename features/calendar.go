@@ -13,6 +13,10 @@ import (
 )
 
 func PrintCal(regNo string, cookies types.Cookies, sem_choice int, classGrpFlag int) {
+	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
+        fmt.Println("Please login first using the cli-top login command")
+        return
+    }
 	url := "https://vtop.vit.ac.in/vtop/getDateForSemesterPreview"
 	semester, err := helpers.SelectSemester(regNo, cookies, sem_choice)
 	if err != nil && debug.Debug {

@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,7 +22,11 @@ import (
 )
 
 func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag int, courseFlag int, facultyFlag string, fuzzyFlag int) {
-    selectedSemester, err := helpers.SelectSemester(regNo, cookies, semesterFlag)
+    if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
+        fmt.Println("Please login first using the cli-top login command")
+        return
+    }
+	selectedSemester, err := helpers.SelectSemester(regNo, cookies, semesterFlag)
     if err != nil && debug.Debug {
         fmt.Println(err)
         return
@@ -323,9 +328,14 @@ func selectFaculty(faculties []types.Faculty, facultyFlag string, fuzzyFlag int)
 			})
 		}
 
+		if runtime.GOOS == "windows" {
+			clearSingleNewline()
+		}
+
 		if facultyFlag == "" {
 			helpers.PrintTable(nestedList, 1)
-			fmt.Println("Enter the name of faculty to download materials from: ")
+			fmt.Println()
+			fmt.Print("Enter the name of faculty to download materials from: ")
 			reader := bufio.NewReader(os.Stdin)
 			input, err := reader.ReadString('\n')
 			if err != nil {
@@ -333,7 +343,6 @@ func selectFaculty(faculties []types.Faculty, facultyFlag string, fuzzyFlag int)
 				return types.Faculty{}, err
 			}
 			facultyFlag = strings.TrimSpace(input)
-
 			if facultyFlag == "exit" {
 				return types.Faculty{}, fmt.Errorf("selection canceled by user")
 			}
@@ -341,7 +350,7 @@ func selectFaculty(faculties []types.Faculty, facultyFlag string, fuzzyFlag int)
 		selectedIndex := helpers.NewFuzzySearch(nestedList, facultyFlag)
 		if len(selectedIndex) == 0 {
 			fmt.Println("No matching faculty found for your query. Please try again.")
-			continue
+			return types.Faculty{}, fmt.Errorf("no matching faculty found")
 		} else if len(selectedIndex) == 1 {
 			fmt.Printf("\n    \033[1;44m Your selected faculty: %s \033[0m\n\n", nestedList[selectedIndex[0]][0])
 			return faculties[selectedIndex[0]-1], nil
@@ -490,6 +499,10 @@ func displayCourseMaterials(materials []types.CourseMaterial) {
 func selectCourseMaterials(materials []types.CourseMaterial) ([]types.CourseMaterial, error) {
 	for {
 		fmt.Print("Enter the index numbers of the topics to download (e.g., 1,2,3), or 0 for bulk download: ")
+
+		if runtime.GOOS == "windows" {
+			clearSingleNewline()
+		}
 
 		var input string
 		_, err := fmt.Scanln(&input)
@@ -655,7 +668,6 @@ func downloadSelectedMaterials(
 		for _, refMaterial := range material.ReferenceMaterials {
 			sem <- struct{}{}
 			wg.Add(1)
-			fmt.Println(refMaterial)
 			go func(material types.CourseMaterial, refMaterial types.ReferenceMaterial, counter int) {
 				defer wg.Done()
 				defer func() { <-sem }()
@@ -771,4 +783,9 @@ func getFileExtension(filename string, body []byte) string {
         }
     }
     return ""
+}
+
+func clearSingleNewline() {
+    reader := bufio.NewReader(os.Stdin)
+    _, _ = reader.ReadByte() // Read and discard a single byte (newline character)
 }
