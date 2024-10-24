@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	// "io/ioutil"
 	"cli-top/debug"
 	"cli-top/features"
 	"cli-top/helpers"
@@ -18,12 +17,16 @@ import (
 	"github.com/spf13/viper"
 )
 
-var cookies types.Cookies
-var userInfo types.LogIn
 var semesterFlag int
 var debugFlag bool
 var versionFlag bool
 var updateFlag bool
+var courseFlag int
+var facultyFlag string
+var classGrpFlag int
+var fuzzyIndexFlag int
+var courseNameFlag string
+
 
 func startfn(cmd *cobra.Command, args []string) {
 
@@ -178,10 +181,27 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+func init() {
+	// Set the custom usage template
+	rootCmd.SetUsageTemplate(`Usage:
+  {{.CommandPath}} [global flags] <subcommand> [subcommand flags] [arguments]
+
+Global Flags:
+{{.PersistentFlags.FlagUsages | trimTrailingWhitespaces}}
+
+{{if .HasAvailableSubCommands}}
+Available Subcommands:
+{{range .Commands}}{{if (and .IsAvailableCommand (not .Hidden))}}
+  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}
+
+Use "{{.CommandPath}} <subcommand> --help" for more information about a subcommand.
+`)
+}
+
 func Execute() {
 	killSwitch := helpers.CheckKillSwitch()
 	if killSwitch == 2 {
-		fmt.Println("This version of cli-top has been decomissioned. Please await an update at https://cli-top.acmvit.in/.")
+		fmt.Println("This version of cli-top has been decommissioned. Please await an update at https://cli-top.acmvit.in/.")
 		return
 		// os.Exit(1)
 	}
@@ -191,6 +211,13 @@ func Execute() {
 	attendanceCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	timeTableCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	examScheduleCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	calendarCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	calendarCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
+	coursePageCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
+	coursePageCmd.PersistentFlags().StringVarP(&facultyFlag, "faculty", "f", "", "Specify the faculty")
+	coursePageCmd.PersistentFlags().IntVarP(&fuzzyIndexFlag, "fuzzy-index", "i", 0, "Specify the fuzzy index")
+	daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
 
 	// Add the flags to the root command
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
@@ -198,7 +225,7 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
 
 	// Add the commands to the root command
-	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd)
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd)
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
@@ -285,5 +312,80 @@ var examScheduleCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.GetExamSchedule(regNo, cookies, "", semesterFlag)
+	},
+}
+
+var coursePageCmd = &cobra.Command{
+	Use:   "course-page",
+	Short: "Download course materials for a selected semester, course, and faculty",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.ExecuteCoursePageDownload(regNo, cookies, semesterFlag, courseFlag, facultyFlag, fuzzyIndexFlag)
+	},
+}
+
+var libraryDuesCmd = &cobra.Command{
+	Use:   "library-dues",
+	Short: "Show Library Dues",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetLibraryDues(regNo, cookies)
+	},
+}
+
+var calendarCmd = &cobra.Command{
+	Use:   "calendar",
+	Short: "Show Calendar",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.PrintCal(regNo, cookies, semesterFlag, classGrpFlag)
+	},
+}
+
+var logoutCmd = &cobra.Command{
+	Use:   "logout",
+	Short: "Logout from VTOP",
+	Run: func(cmd *cobra.Command, args []string) {
+		err := os.Remove("cli-top-config.env")
+		if err != nil && debug.Debug {
+			fmt.Println("Error deleting .env file:", err)
+		}
+		fmt.Println("Logged out successfully.")
+	},
+}
+
+var nightslipCmd = &cobra.Command{
+	Use:   "nightslip",
+	Short: "Show Nightslip Request Status of a user",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetNightSlipStatus(regNo, cookies)
+	},
+}
+
+var leavestatusCmd = &cobra.Command{
+	Use:   "leave",
+	Short: "Show Leave Status",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetLeaveStatus(regNo, cookies)
+	},
+}
+
+var classMessagesCmd = &cobra.Command{
+	Use:   "msg",
+	Short: "Show Class Messages",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetClassMessage(regNo, cookies)
+	},
+}
+
+var daDetailsCmd = &cobra.Command{
+	Use:   "da",
+	Short: "Show Digital Assignment Details",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.PrintAllDAs(regNo, cookies, courseNameFlag)
 	},
 }

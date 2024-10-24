@@ -1,25 +1,36 @@
 package features
 
 import (
-	//"cli-top/types"
-
 	"cli-top/debug"
 	"cli-top/helpers"
 	types "cli-top/types"
 	"fmt"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	//"golang.org/x/net/html"
 )
 
 func GetAttendance(regNo string, cookies types.Cookies, semId string, sem_choice int) {
 	url := "https://vtop.vit.ac.in/vtop/processViewStudentAttendance"
+	semDetails, err := helpers.GetSemDetails(cookies, regNo)
+	if err != nil {
+		if debug.Debug {
+			fmt.Printf("Error fetching semesters: %v\n", err)
+		} else {
+			fmt.Println(err)
+			return
+		}
 
-	semesterID := helpers.SelectSemester(regNo, cookies, sem_choice)
-	bodyText, err := helpers.FetchReq(regNo, cookies, url, semesterID, "UTC", "POST", "")
+	}
+	if len(semDetails) == 0 {
+		fmt.Println("No semesters found.")
+		return
+	}
+	semID := semDetails[len(semDetails)-1].SemID
+	bodyText, err := helpers.FetchReq(regNo, cookies, url, semID, "UTC", "POST", "")
 	if err != nil && debug.Debug {
 		fmt.Println(err)
 	}
@@ -29,108 +40,81 @@ func GetAttendance(regNo string, cookies types.Cookies, semId string, sem_choice
 	if err != nil && debug.Debug {
 		fmt.Println(err)
 	}
-	findAndSaveAttendance(doc)
+	attendenceList := findAndSaveAttendance(doc)
+	fmt.Println()
+	helpers.PrintTable(attendenceList, 1)
+	fmt.Println()
 }
 
-func findAndSaveAttendance(doc *goquery.Document) {
-	var markdownTable strings.Builder
-	targetID := "AttendanceDetailDataTable"
-	table := doc.Find("table#" + targetID)
+func findAndSaveAttendance(doc *goquery.Document) [][]string {
+	var attendanceList [][]string
+	attendanceList = append(attendanceList, []string{"Subject", "Type", "Faculty Name", "Classes Attended", "Percentage", "75% Alert"})
+	// var markdownTable strings.Builder
+	table := doc.Find("table#AttendanceDetailDataTable")
 	if table.Length() > 0 {
-		printTableAttendance("Header", nil, &markdownTable)
 		table.Find("tbody tr").Each(func(i int, rowSelection *goquery.Selection) {
-			row := []string{} // Initialize a new slice for each row
-			rowSelection.Find("td").Each(func(j int, cell *goquery.Selection) {
-				text := strings.TrimSpace(cell.Text())
-				row = append(row, text)
-			})
-			//fmt.Println("hi table")
-			//fmt.Println(row)
-			printFormattedRowAttendance(row, &markdownTable)
+			sub_name_and_type := rowSelection.Find("td").Eq(2).Find("span").Text()
+			var sub_name string
+			var sub_type string
+			proff := rowSelection.Find("td").Eq(4).Find("span").Text()
+			attended := rowSelection.Find("td").Eq(5).Find("span").Text()
+			total := rowSelection.Find("td").Eq(6).Find("span").Text()
+			percent := rowSelection.Find("td").Eq(7).Find("span").Find("span").Text()
+			reSub := regexp.MustCompile(`-\s*(.*?)\s*-`)
+			match := reSub.FindStringSubmatch(sub_name_and_type)
+			if len(match) > 1 {
+				sub_name = strings.TrimSpace(match[1])
+			}
+			reSubType := regexp.MustCompile(`[^-]*$`)
+			matchType := reSubType.FindString(sub_name_and_type)
+			sub_type = strings.TrimSpace(matchType)
+
+			reProf := regexp.MustCompile(`^(.*?)\s*-\s*`)
+			matchProf := reProf.FindStringSubmatch(proff)
+			if len(matchProf) > 1 {
+				proff = strings.Title(strings.ToLower(matchProf[1]))
+			}
+			classes_attended := attended + "/" + total
+			attendedInt, _ := strconv.Atoi(attended)
+			totalInt, _ := strconv.Atoi(total)
+			var missOrAttend string
+			if sub_type == "Lab Only" || sub_type == "Embedded Lab" {
+				attendedInt = attendedInt/2
+				totalInt = totalInt/2
+				missOrAttend = calculateAttendance(attendedInt, totalInt, 1)
+			} else {
+				missOrAttend = calculateAttendance(attendedInt, totalInt, 0)
+			}
+			attendanceList = append(attendanceList, []string{sub_name, sub_type, proff, classes_attended, percent, missOrAttend})
 		})
 	} else {
 		fmt.Println("Table with ID 'AttendanceDetailDataTable' not found")
 	}
-	fmt.Println(markdownTable.String())
+	// fmt.Println(markdownTable.String())
+	return attendanceList
 }
 
-func printTableAttendance(title string, data [][]string, builder *strings.Builder) {
-
-	builder.WriteString(fmt.Sprintf("| %-5s | %-12s | %-20s | %-35s | %-16s | %-10s | %-22s |\n",
-		"S.No.", "Course Code", "Slot No.", "Faculty Name", "Classes Attended", "Percentage", "75% Alert"))
-	builder.WriteString("|-------|--------------|----------------------|-------------------------------------|------------------|------------|------------------------|\n")
-
-}
-
-func printFormattedRowAttendance(row []string, builder *strings.Builder) {
-	SlotNo := strings.Split(row[3], "-")[1]
-
-	var calResult string
-	//To check for Lab slots
-	if strings.ContainsAny(SlotNo, "L") {
-		calResult = Cal75Lab(strToInt(row[5]), strToInt(row[6]), strToInt(strings.Split(row[7], "%")[0]))
-	} else {
-		calResult = Cal75(strToInt(row[5]), strToInt(row[6]))
-	}
-	builder.WriteString(fmt.Sprintf("| %-5s | %-12s | %-20s | %-35s | %-16s | %-10s | %-17s |\n",
-		row[0], strings.Split(row[2], "-")[0], SlotNo, strings.Split(row[4], "-")[0], row[5]+"/"+row[6], row[7], calResult))
-}
-
-func Cal75Lab(att int, tot int, perc int) string {
-	var ret string
-	if perc == 75 {
-		ret = fmt.Sprintf("%-31s", "\033[32mCan skip 0 labs\033[0m")
-	} else if perc < 75 {
-		for i := 1; i < att; i++ {
-			if math.Ceil((float64(att+i)/float64(tot+i))*100) <= 75 {
-				ret = fmt.Sprintf("%-31s", fmt.Sprintf("\033[31mAttend %d lab(s)\033[0m", i/2))
-			}
+func calculateAttendance(attended, total, classtype int) string {
+	// Calculate how many more classes need to be attended to meet 74.01% attendance
+	targetAttendance := 0.7401
+	neededAttendance := targetAttendance * float64(total)
+	// If the current attendance is already below the target
+	if float64(attended) < neededAttendance {
+		// Calculate the exact number of additional classes required to meet 74.01%
+		x := (targetAttendance*float64(total) - float64(attended)) / (1 - targetAttendance)
+		x = math.Ceil(x) // Round up to ensure they meet the target after attending whole classes
+		if classtype == 1 {
+			return fmt.Sprintf("\033[31mAttend %d more lab(s)\033[0m", int(x))
+		} else {
+			return fmt.Sprintf("\033[31mAttend %d more class(es)\033[0m", int(x))
 		}
 	} else {
-		ret = fmt.Sprintf("%-31s", "\033[32mCan skip 0 lab\033[0m")
-		for i := 1; i < att; i++ {
-			if math.Ceil((float64(att)/float64(tot+i))*100) >= 75 {
-				ret = fmt.Sprintf("%-31s", fmt.Sprintf("\033[32mCan skip %d lab(s)\033[0m", i/2))
-			}
+		// If already at or above the target, calculate how many can be missed
+		canMiss := int(math.Ceil(float64(attended - int(math.Ceil(neededAttendance)))/(targetAttendance)))
+		if classtype == 1 {
+			return fmt.Sprintf("\033[32mCan miss %d lab(s)\033[0m", canMiss)
+		} else {
+			return fmt.Sprintf("\033[32mCan miss %d class(es)\033[0m", canMiss)
 		}
 	}
-	return ret
-}
-
-func strToInt(str string) int {
-	num, err := strconv.Atoi(str)
-	if err != nil && debug.Debug {
-		fmt.Println("Error converting string to integer:", err)
-
-	}
-
-	return num
-}
-
-func Cal75(att int, tot int) string {
-	var ret string
-	perc := float64(att) / float64(tot) * 100
-	if perc >= 74.01 && perc <= 75 {
-		ret = fmt.Sprintf("%-31s", "\033[32mCan skip 0 classes\033[0m")
-	} else if perc < 74.01 {
-		for i := 1; i <= (tot * 2); i++ {
-			newPerc := float64(att+i) / float64(tot+i) * 100
-			if math.Ceil(newPerc) >= 75 {
-				ret = fmt.Sprintf("%-31s", fmt.Sprintf("\033[31mAttend %d class(es)\033[0m", i))
-				break
-			}
-		}
-	} else {
-		for i := 0; i <= tot; i++ { // Start from 0 to check if no classes can be skipped
-			newPerc := math.Ceil((float64(att) / float64(tot+i)) * 100)
-			if newPerc >= 75 {
-				ret = fmt.Sprintf("%-31s", fmt.Sprintf("\033[32mCan skip %d class(es)\033[0m", i))
-			} else {
-				// When the attendance percentage is no longer >= 75, break out of the loop
-				break
-			}
-		}
-	}
-
-	return ret
 }

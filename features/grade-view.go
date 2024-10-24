@@ -5,16 +5,29 @@ import (
 	"cli-top/helpers"
 	types "cli-top/types"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
 func GetGrades(regNo string, cookies types.Cookies, semId string, sem_choice int) {
+	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
+        fmt.Println("Please login first using the cli-top login command")
+        return
+    }
 	url := "https://vtop.vit.ac.in/vtop/examinations/examGradeView/doStudentGradeView"
 
-	semesterID := helpers.SelectSemester(regNo, cookies, sem_choice)
-	bodyText, err := helpers.FetchReq(regNo, cookies, url, semesterID, "UTC", "POST", "")
+	semester,err := helpers.SelectSemester(regNo, cookies, sem_choice)
+	if err != nil {
+		if debug.Debug {
+			fmt.Printf("Error fetching semesters: %v\n", err)
+		} else {
+			fmt.Println()
+			return
+		}
+	}
+	bodyText, err := helpers.FetchReq(regNo, cookies, url, semester.SemID, "UTC", "POST", "")
 	if err != nil && debug.Debug {
 		fmt.Println(err)
 	}
@@ -83,7 +96,11 @@ func printTableGrade(title string, data [][]string, builder *strings.Builder) {
 }
 
 func printFormattedRowGrade(row []string, builder *strings.Builder, count int) {
-	if strToInt(row[0]) == count-1 {
+	snum,err := strconv.Atoi(row[0])
+	if err != nil && debug.Debug {
+		fmt.Println(err)
+	}
+	if snum == count-1 {
 		builder.WriteString(fmt.Sprintf("| \x1b[32m%-5s\x1b[0m | \x1b[32m%-11s\x1b[0m | \x1b[32m%-50s\x1b[0m | \x1b[32m%-25s\x1b[0m | \x1b[32m%-3s\x1b[0m | \x1b[32m%-3s\x1b[0m | \x1b[32m%-3s\x1b[0m | \x1b[32m%-3s\x1b[0m | \x1b[32m%-6s\x1b[0m | \x1b[32m%-6s\x1b[0m |\n",
 			row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[9], row[10]))
 	} else {
