@@ -22,7 +22,11 @@ import (
 )
 
 func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag int, courseFlag int, facultyFlag string, fuzzyFlag int) {
-    selectedSemester, err := helpers.SelectSemester(regNo, cookies, semesterFlag)
+    if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
+        fmt.Println("Please login first using the cli-top login command")
+        return
+    }
+	selectedSemester, err := helpers.SelectSemester(regNo, cookies, semesterFlag)
     if err != nil && debug.Debug {
         fmt.Println(err)
         return
