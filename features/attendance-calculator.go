@@ -95,7 +95,6 @@ func calculateAttendance(attended, total int) string {
 	// Calculate how many more classes need to be attended to meet 74.01% attendance
 	targetAttendance := 0.7401
 	neededAttendance := targetAttendance * float64(total)
-
 	// If the current attendance is already below the target
 	if float64(attended) < neededAttendance {
 		// Calculate the exact number of additional classes required to meet 74.01%
@@ -104,7 +103,7 @@ func calculateAttendance(attended, total int) string {
 		return fmt.Sprintf("\033[31mAttend %d more classes\033[0m", int(x))
 	} else {
 		// If already at or above the target, calculate how many can be missed
-		canMiss := attended - int(math.Ceil(neededAttendance))
+		canMiss := int(math.Ceil(float64(attended - int(math.Ceil(neededAttendance)))/(targetAttendance)))
 		return fmt.Sprintf("\033[32mCan miss %d classes\033[0m", canMiss)
 	}
 }

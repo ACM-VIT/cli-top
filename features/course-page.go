@@ -312,24 +312,7 @@ func selectFaculty(faculties []types.Faculty, facultyFlag int) (types.Faculty, e
     for {
         fmt.Print("")
 
-        var input string
-        _, err := fmt.Scanln(&input) 
-        if err != nil {
-            if err.Error() == "unexpected newline" {
-                input = "" 
-            } else {
-                if debug.Debug {
-                    fmt.Println("Error reading input:", err)
-                }
-                return types.Faculty{}, err
-            }
-        }
-
-        input = strings.TrimSpace(input)
-
-        if input == "exit" {
-            return types.Faculty{}, fmt.Errorf("selection canceled by user")
-        }
+        input := ""
 
         if input == "" {
             nestedList := [][]string{{"SLOT", "NAME"}}
@@ -387,6 +370,24 @@ func selectFaculty(faculties []types.Faculty, facultyFlag int) (types.Faculty, e
         if selectedIndex == -1 || selectedIndex < 1 || selectedIndex > len(faculties) {
             fmt.Println("Invalid selection. Please enter a valid index number.")
             continue
+        }
+
+        _, err := fmt.Scanln(&input) 
+        if err != nil {
+            if err.Error() == "unexpected newline" {
+                input = "" 
+            } else {
+                if debug.Debug {
+                    fmt.Println("Error reading input:", err)
+                }
+                return types.Faculty{}, err
+            }
+        }
+
+        input = strings.TrimSpace(input)
+
+        if input == "exit" {
+            return types.Faculty{}, fmt.Errorf("selection canceled by user")
         }
 
         return faculties[selectedIndex-1], nil
