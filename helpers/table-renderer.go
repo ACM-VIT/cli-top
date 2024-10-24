@@ -170,15 +170,15 @@ func PrintTable(nestedList [][]string, indexStatus int) int {
 		}
 	}
 
-	// Define the right-align function for int values
-	rightAlign := func(s string, width int) string {
-		return fmt.Sprintf("%*s", width, s)
-	}
+    // Define the right-align function for int values
+    rightAlign := func(s string, width int) string {
+        return fmt.Sprintf("%*s", width+len(s)-len(StripAnsiCodes(s)), s)
+    }
 
-	// Define the left-align function
-	leftAlign := func(s string, width int) string {
-		return fmt.Sprintf("%-*s", width, s)
-	}
+    // Define the left-align function
+    leftAlign := func(s string, width int) string {
+        return fmt.Sprintf("%-*s", width+len(s)-len(StripAnsiCodes(s)), s)
+    }
 
 	// Build the format string for rows, including 3 leading spaces
 	formatRow := "   " // Add 3 leading spaces
@@ -205,18 +205,18 @@ func PrintTable(nestedList [][]string, indexStatus int) int {
 	}
 	fmt.Println(separator)
 
-	// Print the data rows
-	for _, row := range normalizedList[1:] {
-		// Split multiline cells and align each line properly
-		lines := make([][]string, 0)
-		maxLines := 1
-		for _, cell := range row {
-			cellLines := strings.Split(cell, "\n")
-			if len(cellLines) > maxLines {
-				maxLines = len(cellLines)
-			}
-			lines = append(lines, cellLines)
-		}
+    // Print the data rows
+    for _, row := range normalizedList[1:] {
+        // Split multiline cells and align each line properly
+        lines := make([][]string, 0)
+        maxLines := 1
+        for _, cell := range row {
+            cellLines := strings.Split(cell, "\n")
+            if len(cellLines) > maxLines {
+                maxLines = len(cellLines)
+            }
+            lines = append(lines, cellLines)
+        }
 
 		// Print each row, line by line
 		for lineIdx := 0; lineIdx < maxLines; lineIdx++ {

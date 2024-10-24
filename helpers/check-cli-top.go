@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -41,6 +42,13 @@ func CheckKillSwitch() int {
 	resp, err := client.Do(req)
 	if err != nil && debug.Debug {
 		fmt.Println(err)
+	}
+	if resp == nil {
+		fmt.Println()
+		fmt.Println("Internet connection not available")
+		fmt.Println("Please reconnect and try again")
+		fmt.Println()
+        os.Exit(1)
 	}
 	defer resp.Body.Close()
 	bodyText, err := io.ReadAll(resp.Body)
