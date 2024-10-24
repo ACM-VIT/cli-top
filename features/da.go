@@ -16,6 +16,10 @@ import (
 )
 
 func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
+	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
+        fmt.Println("Please login first using the cli-top login command")
+        return
+    }
 	allSems, err := helpers.GetSemDetails(cookies, regNo)
 	if err != nil {
 		if debug.Debug {

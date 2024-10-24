@@ -12,6 +12,10 @@ import (
 )
 
 func GetNightSlipStatus(regNo string, cookies types.Cookies) {
+	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
+        fmt.Println("Please login first using the cli-top login command")
+        return
+    }
 	url1 := "https://vtop.vit.ac.in/vtop/hostels/late/hour/student/request/1"
 	payload1 := fmt.Sprintf("verifyMenu=true&authorizedID=%s&_csrf=%s&nocache=%d",
 		regNo,
