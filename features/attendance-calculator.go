@@ -78,9 +78,9 @@ func findAndSaveAttendance(doc *goquery.Document) [][]string {
 			if sub_type == "Lab Only" || sub_type == "Embedded Lab" {
 				attendedInt = attendedInt/2
 				totalInt = totalInt/2
-				missOrAttend = calculateAttendance(attendedInt, totalInt)
+				missOrAttend = calculateAttendance(attendedInt, totalInt, 1)
 			} else {
-				missOrAttend = calculateAttendance(attendedInt, totalInt)
+				missOrAttend = calculateAttendance(attendedInt, totalInt, 0)
 			}
 			attendanceList = append(attendanceList, []string{sub_name, sub_type, proff, classes_attended, percent, missOrAttend})
 		})
@@ -91,20 +91,27 @@ func findAndSaveAttendance(doc *goquery.Document) [][]string {
 	return attendanceList
 }
 
-func calculateAttendance(attended, total int) string {
+func calculateAttendance(attended, total, classtype int) string {
 	// Calculate how many more classes need to be attended to meet 74.01% attendance
 	targetAttendance := 0.7401
 	neededAttendance := targetAttendance * float64(total)
-
 	// If the current attendance is already below the target
 	if float64(attended) < neededAttendance {
 		// Calculate the exact number of additional classes required to meet 74.01%
 		x := (targetAttendance*float64(total) - float64(attended)) / (1 - targetAttendance)
 		x = math.Ceil(x) // Round up to ensure they meet the target after attending whole classes
-		return fmt.Sprintf("\033[31mAttend %d more classes\033[0m", int(x))
+		if classtype == 1 {
+			return fmt.Sprintf("\033[31mAttend %d more lab(s)\033[0m", int(x))
+		} else {
+			return fmt.Sprintf("\033[31mAttend %d more class(es)\033[0m", int(x))
+		}
 	} else {
 		// If already at or above the target, calculate how many can be missed
-		canMiss := attended - int(math.Ceil(neededAttendance))
-		return fmt.Sprintf("\033[32mCan miss %d classes\033[0m", canMiss)
+		canMiss := int(math.Ceil(float64(attended - int(math.Ceil(neededAttendance)))/(targetAttendance)))
+		if classtype == 1 {
+			return fmt.Sprintf("\033[32mCan miss %d lab(s)\033[0m", canMiss)
+		} else {
+			return fmt.Sprintf("\033[32mCan miss %d class(es)\033[0m", canMiss)
+		}
 	}
 }
