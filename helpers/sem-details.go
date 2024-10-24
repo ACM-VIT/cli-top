@@ -34,6 +34,9 @@ func FindAndSaveSemIds(doc *goquery.Document) ([]types.Semester, error) {
 
 // GetSemDetails fetches semester details
 func GetSemDetails(cookies types.Cookies, regNo string) ([]types.Semester, error) {
+    if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
+        return nil, fmt.Errorf("Please login first using the cli-top login command")
+    }
     url := "https://vtop.vit.ac.in/vtop/academics/common/StudentAttendance"
     var allSems []types.Semester
     bodyText, err := FetchReq(regNo, cookies, url, "", "", "POST", "")
@@ -73,7 +76,7 @@ func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) (types.
         return selectedSem, err
     }
     if len(semDetails) == 0 {
-        return selectedSem, fmt.Errorf("error fetching semester details or no semesters available. Try logging out and logging back in")
+        return selectedSem, fmt.Errorf("Error fetching semester details or no semesters available. Try logging out and logging back in")
     }
 
     // Depending on your application flow, ensure that input reading is handled appropriately

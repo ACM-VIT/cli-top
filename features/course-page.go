@@ -20,7 +20,7 @@ import (
 	"github.com/schollz/progressbar/v3"
 )
 
-func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag int, courseFlag int, facultyFlag string) {
+func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag int, courseFlag int, facultyFlag string, fuzzyFlag int) {
     selectedSemester, err := helpers.SelectSemester(regNo, cookies, semesterFlag)
     if err != nil && debug.Debug {
         fmt.Println(err)
@@ -56,7 +56,7 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag
     }
 
 
-    selectedFaculty, err := selectFaculty(faculties, facultyFlag)
+    selectedFaculty, err := selectFaculty(faculties, facultyFlag, fuzzyFlag)
     if err != nil {
         fmt.Println("Error selecting faculty:", err)
         return
@@ -311,55 +311,60 @@ func fetchFaculties(regNo string, cookies types.Cookies, semSubId string, classI
 	return faculties, nil
 }
 
-func selectFaculty(faculties []types.Faculty, facultyFlag string) (types.Faculty, error) {
-    fmt.Print("")
-    nestedList := [][]string{{"NAME", "SLOT"}}
-    for _, faculty := range faculties {
-        cleanName := removeNumberPrefix(faculty.Name)
-        nestedList = append(nestedList, []string{
-            cleanName,
-            faculty.Slot,
-        })
-    }
-
-    if facultyFlag == "" {
-        helpers.PrintTable(nestedList, 1)
-		fmt.Println("Enter the name of faculty to download materials from: ")
-		reader := bufio.NewReader(os.Stdin)
-		input, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Println("Error reading input:", err)
-			return types.Faculty{}, err
+func selectFaculty(faculties []types.Faculty, facultyFlag string, fuzzyFlag int) (types.Faculty, error) {
+	for {
+		fmt.Print("")
+		nestedList := [][]string{{"NAME", "SLOT"}}
+		for _, faculty := range faculties {
+			cleanName := removeNumberPrefix(faculty.Name)
+			nestedList = append(nestedList, []string{
+				cleanName,
+				faculty.Slot,
+			})
 		}
-		facultyFlag = strings.TrimSpace(input)
 
-		if facultyFlag == "exit" {
-			return types.Faculty{}, fmt.Errorf("selection canceled by user")
+		if facultyFlag == "" {
+			helpers.PrintTable(nestedList, 1)
+			fmt.Println("Enter the name of faculty to download materials from: ")
+			reader := bufio.NewReader(os.Stdin)
+			input, err := reader.ReadString('\n')
+			if err != nil {
+				fmt.Println("Error reading input:", err)
+				return types.Faculty{}, err
+			}
+			facultyFlag = strings.TrimSpace(input)
+
+			if facultyFlag == "exit" {
+				return types.Faculty{}, fmt.Errorf("selection canceled by user")
+			}
 		}
-    }
+		selectedIndex := helpers.NewFuzzySearch(nestedList, facultyFlag)
+		if len(selectedIndex) == 0 {
+			fmt.Println("No matching faculty found for your query. Please try again.")
+			continue
+		} else if len(selectedIndex) == 1 {
+			fmt.Printf("\n    \033[1;44m Your selected faculty: %s \033[0m\n\n", nestedList[selectedIndex[0]][0])
+			return faculties[selectedIndex[0]-1], nil
+		} else {
+			facultywithMultipleSlotList := [][]string{{"NAME", "SLOT"}}
+			reducedFacultyList := []types.Faculty{}
+			for _, index := range selectedIndex {
+				facultywithMultipleSlotList = append(facultywithMultipleSlotList, nestedList[index])
+				reducedFacultyList = append(reducedFacultyList, faculties[index-1])
+			}
+			if fuzzyFlag == 0 {
+				fmt.Println("\nMultiple matches found. Please select an index from the results below:")
+				fuzzyFlag = helpers.TableSelector("Faculty", facultywithMultipleSlotList, 0)
+			} else {
+				if fuzzyFlag == -1 || fuzzyFlag < 1 || fuzzyFlag > len(facultywithMultipleSlotList)-1 {
+					fmt.Println("Invalid selection. Please enter a valid index number.")
+					return types.Faculty{}, fmt.Errorf("invalid selection")
+				}
+			}
+			return reducedFacultyList[fuzzyFlag-1], nil
 
-    selectedIndex := helpers.NewFuzzySearch(nestedList, facultyFlag)
-    if len(selectedIndex) == 0 {
-        fmt.Println("No matching faculty found for your query. Please try again.")
-        return types.Faculty{}, fmt.Errorf("no matching faculty found")
-    } else if len(selectedIndex) == 1 {
-        fmt.Printf("\n    \033[1;44m Your selected faculty: %s \033[0m\n\n", nestedList[selectedIndex[0]][0])
-        return faculties[selectedIndex[0]-1], nil
-    } else {
-        fmt.Println("\nMultiple matches found. Please select an index from the results below:")
-        facultywithMultipleSlotList := [][]string{{"NAME", "SLOT"}}
-		reducedFacultyList := []types.Faculty{}
-        for _, index := range selectedIndex {
-            facultywithMultipleSlotList = append(facultywithMultipleSlotList, nestedList[index])
-			reducedFacultyList = append(reducedFacultyList, faculties[index-1])
-        }
-        finalIndex := helpers.TableSelector("Faculty", facultywithMultipleSlotList, 0)
-        if finalIndex == -1 || finalIndex < 1 || finalIndex > len(facultywithMultipleSlotList)-1 {
-            fmt.Println("Invalid selection. Please enter a valid index number.")
-            return types.Faculty{}, fmt.Errorf("invalid selection")
-        }
-        return reducedFacultyList[finalIndex-1], nil
-    }
+		}
+	}
 }
 
 func removeNumberPrefix(facultyName string) string {
@@ -478,6 +483,7 @@ func displayCourseMaterials(materials []types.CourseMaterial) {
 			refCount,
 		})
 	}
+	fmt.Println()
 	helpers.PrintTable(nestedList, 1)
 }
 
@@ -720,6 +726,8 @@ func isSuccessfulDownload(body []byte) bool {
 		return true
 	case "PK\x03\x04":
 		return true
+	case "\xD0\xCF\x11\xE0": // For older binary Office formats
+		return true
 	case "PK\x05\x06":
 		return false
 	case "PK\x07\x08":
@@ -756,6 +764,8 @@ func getFileExtension(filename string, body []byte) string {
 					return ".xlsx"
 				}
 			}
+		case "\xD0\xCF\x11\xE0": // Signature for .ppt, .doc, .xls in older formats
+			return ".ppt"
         default:
             return ""
         }
