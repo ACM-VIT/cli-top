@@ -17,8 +17,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-var cookies types.Cookies
-var userInfo types.LogIn
 var semesterFlag int
 var debugFlag bool
 var versionFlag bool
@@ -26,7 +24,9 @@ var updateFlag bool
 var courseFlag int
 var facultyFlag string
 var classGrpFlag int
+var fuzzyIndexFlag int
 var courseNameFlag string
+
 
 func startfn(cmd *cobra.Command, args []string) {
 
@@ -215,8 +215,8 @@ func Execute() {
 	coursePageCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
 	coursePageCmd.PersistentFlags().StringVarP(&facultyFlag, "faculty", "f", "", "Specify the faculty")
+	coursePageCmd.PersistentFlags().IntVarP(&fuzzyIndexFlag, "fuzzy-index", "i", 0, "Specify the fuzzy index")
 	daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
-	// daDueDatesCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
 
 	// Add the flags to the root command
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
@@ -319,7 +319,7 @@ var coursePageCmd = &cobra.Command{
 	Short: "Download course materials for a selected semester, course, and faculty",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.ExecuteCoursePageDownload(regNo, cookies, semesterFlag, courseFlag, facultyFlag)
+		features.ExecuteCoursePageDownload(regNo, cookies, semesterFlag, courseFlag, facultyFlag, fuzzyIndexFlag)
 	},
 }
 
