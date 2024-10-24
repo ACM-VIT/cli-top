@@ -11,6 +11,10 @@ import (
 )
 
 func PrintHostelInfo(regNo string, cookies types.Cookies, url string) {
+	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
+        fmt.Println("Please login first using the cli-top login command")
+        return
+    }
     body, err := helpers.FetchReq(regNo, cookies, url, "", "", "POST", "")
     if err != nil && debug.Debug {
         fmt.Println("Error fetching HTML:", err)
