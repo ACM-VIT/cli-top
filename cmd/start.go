@@ -24,7 +24,7 @@ var debugFlag bool
 var versionFlag bool
 var updateFlag bool
 var courseFlag int
-var facultyFlag int
+var facultyFlag string
 var classGrpFlag int
 var courseNameFlag string
 
@@ -214,7 +214,7 @@ func Execute() {
 	calendarCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
 	coursePageCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
-	coursePageCmd.PersistentFlags().IntVarP(&facultyFlag, "faculty", "f", 0, "Specify the faculty")
+	coursePageCmd.PersistentFlags().StringVarP(&facultyFlag, "faculty", "f", "", "Specify the faculty")
 	daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
 	// daDueDatesCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
 
@@ -333,7 +333,7 @@ var libraryDuesCmd = &cobra.Command{
 }
 
 var calendarCmd = &cobra.Command{
-	Use:   "cal",
+	Use:   "calendar",
 	Short: "Show Calendar",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()

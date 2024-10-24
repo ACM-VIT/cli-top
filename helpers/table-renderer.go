@@ -238,3 +238,14 @@ func PrintTable(nestedList [][]string, indexStatus int) int {
 	}
 	return 0
 }
+
+func NewFuzzySearch(nestedList [][]string, stringFlag string) []int {
+    var matchedResults []int
+    for i, v := range nestedList {
+        combinedData := strings.Join(v, " ")
+        if FuzzyMatch(stringFlag, combinedData) {
+            matchedResults = append(matchedResults, i)
+        }
+    }
+    return matchedResults
+}

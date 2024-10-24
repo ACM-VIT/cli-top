@@ -1,6 +1,9 @@
 package features
 
 import (
+	"archive/zip"
+	"bufio"
+	"bytes"
 	"cli-top/debug"
 	"cli-top/helpers"
 	"cli-top/types"
@@ -17,7 +20,7 @@ import (
 	"github.com/schollz/progressbar/v3"
 )
 
-func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag, courseFlag, facultyFlag int) {
+func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag int, courseFlag int, facultyFlag string) {
     selectedSemester, err := helpers.SelectSemester(regNo, cookies, semesterFlag)
     if err != nil && debug.Debug {
         fmt.Println(err)
@@ -91,7 +94,7 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag
         return
     }
 
-    err = downloadMaterials(regNo, cookies, selectedSemester, selectedCourse, selectedFaculty, filteredMaterials, selectedMaterials)
+    err = downloadMaterials(regNo, cookies, selectedCourse, selectedFaculty, filteredMaterials, selectedMaterials)
     if err != nil {
         fmt.Println("Error downloading materials:", err)
         return
@@ -308,89 +311,54 @@ func fetchFaculties(regNo string, cookies types.Cookies, semSubId string, classI
 	return faculties, nil
 }
 
-func selectFaculty(faculties []types.Faculty, facultyFlag int) (types.Faculty, error) {
-    for {
-        fmt.Print("")
+func selectFaculty(faculties []types.Faculty, facultyFlag string) (types.Faculty, error) {
+    fmt.Print("")
+    nestedList := [][]string{{"NAME", "SLOT"}}
+    for _, faculty := range faculties {
+        cleanName := removeNumberPrefix(faculty.Name)
+        nestedList = append(nestedList, []string{
+            cleanName,
+            faculty.Slot,
+        })
+    }
 
-        input := ""
+    if facultyFlag == "" {
+        helpers.PrintTable(nestedList, 1)
+		fmt.Println("Enter the name of faculty to download materials from: ")
+		reader := bufio.NewReader(os.Stdin)
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Println("Error reading input:", err)
+			return types.Faculty{}, err
+		}
+		facultyFlag = strings.TrimSpace(input)
 
-        if input == "" {
-            nestedList := [][]string{{"SLOT", "NAME"}}
-            for _, faculty := range faculties {
-                cleanName := removeNumberPrefix(faculty.Name)
-                nestedList = append(nestedList, []string{
-                    faculty.Slot,
-                    cleanName,
-                })
-            }
+		if facultyFlag == "exit" {
+			return types.Faculty{}, fmt.Errorf("selection canceled by user")
+		}
+    }
 
-            selectedIndex := helpers.TableSelector("Faculty", nestedList, facultyFlag)
-            if selectedIndex == -1 || selectedIndex < 1 || selectedIndex > len(faculties) {
-                return types.Faculty{}, fmt.Errorf("invalid faculty selection")
-            }
-
-            return faculties[selectedIndex-1], nil
-        }
-
-        if index, err := strconv.Atoi(input); err == nil {
-            if index >= 1 && index <= len(faculties) {
-                return faculties[index-1], nil
-            } else {
-                fmt.Println("Invalid index number. Please enter a valid index.")
-                continue
-            }
-        }
-
-        matchingResults := [][]string{}
-        for i, faculty := range faculties {
-            cleanName := removeNumberPrefix(faculty.Name)
-            if helpers.FuzzyMatch(input, cleanName) {
-                matchingResults = append(matchingResults, []string{
-                    fmt.Sprintf("%d", i+1), 
-                    faculty.Slot,
-                    cleanName,
-                })
-            }
-        }
-
-        if len(matchingResults) == 0 {
-            fmt.Println("No matching faculty found for your query. Please try again.")
-            continue
-        }
-
-        if len(matchingResults) == 1 {
-            selectedIndex, _ := strconv.Atoi(matchingResults[0][0])
-            return faculties[selectedIndex-1], nil
-        }
-
+    selectedIndex := helpers.NewFuzzySearch(nestedList, facultyFlag)
+    if len(selectedIndex) == 0 {
+        fmt.Println("No matching faculty found for your query. Please try again.")
+        return types.Faculty{}, fmt.Errorf("no matching faculty found")
+    } else if len(selectedIndex) == 1 {
+        fmt.Printf("\n    \033[1;44m Your selected faculty: %s \033[0m\n\n", nestedList[selectedIndex[0]][0])
+        return faculties[selectedIndex[0]-1], nil
+    } else {
         fmt.Println("\nMultiple matches found. Please select an index from the results below:")
-        nestedList := append([][]string{{"INDEX", "SLOT", "NAME"}}, matchingResults...)
-
-        selectedIndex := helpers.TableSelector("Faculty", nestedList, facultyFlag)
-        if selectedIndex == -1 || selectedIndex < 1 || selectedIndex > len(faculties) {
+        facultywithMultipleSlotList := [][]string{{"NAME", "SLOT"}}
+		reducedFacultyList := []types.Faculty{}
+        for _, index := range selectedIndex {
+            facultywithMultipleSlotList = append(facultywithMultipleSlotList, nestedList[index])
+			reducedFacultyList = append(reducedFacultyList, faculties[index-1])
+        }
+        finalIndex := helpers.TableSelector("Faculty", facultywithMultipleSlotList, 0)
+        if finalIndex == -1 || finalIndex < 1 || finalIndex > len(facultywithMultipleSlotList)-1 {
             fmt.Println("Invalid selection. Please enter a valid index number.")
-            continue
+            return types.Faculty{}, fmt.Errorf("invalid selection")
         }
-
-        _, err := fmt.Scanln(&input) 
-        if err != nil {
-            if err.Error() == "unexpected newline" {
-                input = "" 
-            } else {
-                if debug.Debug {
-                    fmt.Println("Error reading input:", err)
-                }
-                return types.Faculty{}, err
-            }
-        }
-
-        input = strings.TrimSpace(input)
-
-        if input == "exit" {
-            return types.Faculty{}, fmt.Errorf("selection canceled by user")
-        }
-
-        return faculties[selectedIndex-1], nil
+        return reducedFacultyList[finalIndex-1], nil
     }
 }
 
@@ -577,7 +545,7 @@ func selectCourseMaterials(materials []types.CourseMaterial) ([]types.CourseMate
 }
 
 
-func downloadMaterials(regNo string, cookies types.Cookies, selectedSemester types.Semester, selectedCourse types.Course, selectedFaculty types.Faculty, allMaterials []types.CourseMaterial, selectedMaterials []types.CourseMaterial) error {
+func downloadMaterials(regNo string, cookies types.Cookies, selectedCourse types.Course, selectedFaculty types.Faculty, allMaterials []types.CourseMaterial, selectedMaterials []types.CourseMaterial) error {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return err
@@ -678,11 +646,10 @@ func downloadSelectedMaterials(
 
 	for _, material := range materials {
 		topicName := helpers.SanitizeFilename(material.Topic)
-
 		for _, refMaterial := range material.ReferenceMaterials {
 			sem <- struct{}{}
 			wg.Add(1)
-
+			fmt.Println(refMaterial)
 			go func(material types.CourseMaterial, refMaterial types.ReferenceMaterial, counter int) {
 				defer wg.Done()
 				defer func() { <-sem }()
@@ -763,28 +730,35 @@ func isSuccessfulDownload(body []byte) bool {
 }
 
 func getFileExtension(filename string, body []byte) string {
-	ext := filepath.Ext(filename)
-	if ext != "" {
-		return ext
-	}
-	if len(body) >= 4 {
-		signature := string(body[:4])
-		switch signature {
-		case "%PDF":
-			return ".pdf"
-		case "PK\x03\x04":
-			lowerName := strings.ToLower(filename)
-			if strings.Contains(lowerName, "docx") {
-				return ".docx"
-			} else if strings.Contains(lowerName, "pptx") {
-				return ".pptx"
-			} else if strings.Contains(lowerName, "xlsx") {
-				return ".xlsx"
+    ext := filepath.Ext(filename)
+    if ext != "" {
+        return ext
+    }
+    if len(body) >= 4 {
+        signature := string(body[:4])
+        switch signature {
+        case "%PDF":
+            return ".pdf"
+        case "PK\x03\x04":
+            readerAt := bytes.NewReader(body)
+			size := int64(len(body))
+			zipReader, err := zip.NewReader(readerAt, size)
+			if err != nil {
+				return ""
 			}
-			return ".pptx"
-		default:
-			return ""
-		}
-	}
-	return ""
+			// Loop through the files in the ZIP archive
+			for _, f := range zipReader.File {
+				if strings.HasPrefix(f.Name, "ppt/") {
+					return ".pptx"
+				} else if strings.HasPrefix(f.Name, "word/") {
+					return ".docx"
+				} else if strings.HasPrefix(f.Name, "xl/") {
+					return ".xlsx"
+				}
+			}
+        default:
+            return ""
+        }
+    }
+    return ""
 }
