@@ -16,6 +16,10 @@ var scoredWeightageMarksSum float64       // Total sum of weightage marks
 var maxMarksSum int // Total sum of weightage percentage
 
 func GetMarks(regNo string, cookies types.Cookies, semID string, sem_choice int) {
+	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
+        fmt.Println("Please login first using the cli-top login command")
+        return
+    }
 	url := "https://vtop.vit.ac.in/vtop/examinations/doStudentMarkView"
 	semester,err := helpers.SelectSemester(regNo, cookies, sem_choice)
 	if err != nil {
