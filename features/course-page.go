@@ -331,7 +331,7 @@ func selectFaculty(faculties []types.Faculty, facultyFlag string, fuzzyFlag int)
 		if facultyFlag == "" {
 			helpers.PrintTable(nestedList, 1)
 			fmt.Println()
-			fmt.Println("Enter the name of faculty to download materials from: ")
+			fmt.Print("Enter the name of faculty to download materials from: ")
 			reader := bufio.NewReader(os.Stdin)
 			input, err := reader.ReadString('\n')
 			if err != nil {
