@@ -464,7 +464,7 @@ func pendingDAs(doc *goquery.Document, subject types.DAsubject) (types.LatestDA,
 					today := time.Now().UTC().Truncate(24 * time.Hour)
 					dueDateMidnight := tempDA.DueDate.Truncate(24 * time.Hour)
 					diff := dueDateMidnight.Sub(today)
-					tempDA.DaysLeft = int(diff.Hours() / 24) - 1 
+					tempDA.DaysLeft = int(diff.Hours() / 24)
 					if tempDA.DaysLeft < 0 {
 						tempDA.DaysLeft = 0 
 					}
