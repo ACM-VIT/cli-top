@@ -27,7 +27,7 @@ func RegisterUUID(uuid string) error {
         return err
     }
 
-    req, err := http.NewRequest("POST", "http://localhost:3000/register", bytes.NewBuffer(jsonData))
+    req, err := http.NewRequest("POST", "https://cli-calendar.acmvit.in/track", bytes.NewBuffer(jsonData))
     if err != nil {
         if debug.Debug {
             fmt.Println("Error creating registration request:", err)
