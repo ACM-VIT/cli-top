@@ -1,25 +1,26 @@
 package cmd
 
 import (
-    "bytes"
-    "cli-top/debug"
-    "cli-top/features"
-    "cli-top/helpers"
-    "cli-top/login"
-    "cli-top/types"
-    "encoding/json"
-    "fmt"
-    "log"
-    "net/http"
-    "os"
-    "path/filepath"
-    "time"
+	"bytes"
+	"cli-top/debug"
+	"cli-top/features"
+	"cli-top/helpers"
+	"cli-top/login"
+	"cli-top/types"
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"time"
 
-    "github.com/fatih/color"
-    "github.com/google/uuid"
-    "github.com/lpernett/godotenv"
-    "github.com/spf13/cobra"
-    "github.com/spf13/viper"
+	"github.com/fatih/color"
+	"github.com/google/uuid"
+	"github.com/lpernett/godotenv"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var semesterFlag int
@@ -33,219 +34,294 @@ var fuzzyIndexFlag int
 var courseNameFlag string
 
 type TrackingData struct {
-    UUID      string `json:"uuid"`
-    Command   string `json:"command"`
-    Timestamp string `json:"timestamp"`
+	UUID      string `json:"uuid"`
+	Command   string `json:"command"`
+	Timestamp string `json:"timestamp"`
 }
 
 func getOrCreateUUID() string {
-    existingUUID := viper.GetString("UUID")
-    if existingUUID == "" {
-        newUUID := uuid.New().String()
-        viper.Set("UUID", newUUID)
-        if err := viper.WriteConfig(); err != nil && debug.Debug {
-            fmt.Println("Error writing UUID to config:", err)
-        }
+	registeredUUID := viper.GetString("UUID")
+	if registeredUUID != "" {
+		return registeredUUID
+	}
 
-        if err := helpers.RegisterUUID(newUUID); err != nil && debug.Debug {
-            fmt.Println("Error registering UUID with server:", err)
-        }
-        return newUUID
-    }
-    return existingUUID
+	unregisteredUUID := viper.GetString("UNREGISTERED_UUID")
+	if unregisteredUUID == "" {
+		unregisteredUUID = uuid.New().String()
+		viper.Set("UNREGISTERED_UUID", unregisteredUUID)
+		if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
+			fmt.Println("Error saving unregistered UUID to config:", err)
+		}
+	}
+
+	if err := helpers.RegisterUUID(unregisteredUUID); err != nil {
+		if debug.Debug {
+			fmt.Println("Error registering UUID with server:", err)
+		}
+		return unregisteredUUID
+	}
+
+	viper.Set("UUID", unregisteredUUID)
+	viper.Set("UNREGISTERED_UUID", "")
+	if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
+		fmt.Println("Error updating registered UUID in config:", err)
+	}
+
+	return unregisteredUUID
 }
 
 func trackCommand(command string) {
-    data := TrackingData{
-        UUID:      viper.GetString("UUID"),
-        Command:   command,
-        Timestamp: time.Now().Format(time.RFC3339),
-    }
+	userUUID := viper.GetString("UUID")
+	if userUUID == "" {
+		if debug.Debug {
+			log.Println("UUID is empty or not initialized. Skipping tracking.")
+		}
+		return
+	}
 
-    jsonData, err := json.Marshal(data)
-    if err != nil && debug.Debug {
-        log.Println("Error marshaling tracking data:", err)
-        return
-    }
+	data := TrackingData{
+		UUID:      userUUID,
+		Command:   command,
+		Timestamp: time.Now().Format(time.RFC3339),
+	}
 
-    req, err := http.NewRequest("POST", "http://localhost:3000/stats", bytes.NewBuffer(jsonData))
-    if err != nil && debug.Debug {
-        log.Println("Error creating tracking request:", err)
-        return
-    }
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		if debug.Debug {
+			log.Println("Error marshaling tracking data:", err)
+		}
+		return
+	}
 
-    req.Header.Set("Content-Type", "application/json")
-    req.Header.Set("x-api-key", data.UUID) 
+	serverURL := "https://cli-calendar.acmvit.in/track"
 
-    client := &http.Client{Timeout: 5 * time.Second}
-    resp, err := client.Do(req)
-    if err != nil && debug.Debug {
-        log.Println("Error sending tracking data:", err)
-        return
-    }
-    defer resp.Body.Close()
+	req, err := http.NewRequest("POST", serverURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		if debug.Debug {
+			log.Println("Error creating tracking request:", err)
+		}
+		return
+	}
 
-    if debug.Debug {
-        log.Println("Tracking data sent, response status:", resp.Status)
-    }
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-api-key", data.UUID)
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		if debug.Debug {
+			log.Println("Error sending tracking data:", err)
+		}
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		if debug.Debug {
+			log.Println("Invalid UUID detected. Generating a new one and registering...")
+		}
+		newUUID := uuid.New().String()
+		err = helpers.RegisterUUID(newUUID)
+		if err != nil {
+			if debug.Debug {
+				log.Println("Failed to register new UUID:", err)
+			}
+			return
+		}
+		data.UUID = newUUID
+		req.Header.Set("x-api-key", newUUID)
+		resp, err = client.Do(req)
+		if err != nil {
+			if debug.Debug {
+				log.Println("Error sending tracking data after UUID regeneration:", err)
+			}
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == http.StatusOK {
+			if debug.Debug {
+				log.Println("Tracking data sent after UUID regeneration, response status:", resp.Status)
+				body, _ := io.ReadAll(resp.Body)
+				log.Printf("Response body: %s", string(body))
+			}
+			return
+		}
+
+		if debug.Debug {
+			log.Println("Failed to track command after UUID regeneration, response status:", resp.Status)
+			body, _ := io.ReadAll(resp.Body)
+			log.Printf("Response body: %s", string(body))
+		}
+	} else if resp.StatusCode != http.StatusOK {
+		if debug.Debug {
+			log.Println("Unexpected response status during tracking:", resp.Status)
+			body, _ := io.ReadAll(resp.Body)
+			log.Printf("Response body: %s", string(body))
+		}
+	} else {
+		if debug.Debug {
+			log.Println("Tracking data sent, response status:", resp.Status)
+			body, _ := io.ReadAll(resp.Body)
+			log.Printf("Response body: %s", string(body))
+		}
+	}
 }
 
 func startfn(cmd *cobra.Command, args []string) {
-    red := color.New(color.FgRed)
-    blue := color.New(color.FgBlue)
+	red := color.New(color.FgRed)
+	blue := color.New(color.FgBlue)
 
-    contentStr := logo()
-    ctlen := len(contentStr)
-    mid := (ctlen / 2)
+	contentStr := logo()
+	ctlen := len(contentStr)
+	mid := (ctlen / 2)
 
-    fhlf := contentStr[:mid]
-    sndhlf := contentStr[mid:]
+	fhlf := contentStr[:mid]
+	sndhlf := contentStr[mid:]
 
-    red.Print(fhlf)
-    blue.Println(sndhlf)
-    red.Println("Welcome to CLI-TOP!\n ")
-    red.Println("Use \"cli-top help\" or \"cli-top --list\" to show available commands\nUse \"cli-top [command] --help\" for more information about a command.\n ")
-    fileName := "cli-top-config.env"
+	red.Print(fhlf)
+	blue.Println(sndhlf)
+	red.Println("Welcome to CLI-TOP!\n ")
+	red.Println("Use \"cli-top help\" or \"cli-top --list\" to show available commands\nUse \"cli-top [command] --help\" for more information about a command.\n ")
+	fileName := "cli-top-config.env"
 
-    currentDir, err := os.Getwd()
-    if err != nil && debug.Debug {
-        fmt.Println("Error getting current directory:", err)
-        return
-    }
+	currentDir, err := os.Getwd()
+	if err != nil && debug.Debug {
+		fmt.Println("Error getting current directory:", err)
+		return
+	}
 
-    filePath := filepath.Join(currentDir, fileName)
+	filePath := filepath.Join(currentDir, fileName)
 
-    if _, err := os.Stat(filePath); err == nil {
-        if debug.Debug {
-            fmt.Println("File exists:", filePath)
-        }
+	if _, err := os.Stat(filePath); err == nil {
+		if debug.Debug {
+			fmt.Println("File exists:", filePath)
+		}
 
-        err := godotenv.Load("cli-top-config.env")
-        if err != nil && debug.Debug {
-            fmt.Println("Error loading .env file")
-        }
-        if debug.Debug {
-            fmt.Println(os.Getenv("PASSWORD"))
-        }
+		err := godotenv.Load("cli-top-config.env")
+		if err != nil && debug.Debug {
+			fmt.Println("Error loading .env file")
+		}
+		if debug.Debug {
+			fmt.Println(os.Getenv("PASSWORD"))
+		}
 
-        if os.Getenv("VTOP_USERNAME") != "" && os.Getenv("PASSWORD") != "" {
-            vtop_login()
-        }
-    } else if os.IsNotExist(err) {
-        fmt.Println("File does not exist:", filePath)
-        fmt.Println("Please login using the \"login\" command")
-    } else {
-        fmt.Println("Error checking file existence:", err)
-    }
+		if os.Getenv("VTOP_USERNAME") != "" && os.Getenv("PASSWORD") != "" {
+			vtop_login()
+		}
+	} else if os.IsNotExist(err) {
+		fmt.Println("File does not exist:", filePath)
+		fmt.Println("Please login using the \"login\" command")
+	} else {
+		fmt.Println("Error checking file existence:", err)
+	}
 
-    userUUID := getOrCreateUUID()
-    if debug.Debug {
-        fmt.Println("User UUID:", userUUID)
-    }
+	userUUID := getOrCreateUUID()
+	if debug.Debug {
+		fmt.Println("User UUID:", userUUID)
+	}
 }
 
 func vtop_login() (types.Cookies, string) {
-    err := godotenv.Load("cli-top-config.env")
-    if err != nil && debug.Debug {
-        fmt.Println("Error loading .env file, please enter your credentials using the \"login\" command.")
-    }
+	err := godotenv.Load("cli-top-config.env")
+	if err != nil && debug.Debug {
+		fmt.Println("Error loading .env file, please enter your credentials using the \"login\" command.")
+	}
 
-    userInfo := types.LogIn{
-        Username: os.Getenv("VTOP_USERNAME"),
-        Password: os.Getenv("PASSWORD"),
-    }
+	userInfo := types.LogIn{
+		Username: os.Getenv("VTOP_USERNAME"),
+		Password: os.Getenv("PASSWORD"),
+	}
 
-    key := os.Getenv("KEY")
+	key := os.Getenv("KEY")
 
-    password, err := decryptPassword(userInfo.Password, key)
-    if err != nil && debug.Debug {
-        fmt.Println("Error decrypting password:", err)
-    }
+	password, err := decryptPassword(userInfo.Password, key)
+	if err != nil && debug.Debug {
+		fmt.Println("Error decrypting password:", err)
+	}
 
-    loginSecrets := login.Login(userInfo.Username, password)
-    cookies, tmp := login.HomePage(loginSecrets)
-    userInfo.RegNo = tmp
+	loginSecrets := login.Login(userInfo.Username, password)
+	cookies, tmp := login.HomePage(loginSecrets)
+	userInfo.RegNo = tmp
 
-    saveCookiesToFile(cookies, userInfo, key)
-    if err != nil && debug.Debug {
-        fmt.Println("Error saving cookies:", err)
-    }
-    if debug.Debug {
-        fmt.Println("(Main) VTOP Cookies", cookies)
-    }
+	saveCookiesToFile(cookies, userInfo, key)
+	if err != nil && debug.Debug {
+		fmt.Println("Error saving cookies:", err)
+	}
+	if debug.Debug {
+		fmt.Println("(Main) VTOP Cookies", cookies)
+	}
 
-    return cookies, userInfo.RegNo
+	return cookies, userInfo.RegNo
 }
 
 func saveCookiesToFile(cookies types.Cookies, userInfo types.LogIn, Key string) {
-    viper.Set("CSRF", "\""+cookies.CSRF+"\"")
-    viper.Set("JSESSIONID", "\""+cookies.JSESSIONID+"\"")
-    viper.Set("SERVERID", "\""+cookies.SERVERID+"\"")
-    viper.Set("REGNO", "\""+userInfo.RegNo+"\"")
-    viper.Set("VTOP_USERNAME", "\""+userInfo.Username+"\"")
-    viper.Set("PASSWORD", "\""+userInfo.Password+"\"")
-    viper.Set("KEY", "\""+Key+"\"")
-    if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
-        fmt.Println("Error writing to .env file:", err)
-    }
+	viper.Set("CSRF", "\""+cookies.CSRF+"\"")
+	viper.Set("JSESSIONID", "\""+cookies.JSESSIONID+"\"")
+	viper.Set("SERVERID", "\""+cookies.SERVERID+"\"")
+	viper.Set("REGNO", "\""+userInfo.RegNo+"\"")
+	viper.Set("VTOP_USERNAME", "\""+userInfo.Username+"\"")
+	viper.Set("PASSWORD", "\""+userInfo.Password+"\"")
+	viper.Set("KEY", "\""+Key+"\"")
+	if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
+		fmt.Println("Error writing to .env file:", err)
+	}
 }
 
 func readCookiesFromFile() (types.Cookies, string) {
-    if debugFlag {
-        debug.Debug = true
-        fmt.Println("Debug mode on")
-    }
-    err := godotenv.Load("cli-top-config.env")
-    if err != nil && debug.Debug {
-        fmt.Println("Error loading .env file, please enter your credentials using the \"login\" command.")
-    }
-    cookies := types.Cookies{
-        SERVERID:   os.Getenv("SERVERID"),
-        CSRF:       os.Getenv("CSRF"),
-        JSESSIONID: os.Getenv("JSESSIONID"),
-    }
-    cookies, regNo := login.HomePage(cookies)
-    if regNo == "" {
-        cookies, regNo = vtop_login()
-    }
+	if debugFlag {
+		debug.Debug = true
+		fmt.Println("Debug mode on")
+	}
+	err := godotenv.Load("cli-top-config.env")
+	if err != nil && debug.Debug {
+		fmt.Println("Error loading .env file, please enter your credentials using the \"login\" command.")
+	}
+	cookies := types.Cookies{
+		SERVERID:   os.Getenv("SERVERID"),
+		CSRF:       os.Getenv("CSRF"),
+		JSESSIONID: os.Getenv("JSESSIONID"),
+	}
+	cookies, regNo := login.HomePage(cookies)
+	if regNo == "" {
+		cookies, regNo = vtop_login()
+	}
 
-    return cookies, regNo
+	return cookies, regNo
 }
 
 var rootCmd = &cobra.Command{
-    Use:   "cli-top",
-    Short: "A simple CLI tool for vtop",
+	Use:   "cli-top",
+	Short: "A simple CLI tool for vtop",
 
-    PersistentPreRun: func(cmd *cobra.Command, args []string) {
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		if cmd.Name() != "login" && cmd.Name() != "logout" {
-		    trackCommand(cmd.Name())
-        }
-    },
+			trackCommand(cmd.Name())
+		}
+	},
 
-    Run: func(cmd *cobra.Command, args []string) {
+	Run: func(cmd *cobra.Command, args []string) {
+		if debugFlag {
+			debug.Debug = true
+			fmt.Println("Debug mode on")
+		}
 
-        if debugFlag {
-            debug.Debug = true
-            fmt.Println("Debug mode on")
-        }
+		if versionFlag {
+			fmt.Println("Version:", debug.Version)
+			return
+		}
 
-        if versionFlag {
-            fmt.Println("Version:", debug.Version)
-            return
-        }
+		if updateFlag {
+			helpers.CheckUpdate()
+			return
+		}
 
-        if updateFlag {
-            helpers.CheckUpdate()
-            return
-        }
-
-        startfn(cmd, args)
-    },
+		startfn(cmd, args)
+	},
 }
 
 func init() {
-    // Set the custom usage template
-    rootCmd.SetUsageTemplate(`Usage:
+	rootCmd.SetUsageTemplate(`Usage:
       {{.CommandPath}} [global flags] <subcommand> [subcommand flags] [arguments]
 
     Global Flags:
@@ -261,200 +337,231 @@ func init() {
 }
 
 func Execute() {
-    killSwitch := helpers.CheckKillSwitch()
-    if killSwitch == 2 {
-        fmt.Println("This version of cli-top has been decommissioned. Please await an update at https://cli-top.acmvit.in/.")
-        return
-        // os.Exit(1)
-    }
+	killSwitch := helpers.CheckKillSwitch()
+	if killSwitch == 2 {
+		fmt.Println("This version of cli-top has been decommissioned. Please await an update at https://cli-top.acmvit.in/.")
+		return
+	}
 
-    // Load or create UUID
-    userUUID := getOrCreateUUID()
-    if debug.Debug {
-        fmt.Println("User UUID:", userUUID)
-    }
+	err := godotenv.Load("cli-top-config.env")
+	if err != nil && debug.Debug {
+		fmt.Println("Error loading .env file:", err)
+	}
 
-    // Specify the semester flag for a subset of the commands
-    marksCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
-    gradesCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
-    attendanceCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
-    timeTableCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
-    examScheduleCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
-    calendarCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
-    calendarCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
-    coursePageCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
-    coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
-    coursePageCmd.PersistentFlags().StringVarP(&facultyFlag, "faculty", "f", "", "Specify the faculty")
-    coursePageCmd.PersistentFlags().IntVarP(&fuzzyIndexFlag, "fuzzy-index", "i", 0, "Specify the fuzzy index")
-    daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
+	userUUID := getOrCreateUUID()
+	if debug.Debug {
+		fmt.Println("User UUID:", userUUID)
+	}
 
-    // Add the flags to the root command
-    rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
-    rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
-    rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
+	marksCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	gradesCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	attendanceCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	timeTableCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	examScheduleCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	calendarCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	calendarCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
+	coursePageCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
+	coursePageCmd.PersistentFlags().StringVarP(&facultyFlag, "faculty", "f", "", "Specify the faculty")
+	coursePageCmd.PersistentFlags().IntVarP(&fuzzyIndexFlag, "fuzzy-index", "i", 0, "Specify the fuzzy index")
+	daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
 
-    // Add the commands to the root command
-    rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd)
+	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
+	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
+	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
 
-    rootCmd.SetArgs(os.Args[1:])
-    if err := rootCmd.Execute(); err != nil && debug.Debug {
-        fmt.Println(err)
-        os.Exit(1)
-    }
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd)
+
+	rootCmd.SetArgs(os.Args[1:])
+	if err := rootCmd.Execute(); err != nil && debug.Debug {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
 
 var profileCmd = &cobra.Command{
-    Use:   "profile",
-    Short: "Show VTOP Student Profile",
-    Run: func(cmd *cobra.Command, args []string) {
-        cookies, regNo := readCookiesFromFile()
-        features.Profile(cookies, regNo)
-    },
+	Use:   "profile",
+	Short: "Show VTOP Student Profile",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.Profile(cookies, regNo)
+	},
 }
 
 var marksCmd = &cobra.Command{
-    Use:   "marks",
-    Short: "Show Marks Details of a particular semester",
-    Run: func(cmd *cobra.Command, args []string) {
-        cookies, regNo := readCookiesFromFile()
-        features.GetMarks(regNo, cookies, "", semesterFlag)
-    },
+	Use:   "marks",
+	Short: "Show Marks Details of a particular semester",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetMarks(regNo, cookies, "", semesterFlag)
+	},
 }
 
 var gradesCmd = &cobra.Command{
-    Use:   "grades",
-    Short: "Show Grade Details of a particular semester",
-    Run: func(cmd *cobra.Command, args []string) {
-        cookies, regNo := readCookiesFromFile()
-        features.GetGrades(regNo, cookies, "", semesterFlag)
-    },
+	Use:   "grades",
+	Short: "Show Grade Details of a particular semester",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetGrades(regNo, cookies, "", semesterFlag)
+	},
 }
 
 var attendanceCmd = &cobra.Command{
-    Use:   "attendance",
-    Short: "Show Attendance Details of a particular semester",
-    Run: func(cmd *cobra.Command, args []string) {
-        cookies, regNo := readCookiesFromFile()
-        features.GetAttendance(regNo, cookies, "", semesterFlag)
-    },
+	Use:   "attendance",
+	Short: "Show Attendance Details of a particular semester",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetAttendance(regNo, cookies, "", semesterFlag)
+	},
 }
 
 var receiptCmd = &cobra.Command{
-    Use:   "receipts",
-    Short: "Show Receipt Details of a user",
-    Run: func(cmd *cobra.Command, args []string) {
-        cookies, regNo := readCookiesFromFile()
-        features.GetReceipt(regNo, cookies)
-    },
+	Use:   "receipts",
+	Short: "Show Receipt Details of a user",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetReceipt(regNo, cookies)
+	},
 }
 
 var timeTableCmd = &cobra.Command{
-    Use:   "timetable",
-    Short: "Show Time Table of a particular semester",
-    Run: func(cmd *cobra.Command, args []string) {
-        cookies, regNo := readCookiesFromFile()
-        features.GetTimeTable(regNo, cookies, "", semesterFlag)
-    },
+	Use:   "timetable",
+	Short: "Show Time Table of a particular semester",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetTimeTable(regNo, cookies, "", semesterFlag)
+	},
 }
 
 var hostelCmd = &cobra.Command{
-    Use:   "hostel",
-    Short: "Show Hostel Details of a user",
-    Run: func(cmd *cobra.Command, args []string) {
-        cookies, regNo := readCookiesFromFile()
-        features.PrintHostelInfo(regNo, cookies, "https://vtop.vit.ac.in/vtop/studentsRecord/StudentProfileAllView")
-    },
+	Use:   "hostel",
+	Short: "Show Hostel Details of a user",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.PrintHostelInfo(regNo, cookies, "https://vtop.vit.ac.in/vtop/studentsRecord/StudentProfileAllView")
+	},
 }
 
 var cgpaCmd = &cobra.Command{
-    Use:   "cgpa",
-    Short: "Show CGPA details",
-    Run: func(cmd *cobra.Command, args []string) {
-        cookies, regNo := readCookiesFromFile()
-        features.PrintCgpa(regNo, cookies, "https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeHistory")
-    },
+	Use:   "cgpa",
+	Short: "Show CGPA details",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.PrintCgpa(regNo, cookies, "https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeHistory")
+	},
 }
 
 var examScheduleCmd = &cobra.Command{
-    Use:   "exams",
-    Short: "Show Exam Schedule",
-    Run: func(cmd *cobra.Command, args []string) {
-        cookies, regNo := readCookiesFromFile()
-        features.GetExamSchedule(regNo, cookies, "", semesterFlag)
-    },
+	Use:   "exams",
+	Short: "Show Exam Schedule",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetExamSchedule(regNo, cookies, "", semesterFlag)
+	},
 }
 
 var coursePageCmd = &cobra.Command{
-    Use:   "course-page",
-    Short: "Download course materials for a selected semester, course, and faculty",
-    Run: func(cmd *cobra.Command, args []string) {
-        cookies, regNo := readCookiesFromFile()
-        features.ExecuteCoursePageDownload(regNo, cookies, semesterFlag, courseFlag, facultyFlag, fuzzyIndexFlag)
-    },
+	Use:   "course-page",
+	Short: "Download course materials for a selected semester, course, and faculty",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.ExecuteCoursePageDownload(regNo, cookies, semesterFlag, courseFlag, facultyFlag, fuzzyIndexFlag)
+	},
 }
 
 var libraryDuesCmd = &cobra.Command{
-    Use:   "library-dues",
-    Short: "Show Library Dues",
-    Run: func(cmd *cobra.Command, args []string) {
-        cookies, regNo := readCookiesFromFile()
-        features.GetLibraryDues(regNo, cookies)
-    },
+	Use:   "library-dues",
+	Short: "Show Library Dues",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetLibraryDues(regNo, cookies)
+	},
 }
 
 var calendarCmd = &cobra.Command{
-    Use:   "calendar",
-    Short: "Show Calendar",
-    Run: func(cmd *cobra.Command, args []string) {
-        cookies, regNo := readCookiesFromFile()
-        features.PrintCal(regNo, cookies, semesterFlag, classGrpFlag)
-    },
+	Use:   "calendar",
+	Short: "Show Calendar",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.PrintCal(regNo, cookies, semesterFlag, classGrpFlag)
+	},
 }
 
 var logoutCmd = &cobra.Command{
     Use:   "logout",
     Short: "Logout from VTOP",
     Run: func(cmd *cobra.Command, args []string) {
-        err := os.Remove("cli-top-config.env")
+        err := godotenv.Load("cli-top-config.env")
         if err != nil && debug.Debug {
-            fmt.Println("Error deleting .env file:", err)
+            fmt.Println("Error loading .env file:", err)
+            return
         }
+
+        uuid := os.Getenv("UUID")
+
+        if uuid == "" {
+            fmt.Println("UUID not found; nothing to preserve.")
+            return
+        }
+
+        env := map[string]string{
+            "UUID": uuid,
+        }
+
+        f, err := os.Create("cli-top-config.env")
+        if err != nil {
+            if debug.Debug {
+                fmt.Println("Error creating .env file:", err)
+            }
+            return
+        }
+        defer f.Close()
+
+        for key, value := range env {
+            _, err = f.WriteString(fmt.Sprintf("%s=%s\n", key, value))
+            if err != nil && debug.Debug {
+                fmt.Println("Error writing to .env file:", err)
+                return
+            }
+        }
+
         fmt.Println("Logged out successfully.")
     },
 }
 
+
 var nightslipCmd = &cobra.Command{
-    Use:   "nightslip",
-    Short: "Show Nightslip Request Status of a user",
-    Run: func(cmd *cobra.Command, args []string) {
-        cookies, regNo := readCookiesFromFile()
-        features.GetNightSlipStatus(regNo, cookies)
-    },
+	Use:   "nightslip",
+	Short: "Show Nightslip Request Status of a user",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetNightSlipStatus(regNo, cookies)
+	},
 }
 
 var leavestatusCmd = &cobra.Command{
-    Use:   "leave",
-    Short: "Show Leave Status",
-    Run: func(cmd *cobra.Command, args []string) {
-        cookies, regNo := readCookiesFromFile()
-        features.GetLeaveStatus(regNo, cookies)
-    },
+	Use:   "leave",
+	Short: "Show Leave Status",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetLeaveStatus(regNo, cookies)
+	},
 }
 
 var classMessagesCmd = &cobra.Command{
-    Use:   "msg",
-    Short: "Show Class Messages",
-    Run: func(cmd *cobra.Command, args []string) {
-        cookies, regNo := readCookiesFromFile()
-        features.GetClassMessage(regNo, cookies)
-    },
+	Use:   "msg",
+	Short: "Show Class Messages",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetClassMessage(regNo, cookies)
+	},
 }
 
 var daDetailsCmd = &cobra.Command{
-    Use:   "da",
-    Short: "Show Digital Assignment Details",
-    Run: func(cmd *cobra.Command, args []string) {
-        cookies, regNo := readCookiesFromFile()
-        features.PrintAllDAs(regNo, cookies, courseNameFlag)
-    },
+	Use:   "da",
+	Short: "Show Digital Assignment Details",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.PrintAllDAs(regNo, cookies, courseNameFlag)
+	},
 }
