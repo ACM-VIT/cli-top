@@ -295,7 +295,7 @@ var rootCmd = &cobra.Command{
 	Short: "A simple CLI tool for vtop",
 
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		if cmd.Name() != "login" && cmd.Name() != "logout" {
+		if cmd.Name() != "login" && cmd.Name() != "logout" && cmd.Name() !="cli-top"{
 			trackCommand(cmd.Name())
 		}
 	},
