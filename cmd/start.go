@@ -1,17 +1,23 @@
 package cmd
 
 import (
-	"fmt"
-
+	"bytes"
 	"cli-top/debug"
 	"cli-top/features"
 	"cli-top/helpers"
 	"cli-top/login"
 	"cli-top/types"
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/fatih/color"
+	"github.com/google/uuid"
 	"github.com/lpernett/godotenv"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -27,19 +33,145 @@ var classGrpFlag int
 var fuzzyIndexFlag int
 var courseNameFlag string
 
+type TrackingData struct {
+	UUID      string `json:"uuid"`
+	Command   string `json:"command"`
+	Timestamp string `json:"timestamp"`
+}
+
+func getOrCreateUUID() string {
+	registeredUUID := viper.GetString("UUID")
+	if registeredUUID != "" {
+		return registeredUUID
+	}
+
+	unregisteredUUID := viper.GetString("UNREGISTERED_UUID")
+	if unregisteredUUID == "" {
+		unregisteredUUID = uuid.New().String()
+		viper.Set("UNREGISTERED_UUID", unregisteredUUID)
+		if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
+			fmt.Println("Error saving unregistered UUID to config:", err)
+		}
+	}
+
+	if err := helpers.RegisterUUID(unregisteredUUID); err != nil {
+		if debug.Debug {
+			fmt.Println("Error registering UUID with server:", err)
+		}
+		return unregisteredUUID
+	}
+
+	viper.Set("UUID", unregisteredUUID)
+	viper.Set("UNREGISTERED_UUID", "")
+	if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
+		fmt.Println("Error updating registered UUID in config:", err)
+	}
+
+	return unregisteredUUID
+}
+
+func trackCommand(command string) {
+	userUUID := viper.GetString("UUID")
+	if userUUID == "" {
+		if debug.Debug {
+			log.Println("UUID is empty or not initialized. Skipping tracking.")
+		}
+		return
+	}
+
+	data := TrackingData{
+		UUID:      userUUID,
+		Command:   command,
+		Timestamp: time.Now().Format(time.RFC3339),
+	}
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		if debug.Debug {
+			log.Println("Error marshaling tracking data:", err)
+		}
+		return
+	}
+
+	serverURL := "https://cli-calendar.acmvit.in/track"
+
+	req, err := http.NewRequest("POST", serverURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		if debug.Debug {
+			log.Println("Error creating tracking request:", err)
+		}
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-api-key", data.UUID)
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		if debug.Debug {
+			log.Println("Error sending tracking data:", err)
+		}
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		if debug.Debug {
+			log.Println("Invalid UUID detected. Generating a new one and registering...")
+		}
+		newUUID := uuid.New().String()
+		err = helpers.RegisterUUID(newUUID)
+		if err != nil {
+			if debug.Debug {
+				log.Println("Failed to register new UUID:", err)
+			}
+			return
+		}
+		data.UUID = newUUID
+		req.Header.Set("x-api-key", newUUID)
+		resp, err = client.Do(req)
+		if err != nil {
+			if debug.Debug {
+				log.Println("Error sending tracking data after UUID regeneration:", err)
+			}
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == http.StatusOK {
+			if debug.Debug {
+				log.Println("Tracking data sent after UUID regeneration, response status:", resp.Status)
+				body, _ := io.ReadAll(resp.Body)
+				log.Printf("Response body: %s", string(body))
+			}
+			return
+		}
+
+		if debug.Debug {
+			log.Println("Failed to track command after UUID regeneration, response status:", resp.Status)
+			body, _ := io.ReadAll(resp.Body)
+			log.Printf("Response body: %s", string(body))
+		}
+	} else if resp.StatusCode != http.StatusOK {
+		if debug.Debug {
+			log.Println("Unexpected response status during tracking:", resp.Status)
+			body, _ := io.ReadAll(resp.Body)
+			log.Printf("Response body: %s", string(body))
+		}
+	} else {
+		if debug.Debug {
+			log.Println("Tracking data sent, response status:", resp.Status)
+			body, _ := io.ReadAll(resp.Body)
+			log.Printf("Response body: %s", string(body))
+		}
+	}
+}
 
 func startfn(cmd *cobra.Command, args []string) {
-
 	red := color.New(color.FgRed)
 	blue := color.New(color.FgBlue)
-	// filePath := "logo.txt"
 
-	// content, err := ioutil.ReadFile(filePath)
-	// if err != nil && debug.Debug{
-	// 	fmt.Println(err)
-	// }
-
-	// contentStr := string(content)
 	contentStr := logo()
 	ctlen := len(contentStr)
 	mid := (ctlen / 2)
@@ -53,17 +185,14 @@ func startfn(cmd *cobra.Command, args []string) {
 	red.Println("Use \"cli-top help\" or \"cli-top --list\" to show available commands\nUse \"cli-top [command] --help\" for more information about a command.\n ")
 	fileName := "cli-top-config.env"
 
-	// Get the current working directory
 	currentDir, err := os.Getwd()
 	if err != nil && debug.Debug {
 		fmt.Println("Error getting current directory:", err)
 		return
 	}
 
-	// Construct the full path to the file
 	filePath := filepath.Join(currentDir, fileName)
 
-	// Check if the file exists
 	if _, err := os.Stat(filePath); err == nil {
 		if debug.Debug {
 			fmt.Println("File exists:", filePath)
@@ -85,6 +214,11 @@ func startfn(cmd *cobra.Command, args []string) {
 		fmt.Println("Please login using the \"login\" command")
 	} else {
 		fmt.Println("Error checking file existence:", err)
+	}
+
+	userUUID := getOrCreateUUID()
+	if debug.Debug {
+		fmt.Println("User UUID:", userUUID)
 	}
 }
 
@@ -160,8 +294,13 @@ var rootCmd = &cobra.Command{
 	Use:   "cli-top",
 	Short: "A simple CLI tool for vtop",
 
-	Run: func(cmd *cobra.Command, args []string) {
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		if cmd.Name() != "login" && cmd.Name() != "logout" && cmd.Name() !="cli-top"{
+			trackCommand(cmd.Name())
+		}
+	},
 
+	Run: func(cmd *cobra.Command, args []string) {
 		if debugFlag {
 			debug.Debug = true
 			fmt.Println("Debug mode on")
@@ -182,20 +321,19 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	// Set the custom usage template
 	rootCmd.SetUsageTemplate(`Usage:
-  {{.CommandPath}} [global flags] <subcommand> [subcommand flags] [arguments]
+      {{.CommandPath}} [global flags] <subcommand> [subcommand flags] [arguments]
 
-Global Flags:
-{{.PersistentFlags.FlagUsages | trimTrailingWhitespaces}}
+    Global Flags:
+    {{.PersistentFlags.FlagUsages | trimTrailingWhitespaces}}
 
-{{if .HasAvailableSubCommands}}
-Available Subcommands:
-{{range .Commands}}{{if (and .IsAvailableCommand (not .Hidden))}}
-  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}
+    {{if .HasAvailableSubCommands}}
+    Available Subcommands:
+    {{range .Commands}}{{if (and .IsAvailableCommand (not .Hidden))}}
+      {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}
 
-Use "{{.CommandPath}} <subcommand> --help" for more information about a subcommand.
-`)
+    Use "{{.CommandPath}} <subcommand> --help" for more information about a subcommand.
+    `)
 }
 
 func Execute() {
@@ -203,9 +341,18 @@ func Execute() {
 	if killSwitch == 2 {
 		fmt.Println("This version of cli-top has been decommissioned. Please await an update at https://cli-top.acmvit.in/.")
 		return
-		// os.Exit(1)
 	}
-	// Specify the semester flag for a subset of the commands
+
+	err := godotenv.Load("cli-top-config.env")
+	if err != nil && debug.Debug {
+		fmt.Println("Error loading .env file:", err)
+	}
+
+	userUUID := getOrCreateUUID()
+	if debug.Debug {
+		fmt.Println("User UUID:", userUUID)
+	}
+
 	marksCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	gradesCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	attendanceCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
@@ -219,12 +366,10 @@ func Execute() {
 	coursePageCmd.PersistentFlags().IntVarP(&fuzzyIndexFlag, "fuzzy-index", "i", 0, "Specify the fuzzy index")
 	daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
 
-	// Add the flags to the root command
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
 	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
 
-	// Add the commands to the root command
 	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd)
 
 	rootCmd.SetArgs(os.Args[1:])
@@ -343,16 +488,47 @@ var calendarCmd = &cobra.Command{
 }
 
 var logoutCmd = &cobra.Command{
-	Use:   "logout",
-	Short: "Logout from VTOP",
-	Run: func(cmd *cobra.Command, args []string) {
-		err := os.Remove("cli-top-config.env")
-		if err != nil && debug.Debug {
-			fmt.Println("Error deleting .env file:", err)
-		}
-		fmt.Println("Logged out successfully.")
-	},
+    Use:   "logout",
+    Short: "Logout from VTOP",
+    Run: func(cmd *cobra.Command, args []string) {
+        err := godotenv.Load("cli-top-config.env")
+        if err != nil && debug.Debug {
+            fmt.Println("Error loading .env file:", err)
+            return
+        }
+
+        uuid := os.Getenv("UUID")
+
+        if uuid == "" {
+            fmt.Println("UUID not found; nothing to preserve.")
+            return
+        }
+
+        env := map[string]string{
+            "UUID": uuid,
+        }
+
+        f, err := os.Create("cli-top-config.env")
+        if err != nil {
+            if debug.Debug {
+                fmt.Println("Error creating .env file:", err)
+            }
+            return
+        }
+        defer f.Close()
+
+        for key, value := range env {
+            _, err = f.WriteString(fmt.Sprintf("%s=%s\n", key, value))
+            if err != nil && debug.Debug {
+                fmt.Println("Error writing to .env file:", err)
+                return
+            }
+        }
+
+        fmt.Println("Logged out successfully.")
+    },
 }
+
 
 var nightslipCmd = &cobra.Command{
 	Use:   "nightslip",
