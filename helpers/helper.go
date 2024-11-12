@@ -266,7 +266,6 @@ func buildCookieHeader(cookies types.Cookies) string {
 func GetFileExtension(filename string, body []byte, headers http.Header) string {
     ext := filepath.Ext(filename)
     if ext != "" {
-        fmt.Printf("Existing extension found: %s\n", ext)
         return ext
     }
 

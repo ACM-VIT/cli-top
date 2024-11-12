@@ -47,12 +47,6 @@ func GetSemDetails(cookies types.Cookies, regNo string) ([]types.Semester, error
         return allSems, err
     }
 
-    if debug.Debug {
-        fmt.Println("---- Response Body Start ----")
-        fmt.Println(string(bodyText))
-        fmt.Println("---- Response Body End ----")
-    }
-
     doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
     if err != nil {
         if debug.Debug {
