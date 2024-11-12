@@ -8,6 +8,13 @@ import (
 	"strings"
 	"time"
 	"os"
+	"bytes"
+    "io/ioutil"
+    "net/http"
+    "cli-top/types" 
+	"path/filepath"
+	"archive/zip"
+    "github.com/h2non/filetype"
 
 	"github.com/PuerkitoBio/goquery"
 	//"golang.org/x/net/html"
@@ -199,4 +206,200 @@ func SanitizeFilename(name string) string {
 
 func SaveFile(data []byte, filePath string) error {
     return os.WriteFile(filePath, data, 0644)
+}
+
+func FetchReqClient(client *http.Client, regNo string, cookies types.Cookies, url string, referer string, formData string, method string, contentType string) ([]byte, error) {
+    req, err := http.NewRequest(method, url, bytes.NewBufferString(formData))
+    if err != nil {
+        return nil, err
+    }
+
+    req.Header.Set("Content-Type", contentType)
+    if referer != "" {
+        req.Header.Set("Referer", referer)
+    }
+    req.Header.Set("Cookie", buildCookieHeader(cookies))
+    req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; YourApp/1.0)") 
+
+    resp, err := client.Do(req)
+    if err != nil {
+        return nil, err
+    }
+    defer resp.Body.Close()
+
+    body, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+        return nil, err
+    }
+
+    if resp.StatusCode != http.StatusOK {
+        return nil, fmt.Errorf("received non-200 status code: %d", resp.StatusCode)
+    }
+
+    return body, nil
+}
+
+func buildCookieHeader(cookies types.Cookies) string {
+    return fmt.Sprintf("JSESSIONID=%s; SERVERID=%s;", cookies.JSESSIONID, cookies.SERVERID)
+}
+
+func GetFileExtension(filename string, body []byte) string {
+	// 1. Check if the filename already has an extension
+	ext := filepath.Ext(filename)
+	if ext != "" {
+		fmt.Printf("Existing extension found: %s\n", ext)
+		return ext
+	}
+
+	// 2. Use the filetype package to detect the file type
+	kind, err := filetype.Match(body)
+	if err == nil && kind != filetype.Unknown {
+		fmt.Printf("Filetype package detected: %s\n", kind.Extension)
+		switch kind.Extension {
+		case "doc":
+			return ".doc"
+		case "xls":
+			return ".xls"
+		case "ppt":
+			return ".ppt"
+		case "docx":
+			return ".docx"
+		case "xlsx":
+			return ".xlsx"
+		case "pptx":
+			return ".pptx"
+		case "pdf":
+			return ".pdf"
+		// Add more cases as needed
+		default:
+			fmt.Printf("Filetype package detected unknown type: %s\n", kind.Extension)
+		}
+	} else {
+		fmt.Println("Filetype package could not determine the file type.")
+	}
+
+	// 3. Fallback to MIME type detection
+	mimeType := http.DetectContentType(body)
+	fmt.Printf("MIME type detected: %s\n", mimeType)
+	switch mimeType {
+	case "application/msword":
+		return ".doc"
+	case "application/vnd.ms-excel":
+		return ".xls"
+	case "application/vnd.ms-powerpoint":
+		return ".ppt"
+	case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+		return ".docx"
+	case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+		return ".xlsx"
+	case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+		return ".pptx"
+	case "application/pdf":
+		return ".pdf"
+	// Add more MIME types as needed
+	default:
+		fmt.Printf("Unhandled MIME type: %s\n", mimeType)
+	}
+
+	// 4. Manual byte signature checks for older Office formats
+	if len(body) >= 8 && bytes.Equal(body[:8], []byte{0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1}) {
+		fmt.Println("OLE Compound Document detected.")
+		// Use regex to find specific Office type identifiers
+		if bytes.Contains(body, []byte("WordDocument")) {
+			fmt.Println("Identified as .doc")
+			return ".doc"
+		}
+		if bytes.Contains(body, []byte("Workbook")) || bytes.Contains(body, []byte("Book")) {
+			fmt.Println("Identified as .xls")
+			return ".xls"
+		}
+		if bytes.Contains(body, []byte("PowerPoint Document")) {
+			fmt.Println("Identified as .ppt")
+			return ".ppt"
+		}
+		fmt.Println("OLE Compound Document but specific type not identified. Assigning .ole")
+		return ".ole" // Fallback for unidentified OLE types
+	}
+
+	// 5. Detect OOXML (Open XML) formats by inspecting ZIP structure
+	if len(body) >= 4 && string(body[:4]) == "PK\x03\x04" {
+		fmt.Println("ZIP archive detected. Inspecting internal structure for OOXML formats.")
+		readerAt := bytes.NewReader(body)
+		size := int64(len(body))
+		zipReader, err := zip.NewReader(readerAt, size)
+		if err == nil {
+			for _, f := range zipReader.File {
+				if strings.HasPrefix(f.Name, "ppt/") {
+					fmt.Println("Identified as .pptx")
+					return ".pptx"
+				} else if strings.HasPrefix(f.Name, "word/") {
+					fmt.Println("Identified as .docx")
+					return ".docx"
+				} else if strings.HasPrefix(f.Name, "xl/") {
+					fmt.Println("Identified as .xlsx")
+					return ".xlsx"
+				}
+			}
+		} else {
+			fmt.Printf("Error reading ZIP structure: %v\n", err)
+		}
+	}
+
+	// 6. Default to empty string if no extension could be determined
+	fmt.Println("Failed to determine file extension; returning empty string.")
+	return ""
+}
+
+func isOLECompoundDocument(body []byte) bool {
+    return len(body) >= 8 && bytes.Equal(body[:8], []byte{0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1})
+}
+
+func bytesContains(body []byte, substr string) bool {
+    return bytes.Contains(body, []byte(substr))
+}
+
+func isOOXML(body []byte) bool {
+    readerAt := bytes.NewReader(body)
+    size := int64(len(body))
+    zipReader, err := zip.NewReader(readerAt, size)
+    if err != nil {
+        return false
+    }
+    for _, f := range zipReader.File {
+        if strings.HasPrefix(f.Name, "ppt/") || strings.HasPrefix(f.Name, "word/") || strings.HasPrefix(f.Name, "xl/") {
+            return true
+        }
+    }
+    return false
+}
+
+func getOOXMLExtension(body []byte) string {
+    readerAt := bytes.NewReader(body)
+    size := int64(len(body))
+    zipReader, err := zip.NewReader(readerAt, size)
+    if err != nil {
+        return ""
+    }
+    for _, f := range zipReader.File {
+        if strings.HasPrefix(f.Name, "ppt/") {
+            return ".pptx"
+        } else if strings.HasPrefix(f.Name, "word/") {
+            return ".docx"
+        } else if strings.HasPrefix(f.Name, "xl/") {
+            return ".xlsx"
+        }
+    }
+    return ""
+}
+
+func RemoveDuplicates(ints []int) []int {
+    uniqueMap := make(map[int]struct{})
+    var unique []int
+    for _, i := range ints {
+        if _, exists := uniqueMap[i]; !exists {
+            uniqueMap[i] = struct{}{}
+            unique = append(unique, i)
+        }
+    }
+    return unique
 }
