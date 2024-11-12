@@ -411,7 +411,7 @@ var attendanceCmd = &cobra.Command{
 	Short: "Show Attendance Details of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.GetAttendance(regNo, cookies, "", semesterFlag)
+		features.GetAttendance(regNo, cookies, semesterFlag)
 	},
 }
 
@@ -456,7 +456,7 @@ var examScheduleCmd = &cobra.Command{
 	Short: "Show Exam Schedule",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.GetExamSchedule(regNo, cookies, "", semesterFlag)
+		features.GetExamSchedule(regNo, cookies, semesterFlag)
 	},
 }
 
