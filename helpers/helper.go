@@ -8,6 +8,14 @@ import (
 	"strings"
 	"time"
 	"os"
+	"bytes"
+    "io"
+    "net/http"
+    "cli-top/types" 
+	"path/filepath"
+	"archive/zip"
+    "github.com/h2non/filetype"
+	"mime"
 
 	"github.com/PuerkitoBio/goquery"
 	//"golang.org/x/net/html"
@@ -199,4 +207,258 @@ func SanitizeFilename(name string) string {
 
 func SaveFile(data []byte, filePath string) error {
     return os.WriteFile(filePath, data, 0644)
+}
+func FormatBodyDataClient(payloadMap map[string]string) []byte {
+    var sb strings.Builder
+    for key, value := range payloadMap {
+        if sb.Len() > 0 {
+            sb.WriteByte('&')
+        }
+        sb.WriteString(fmt.Sprintf("%s=%s", url.QueryEscape(key), url.QueryEscape(value)))
+    }
+    return []byte(sb.String())
+}
+
+func FetchReqClient(client *http.Client, regNo string, cookies types.Cookies, url string, referer string, formData []byte, method string, contentType string) ([]byte, http.Header, error) {
+    req, err := http.NewRequest(method, url, bytes.NewBuffer(formData))
+    if err != nil {
+        return nil, nil, fmt.Errorf("failed to create HTTP request: %w", err)
+    }
+
+    req.Header.Set("Content-Type", contentType)
+    if referer != "" {
+        req.Header.Set("Referer", referer)
+    }
+
+    if cookies.JSESSIONID != "" {
+        req.AddCookie(&http.Cookie{
+            Name:  "JSESSIONID",
+            Value: cookies.JSESSIONID,
+            Path:  "/",
+        })
+    }
+    if cookies.SERVERID != "" {
+        req.AddCookie(&http.Cookie{
+            Name:  "SERVERID",
+            Value: cookies.SERVERID,
+            Path:  "/",
+        })
+    }
+
+    resp, err := client.Do(req)
+    if err != nil {
+        return nil, nil, fmt.Errorf("failed to perform HTTP request: %w", err)
+    }
+    defer resp.Body.Close()
+
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return nil, nil, fmt.Errorf("failed to read response body: %w", err)
+    }
+
+    return body, resp.Header, nil
+}
+
+func buildCookieHeader(cookies types.Cookies) string {
+    return fmt.Sprintf("JSESSIONID=%s; SERVERID=%s;", cookies.JSESSIONID, cookies.SERVERID)
+}
+
+func GetFileExtension(filename string, body []byte, headers http.Header) string {
+    ext := filepath.Ext(filename)
+    if ext != "" {
+        return ext
+    }
+
+    contentDisposition := headers.Get("Content-Disposition")
+    if contentDisposition != "" {
+        _, params, err := mime.ParseMediaType(contentDisposition)
+        if err == nil {
+            if cdFilename, ok := params["filename"]; ok && cdFilename != "" {
+                ext = filepath.Ext(cdFilename)
+                if ext != "" {
+                    return ext
+                }
+            }
+        }
+    }
+
+    kind, err := filetypeMatch(body)
+    if err == nil && kind != "unknown" {
+        fmt.Printf("Filetype package detected: %s\n", kind)
+        switch kind {
+        case "doc":
+            return ".doc"
+        case "xls":
+            return ".xls"
+        case "ppt":
+            return ".ppt"
+        case "docx":
+            return ".docx"
+        case "xlsx":
+            return ".xlsx"
+        case "pptx":
+            return ".pptx"
+        case "pdf":
+            return ".pdf"
+        case "zip":
+            if isOOXML(body) {
+                ooxmlExt := getOOXMLExtension(body)
+                if ooxmlExt != "" {
+                    return ooxmlExt
+                }
+            }
+            return ".zip"
+        default:
+            fmt.Printf("Filetype package detected unknown type: %s\n", kind)
+        }
+    } else {
+        fmt.Println("Filetype package could not determine the file type.")
+    }
+
+    mimeType := http.DetectContentType(body)
+    fmt.Printf("MIME type detected: %s\n", mimeType)
+    switch mimeType {
+    case "application/msword":
+        return ".doc"
+    case "application/vnd.ms-excel":
+        return ".xls"
+    case "application/vnd.ms-powerpoint":
+        return ".ppt"
+    case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        return ".docx"
+    case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+        return ".xlsx"
+    case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+        return ".pptx"
+    case "application/pdf":
+        return ".pdf"
+    case "application/zip":
+        if isOOXML(body) {
+            ooxmlExt := getOOXMLExtension(body)
+            if ooxmlExt != "" {
+                return ooxmlExt
+            }
+        }
+        return ".zip"
+    default:
+        fmt.Printf("Unhandled MIME type: %s\n", mimeType)
+    }
+
+    if len(body) >= 8 && bytes.Equal(body[:8], []byte{0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1}) {
+        fmt.Println("OLE Compound Document detected.")
+        if bytes.Contains(body, []byte("WordDocument")) {
+            fmt.Println("Identified as .doc")
+            return ".doc"
+        }
+        if bytes.Contains(body, []byte("Workbook")) || bytes.Contains(body, []byte("Book")) {
+            fmt.Println("Identified as .xls")
+            return ".xls"
+        }
+        if bytes.Contains(body, []byte("PowerPoint Document")) {
+            fmt.Println("Identified as .ppt")
+            return ".ppt"
+        }
+        fmt.Println("OLE Compound Document but specific type not identified. Assigning .bin")
+        return ".bin" 
+    }
+
+    if len(body) >= 4 && string(body[:4]) == "PK\x03\x04" {
+        fmt.Println("ZIP archive detected. Inspecting internal structure for OOXML formats.")
+        readerAt := bytes.NewReader(body)
+        size := int64(len(body))
+        zipReader, err := zip.NewReader(readerAt, size)
+        if err == nil {
+            for _, f := range zipReader.File {
+                if strings.HasPrefix(f.Name, "ppt/") {
+                    fmt.Println("Identified as .pptx")
+                    return ".pptx"
+                } else if strings.HasPrefix(f.Name, "word/") {
+                    fmt.Println("Identified as .docx")
+                    return ".docx"
+                } else if strings.HasPrefix(f.Name, "xl/") {
+                    fmt.Println("Identified as .xlsx")
+                    return ".xlsx"
+                }
+            }
+        } else {
+            fmt.Printf("Error reading ZIP structure: %v\n", err)
+        }
+    }
+
+    fmt.Println("Failed to determine file extension; assigning .bin")
+    return ".bin"
+}
+
+func urlQueryEscape(s string) string {
+    return strings.ReplaceAll(url.QueryEscape(s), "+", "%20")
+}
+
+func mimeParseMediaType(v string) (mediatype string, params map[string]string, err error) {
+    return mime.ParseMediaType(v)
+}
+
+func isOLECompoundDocument(body []byte) bool {
+    return len(body) >= 8 && bytes.Equal(body[:8], []byte{0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1})
+}
+
+func bytesContains(body []byte, substr string) bool {
+    return bytes.Contains(body, []byte(substr))
+}
+
+func isOOXML(body []byte) bool {
+    readerAt := bytes.NewReader(body)
+    size := int64(len(body))
+    zipReader, err := zip.NewReader(readerAt, size)
+    if err != nil {
+        return false
+    }
+    for _, f := range zipReader.File {
+        if strings.HasPrefix(f.Name, "ppt/") || strings.HasPrefix(f.Name, "word/") || strings.HasPrefix(f.Name, "xl/") {
+            return true
+        }
+    }
+    return false
+}
+
+func getOOXMLExtension(body []byte) string {
+    readerAt := bytes.NewReader(body)
+    size := int64(len(body))
+    zipReader, err := zip.NewReader(readerAt, size)
+    if err != nil {
+        fmt.Printf("Error reading ZIP structure: %v\n", err)
+        return ""
+    }
+    for _, f := range zipReader.File {
+        if strings.HasPrefix(f.Name, "ppt/") {
+            return ".pptx"
+        } else if strings.HasPrefix(f.Name, "word/") {
+            return ".docx"
+        } else if strings.HasPrefix(f.Name, "xl/") {
+            return ".xlsx"
+        }
+    }
+    return ""
+}
+
+func RemoveDuplicates(ints []int) []int {
+    uniqueMap := make(map[int]struct{})
+    var unique []int
+    for _, i := range ints {
+        if _, exists := uniqueMap[i]; !exists {
+            uniqueMap[i] = struct{}{}
+            unique = append(unique, i)
+        }
+    }
+    return unique
+}
+
+func filetypeMatch(body []byte) (string, error) {
+    kind, err := filetype.Match(body)
+    if err != nil {
+        return "unknown", err
+    }
+    if kind == filetype.Unknown {
+        return "unknown", nil
+    }
+    return kind.Extension, nil
 }
