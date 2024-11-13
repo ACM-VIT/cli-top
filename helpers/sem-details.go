@@ -47,12 +47,6 @@ func GetSemDetails(cookies types.Cookies, regNo string) ([]types.Semester, error
         return allSems, err
     }
 
-    if debug.Debug {
-        fmt.Println("---- Response Body Start ----")
-        fmt.Println(string(bodyText))
-        fmt.Println("---- Response Body End ----")
-    }
-
     doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
     if err != nil {
         if debug.Debug {
@@ -85,7 +79,7 @@ func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) (types.
     // clearInputBuffer() // Uncomment if necessary and ensure it doesn't cause blocking
 
     var nested_sem_list [][]string
-    nested_sem_list = append(nested_sem_list, []string{"SemId", "SemName"})
+    nested_sem_list = append(nested_sem_list, []string{"Semester ID", "Semester"})
     for i := 0; i < len(semDetails); i++ {
         nested_sem_list = append(nested_sem_list, []string{semDetails[i].SemID, semDetails[i].SemName})
     }
