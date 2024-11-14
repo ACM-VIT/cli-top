@@ -14,9 +14,9 @@ import (
 
 func PrintCal(regNo string, cookies types.Cookies, sem_choice int, classGrpFlag int) {
 	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-        fmt.Println("Please login first using the cli-top login command")
-        return
-    }
+		fmt.Println("Please login first using the cli-top login command")
+		return
+	}
 	url := "https://vtop.vit.ac.in/vtop/getDateForSemesterPreview"
 	semester, err := helpers.SelectSemester(regNo, cookies, sem_choice)
 	if err != nil && debug.Debug {
@@ -40,6 +40,10 @@ func PrintCal(regNo string, cookies types.Cookies, sem_choice int, classGrpFlag 
 		fmt.Println(err)
 	}
 	grp_list := extractclassgrp(doc)
+	if len(grp_list) == 0 {
+		fmt.Println("No calendars available")
+		return
+	}
 	grp_list = append([][]string{{"CLASS GROUP"}}, grp_list...)
 	grp := helpers.TableSelector("class group", grp_list, classGrpFlag)
 	url = "https://vtop.vit.ac.in/vtop/getListForSemester"
