@@ -13,7 +13,7 @@ import (
 
 func GetGrades(regNo string, cookies types.Cookies, semId string, semChoice int) {
 	if !helpers.ValidateCookies(cookies) {
-		fmt.Println("Please login first using the cli-top login command")
+		fmt.Println("Please login using the cli-top login command.")
 		return
 	}
 

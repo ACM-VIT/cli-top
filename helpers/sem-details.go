@@ -62,7 +62,6 @@ func GetSemDetails(cookies types.Cookies, regNo string) ([]types.Semester, error
 	return allSems, nil
 }
 
-// SelectSemester selects a semester based on user choice
 func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) (types.Semester, error) {
 	semDetails, err := GetSemDetails(cookies, regNo)
 	var selectedSem types.Semester
@@ -72,11 +71,6 @@ func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) (types.
 	if len(semDetails) == 0 {
 		return selectedSem, fmt.Errorf("Error fetching semester details or no semesters available. Try logging out and logging back in")
 	}
-
-	// Depending on your application flow, ensure that input reading is handled appropriately
-	// For example, if TableSelector reads input from the user, consider placing clearInputBuffer() there
-
-	// clearInputBuffer() // Uncomment if necessary and ensure it doesn't cause blocking
 
 	var nested_sem_list [][]string
 	nested_sem_list = append(nested_sem_list, []string{"Semester ID", "Semester"})
@@ -98,8 +92,6 @@ func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) (types.
 
 }
 
-// clearInputBuffer clears the input buffer by reading until a newline is encountered.
-// Note: This function will block if there's no pending input.
 func clearInputBuffer() error {
 	for {
 

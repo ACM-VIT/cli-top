@@ -36,7 +36,7 @@ func init() {
 
 func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag int, courseFlag int, facultyFlag string, fuzzyFlag int) {
 	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-		fmt.Println("Please login first using the cli-top login command")
+		fmt.Println("Please login using the cli-top login command.")
 		return
 	}
 
@@ -323,7 +323,6 @@ func fetchFaculties(client *http.Client, regNo string, cookies types.Cookies, se
 	return faculties, nil
 }
 
-
 func selectFaculty(faculties []types.Faculty, facultyFlag string, fuzzyFlag int) (types.Faculty, error) {
 	for {
 		nestedList := [][]string{{"NAME", "SLOT"}}
@@ -361,14 +360,14 @@ func selectFaculty(faculties []types.Faculty, facultyFlag string, fuzzyFlag int)
 					fmt.Printf("Invalid number. Please enter a number between 1 and %d.\n\n", len(faculties))
 					continue
 				}
-                facultyFlag =""
+				facultyFlag = ""
 			}
 		}
-        fmt.Printf("%s \n",facultyFlag)
+		fmt.Printf("%s \n", facultyFlag)
 		selectedIndices := helpers.NewFuzzySearch(nestedList, facultyFlag)
 		if len(selectedIndices) == 0 {
 			fmt.Println("No matching faculty found for your query. Please try again.\n")
-            facultyFlag=""
+			facultyFlag = ""
 			continue
 		} else if len(selectedIndices) == 1 {
 			if selectedIndices[0] < 1 || selectedIndices[0] > len(faculties) {

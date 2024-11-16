@@ -16,7 +16,7 @@ import (
 
 func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-		fmt.Println("Please login first using the cli-top login command")
+		fmt.Println("Please login using the cli-top login command.")
 		return
 	}
 
@@ -73,7 +73,6 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 			if debug.Debug {
 				fmt.Printf("Selected Semester: %s (%s)\n", allSems[i].SemName, semID)
 			}
-			fmt.Printf("Automatically selected Semester: %s\n", allSems[i].SemName)
 			break
 		} else {
 			if debug.Debug {
@@ -144,6 +143,9 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
 	var exams []types.ExamEvent
 
+	now := time.Now()
+	todayDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
 	doc.Find("table.customTable tbody tr").Each(func(i int, s *goquery.Selection) {
 		cells := s.Find("td")
 		if cells.Length() >= 13 {
@@ -168,15 +170,19 @@ func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
 				return
 			}
 
-			examDate, err := time.Parse("02-Jan-2006", examDateStr)
+			examDate, err := time.ParseInLocation("02-Jan-2006", examDateStr, now.Location())
 			if err != nil {
 				if debug.Debug {
-					fmt.Println("Error parsing exam date:", err)
+					fmt.Printf("Error parsing exam date '%s': %v\n", examDateStr, err)
 				}
 				return
 			}
 
-			daysLeft := int(examDate.Sub(time.Now()).Hours() / 24)
+			daysLeft := int(examDate.Sub(todayDate).Hours() / 24)
+
+			if examDate.After(todayDate) && examDate.Sub(todayDate).Hours()/24 > float64(daysLeft) {
+				daysLeft += 1
+			}
 
 			examEvent := types.ExamEvent{
 				CourseCode:  courseCode,
