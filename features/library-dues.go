@@ -6,15 +6,15 @@ import (
 	"cli-top/helpers"
 	"cli-top/types"
 	"fmt"
-	"strings"
 	"github.com/PuerkitoBio/goquery"
+	"strings"
 )
 
 func GetLibraryDues(regNo string, cookies types.Cookies) {
 	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-        fmt.Println("Please login first using the cli-top login command")
-        return
-    }
+		fmt.Println("Please login first using the cli-top login command")
+		return
+	}
 	url := "https://vtop.vit.ac.in/vtop/finance/libraryPayments"
 
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, "", "", "POST", "")
@@ -31,7 +31,7 @@ func GetLibraryDues(regNo string, cookies types.Cookies) {
 
 	// Create table
 	var AllDuesTable [][]string
-	AllDuesTable = append(AllDuesTable, []string{ "TYPE", "AMOUNT"})
+	AllDuesTable = append(AllDuesTable, []string{"TYPE", "AMOUNT"})
 
 	doc.Find("table.table-bordered tbody tr").Each(func(i int, rowSelection *goquery.Selection) {
 		row := []string{}
