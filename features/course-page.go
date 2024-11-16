@@ -323,6 +323,7 @@ func fetchFaculties(client *http.Client, regNo string, cookies types.Cookies, se
 	return faculties, nil
 }
 
+
 func selectFaculty(faculties []types.Faculty, facultyFlag string, fuzzyFlag int) (types.Faculty, error) {
 	for {
 		nestedList := [][]string{{"NAME", "SLOT"}}
@@ -341,7 +342,7 @@ func selectFaculty(faculties []types.Faculty, facultyFlag string, fuzzyFlag int)
 		if facultyFlag == "" {
 			helpers.PrintTable(nestedList, 1)
 			fmt.Println()
-			fmt.Print("Enter the name of faculty to download materials from: ")
+			fmt.Print("Enter the name or number of the faculty to download materials from: ")
 			reader := bufio.NewReader(os.Stdin)
 			input, err := reader.ReadString('\n')
 			if err != nil {
@@ -352,11 +353,22 @@ func selectFaculty(faculties []types.Faculty, facultyFlag string, fuzzyFlag int)
 			if facultyFlag == "exit" {
 				return types.Faculty{}, fmt.Errorf("selection canceled by user")
 			}
+			if num, err := strconv.Atoi(facultyFlag); err == nil {
+				if num >= 1 && num <= len(faculties) {
+					fmt.Printf("\n    \033[1;44m Your selected faculty: %s \033[0m\n\n", nestedList[num][0])
+					return faculties[num-1], nil
+				} else {
+					fmt.Printf("Invalid number. Please enter a number between 1 and %d.\n\n", len(faculties))
+					continue
+				}
+                facultyFlag =""
+			}
 		}
-
+        fmt.Printf("%s \n",facultyFlag)
 		selectedIndices := helpers.NewFuzzySearch(nestedList, facultyFlag)
 		if len(selectedIndices) == 0 {
-			fmt.Println("No matching faculty found for your query. Please try again.")
+			fmt.Println("No matching faculty found for your query. Please try again.\n")
+            facultyFlag=""
 			continue
 		} else if len(selectedIndices) == 1 {
 			if selectedIndices[0] < 1 || selectedIndices[0] > len(faculties) {
@@ -376,7 +388,7 @@ func selectFaculty(faculties []types.Faculty, facultyFlag string, fuzzyFlag int)
 				reducedFacultyList = append(reducedFacultyList, faculties[index-1])
 			}
 			if len(reducedFacultyList) == 0 {
-				fmt.Println("No valid faculties found in the selected indices.")
+				fmt.Println("No valid faculties found in the selected indices.\n")
 				continue
 			}
 			if fuzzyFlag == 0 {
