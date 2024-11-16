@@ -62,7 +62,6 @@ func GetAttendance(regNo string, cookies types.Cookies, sem_choice int) {
 			if debug.Debug {
 				fmt.Printf("Selected Semester: %s (%s)\n", semDetails[i].SemName, semID)
 			}
-			fmt.Printf("Automatically selected Semester: %s\n", semDetails[i].SemName)
 			break
 		} else {
 			if debug.Debug {
