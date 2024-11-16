@@ -13,7 +13,7 @@ import (
 
 func GetClassMessage(regNo string, cookies types.Cookies) {
 	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-		fmt.Println("Please login first using the cli-top login command")
+		fmt.Println("Please login using the cli-top login command.")
 		return
 	}
 	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentClassMessage"

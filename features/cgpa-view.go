@@ -12,7 +12,7 @@ import (
 
 func PrintCgpa(regNo string, cookies types.Cookies, url string) {
 	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-		fmt.Println("Please login first using the cli-top login command")
+		fmt.Println("Please login using the cli-top login command.")
 		return
 	}
 
