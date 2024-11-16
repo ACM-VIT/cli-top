@@ -140,9 +140,9 @@ type ICSEvent struct {
 }
 
 type CourseDetail struct {
-    CourseCode  string
-    CourseTitle string
-    CourseType  string
-    Faculty     string
-    Slot        string
+	CourseCode  string
+	CourseTitle string
+	CourseType  string
+	Faculty     string
+	Slot        string
 }
