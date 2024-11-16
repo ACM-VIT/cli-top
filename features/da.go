@@ -58,10 +58,10 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 	}
 
 	var (
-		subjDAs         []types.SubjectDAs
-		allUpcomingDAs  []types.DAEvent
-		subjectsTable   [][]string
-		subjectIDs      []string
+		subjDAs        []types.SubjectDAs
+		allUpcomingDAs []types.DAEvent
+		subjectsTable  [][]string
+		subjectIDs     []string
 	)
 
 	today := time.Now().Truncate(24 * time.Hour)
@@ -127,12 +127,12 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		var icsEvents []types.ICSEvent
 		for _, singleDA := range allUpcomingDAs {
 			event := types.ICSEvent{
-				UID:          helpers.GenerateUID("DA"),
-				DtStamp:      time.Now().UTC().Format("20060102T150405Z"),
-				DtStart:      singleDA.DueDate.Format("20060102"),
-				DtEnd:        singleDA.DueDate.AddDate(0, 0, 1).Format("20060102"),
-				Summary:      fmt.Sprintf("%s - %s", singleDA.Description, singleDA.Title),
-				Description:  fmt.Sprintf("DA due for %s: %s", singleDA.Description, singleDA.Title),
+				UID:         helpers.GenerateUID("DA"),
+				DtStamp:     time.Now().UTC().Format("20060102T150405Z"),
+				DtStart:     singleDA.DueDate.Format("20060102"),
+				DtEnd:       singleDA.DueDate.AddDate(0, 0, 1).Format("20060102"),
+				Summary:     fmt.Sprintf("%s - %s", singleDA.Description, singleDA.Title),
+				Description: fmt.Sprintf("DA due for %s: %s", singleDA.Description, singleDA.Title),
 			}
 			icsEvents = append(icsEvents, event)
 		}

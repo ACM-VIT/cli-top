@@ -48,7 +48,7 @@ func CheckKillSwitch() int {
 		fmt.Println("Internet connection not available")
 		fmt.Println("Please reconnect and try again")
 		fmt.Println()
-        os.Exit(1)
+		os.Exit(1)
 	}
 	defer resp.Body.Close()
 	bodyText, err := io.ReadAll(resp.Body)

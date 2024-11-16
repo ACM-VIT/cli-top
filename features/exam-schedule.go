@@ -46,7 +46,7 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 			if debug.Debug {
 				fmt.Printf("Error fetching exam schedule for Semester %s: %v\n", allSems[i].SemName, err)
 			}
-			continue 
+			continue
 		}
 
 		if debug.Debug {
@@ -58,7 +58,7 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 			if debug.Debug {
 				fmt.Printf("Error parsing HTML document for Semester %s: %v\n", allSems[i].SemName, err)
 			}
-			continue 
+			continue
 		}
 
 		examSchedule, err = parseExamSchedule(doc)
@@ -66,7 +66,7 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 			if debug.Debug {
 				fmt.Printf("Error parsing exam schedule for Semester %s: %v\n", allSems[i].SemName, err)
 			}
-			continue 
+			continue
 		}
 
 		if len(examSchedule) > 0 {
@@ -109,11 +109,11 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 		endDate := exam.ExamDate.AddDate(0, 0, 1).Format("20060102")
 
 		event := types.ICSEvent{
-			UID:         helpers.GenerateUID("Exam"),
-			DtStamp:     time.Now().UTC().Format("20060102T150405Z"),
-			DtStart:     startDate,
-			DtEnd:       endDate,
-			Summary:     fmt.Sprintf("Exam: %s - %s", exam.Slot, exam.CourseTitle),
+			UID:     helpers.GenerateUID("Exam"),
+			DtStamp: time.Now().UTC().Format("20060102T150405Z"),
+			DtStart: startDate,
+			DtEnd:   endDate,
+			Summary: fmt.Sprintf("Exam: %s - %s", exam.Slot, exam.CourseTitle),
 			Description: fmt.Sprintf("Exam for %s (%s) scheduled on %s at %s.",
 				exam.CourseTitle, exam.CourseCode, exam.ExamDate.Format("02-Jan-2006"), exam.Venue),
 		}
