@@ -462,3 +462,24 @@ func filetypeMatch(body []byte) (string, error) {
 	}
 	return kind.Extension, nil
 }
+
+func ValidateCookies(cookies types.Cookies) bool {
+	return cookies.CSRF != "" && cookies.JSESSIONID != "" && cookies.SERVERID != ""
+}
+
+func ExtractRowData(rowSelection *goquery.Selection) []string {
+	row := []string{}
+	rowSelection.Find("td").Each(func(j int, cell *goquery.Selection) {
+		text := StripAnsiCodes(strings.TrimSpace(cell.Text()))
+		row = append(row, text)
+	})
+	return row
+}
+
+func HandleError(context string, err error) {
+	if debug.Debug {
+		fmt.Printf("Error %s: %v\n", context, err)
+	} else {
+		fmt.Println("An error occurred. Please try again.")
+	}
+}
