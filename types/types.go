@@ -138,3 +138,11 @@ type ICSEvent struct {
 	Summary     string `json:"SUMMARY"`
 	Description string `json:"DESCRIPTION"`
 }
+
+type CourseDetail struct {
+    CourseCode  string
+    CourseTitle string
+    CourseType  string
+    Faculty     string
+    Slot        string
+}
