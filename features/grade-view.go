@@ -105,10 +105,6 @@ func findAndSaveGrade(doc *goquery.Document) {
 				for idx := range selectedRow {
 					selectedRow[idx] = fmt.Sprintf("\x1b[31m%s\x1b[0m", selectedRow[idx]) // Red
 				}
-			} else if grade == "S" {
-				for idx := range selectedRow {
-					selectedRow[idx] = fmt.Sprintf("\x1b[34m%s\x1b[0m", selectedRow[idx]) // Blue
-				}
 			}
 		}
 
