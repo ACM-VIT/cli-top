@@ -96,7 +96,7 @@ type ExamEvent struct {
 type DAsubject struct {
 	Name string
 	Code string
-	ID   string	
+	ID   string
 }
 
 type DAEvent struct {
@@ -110,8 +110,8 @@ type DAEvent struct {
 }
 
 type SubjectDAs struct {
-    Subject     DAsubject
-    DAs         []DAEvent
+	Subject DAsubject
+	DAs     []DAEvent
 }
 
 type NightSlipRequest struct {
@@ -127,14 +127,14 @@ type NightSlipRequest struct {
 
 type LatestDA struct {
 	Subject DAsubject
-	DA     DAEvent
+	DA      DAEvent
 }
 
 type ICSEvent struct {
-	UID          string `json:"UID"`
-	DtStamp      string `json:"DTSTAMP"`
-	DtStart      string `json:"DTSTART"`
-	DtEnd        string `json:"DTEND"`
-	Summary      string `json:"SUMMARY"`
-	Description  string `json:"DESCRIPTION"`    
+	UID         string `json:"UID"`
+	DtStamp     string `json:"DTSTAMP"`
+	DtStart     string `json:"DTSTART"`
+	DtEnd       string `json:"DTEND"`
+	Summary     string `json:"SUMMARY"`
+	Description string `json:"DESCRIPTION"`
 }

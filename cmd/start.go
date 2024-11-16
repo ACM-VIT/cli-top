@@ -295,7 +295,7 @@ var rootCmd = &cobra.Command{
 	Short: "A simple CLI tool for vtop",
 
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		if cmd.Name() != "login" && cmd.Name() != "logout" && cmd.Name() !="cli-top"{
+		if cmd.Name() != "login" && cmd.Name() != "logout" && cmd.Name() != "cli-top" {
 			trackCommand(cmd.Name())
 		}
 	},
@@ -488,47 +488,46 @@ var calendarCmd = &cobra.Command{
 }
 
 var logoutCmd = &cobra.Command{
-    Use:   "logout",
-    Short: "Logout from VTOP",
-    Run: func(cmd *cobra.Command, args []string) {
-        err := godotenv.Load("cli-top-config.env")
-        if err != nil && debug.Debug {
-            fmt.Println("Error loading .env file:", err)
-            return
-        }
+	Use:   "logout",
+	Short: "Logout from VTOP",
+	Run: func(cmd *cobra.Command, args []string) {
+		err := godotenv.Load("cli-top-config.env")
+		if err != nil && debug.Debug {
+			fmt.Println("Error loading .env file:", err)
+			return
+		}
 
-        uuid := os.Getenv("UUID")
+		uuid := os.Getenv("UUID")
 
-        if uuid == "" {
-            fmt.Println("UUID not found; nothing to preserve.")
-            return
-        }
+		if uuid == "" {
+			fmt.Println("UUID not found; nothing to preserve.")
+			return
+		}
 
-        env := map[string]string{
-            "UUID": uuid,
-        }
+		env := map[string]string{
+			"UUID": uuid,
+		}
 
-        f, err := os.Create("cli-top-config.env")
-        if err != nil {
-            if debug.Debug {
-                fmt.Println("Error creating .env file:", err)
-            }
-            return
-        }
-        defer f.Close()
+		f, err := os.Create("cli-top-config.env")
+		if err != nil {
+			if debug.Debug {
+				fmt.Println("Error creating .env file:", err)
+			}
+			return
+		}
+		defer f.Close()
 
-        for key, value := range env {
-            _, err = f.WriteString(fmt.Sprintf("%s=%s\n", key, value))
-            if err != nil && debug.Debug {
-                fmt.Println("Error writing to .env file:", err)
-                return
-            }
-        }
+		for key, value := range env {
+			_, err = f.WriteString(fmt.Sprintf("%s=%s\n", key, value))
+			if err != nil && debug.Debug {
+				fmt.Println("Error writing to .env file:", err)
+				return
+			}
+		}
 
-        fmt.Println("Logged out successfully.")
-    },
+		fmt.Println("Logged out successfully.")
+	},
 }
-
 
 var nightslipCmd = &cobra.Command{
 	Use:   "nightslip",

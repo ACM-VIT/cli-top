@@ -13,9 +13,9 @@ import (
 
 func GetClassMessage(regNo string, cookies types.Cookies) {
 	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-        fmt.Println("Please login first using the cli-top login command")
-        return
-    }
+		fmt.Println("Please login first using the cli-top login command")
+		return
+	}
 	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentClassMessage"
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, "", "UTC", "POST", "")
 	if err != nil && debug.Debug {
@@ -34,7 +34,7 @@ func GetClassMessage(regNo string, cookies types.Cookies) {
 		return
 	}
 	fmt.Println()
-	helpers.PrintTable(messages,1)
+	helpers.PrintTable(messages, 1)
 	fmt.Println()
 }
 
@@ -47,7 +47,7 @@ func extractClassMessages(bodyText []byte) ([][]string, error) {
 	}
 
 	re := regexp.MustCompile(`^[A-Z0-9]+ - | - Online Course`)
-	
+
 	doc.Find("h5").Each(func(i int, h5 *goquery.Selection) {
 		var row []string
 		h5.Find("span").Each(func(i int, span *goquery.Selection) {

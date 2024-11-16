@@ -12,16 +12,16 @@ import (
 	"golang.org/x/net/html"
 )
 
-var scoredWeightageMarksSum float64       // Total sum of weightage marks
-var maxMarksSum int // Total sum of weightage percentage
+var scoredWeightageMarksSum float64 // Total sum of weightage marks
+var maxMarksSum int                 // Total sum of weightage percentage
 
 func GetMarks(regNo string, cookies types.Cookies, semID string, sem_choice int) {
 	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-        fmt.Println("Please login first using the cli-top login command")
-        return
-    }
+		fmt.Println("Please login first using the cli-top login command")
+		return
+	}
 	url := "https://vtop.vit.ac.in/vtop/examinations/doStudentMarkView"
-	semester,err := helpers.SelectSemester(regNo, cookies, sem_choice)
+	semester, err := helpers.SelectSemester(regNo, cookies, sem_choice)
 	if err != nil {
 		if debug.Debug {
 			fmt.Printf("Error fetching semesters: %v\n", err)
@@ -63,12 +63,12 @@ func GetMarks(regNo string, cookies types.Cookies, semID string, sem_choice int)
 	for i, element := range elements {
 		// Convert each element to Markdown
 		//markdownTable, err := convertHTMLElementToMarkdown(element)
-		OneSubTable,weightageMark,maxMarkSum := ExtractMarks(element)
+		OneSubTable, weightageMark, maxMarkSum := ExtractMarks(element)
 		if err != nil && debug.Debug {
 			fmt.Println(OneSubTable)
 			fmt.Println(err)
 		}
-		if ((len(OneSubTable) == 1) || (len(OneSubTable) == 0)) {
+		if (len(OneSubTable) == 1) || (len(OneSubTable) == 0) {
 			fmt.Println("No Data Found for", subjectDetails[i])
 			return
 		}
@@ -77,10 +77,10 @@ func GetMarks(regNo string, cookies types.Cookies, semID string, sem_choice int)
 		// }
 		course_detail := "\033[1;34m" + subjectDetails[i] + "\033[0m"
 		fmt.Println(course_detail)
-		helpers.PrintTable(OneSubTable,1)
+		helpers.PrintTable(OneSubTable, 1)
 		weightageMarkStr := "\033[32m" + fmt.Sprintf("%.2f", weightageMark) + "\033[0m"
 		maxMarkSumStr := "\033[32m" + strconv.Itoa(maxMarkSum) + "\033[0m"
-		fmt.Println(weightageMarkStr+"/"+maxMarkSumStr)
+		fmt.Println(weightageMarkStr + "/" + maxMarkSumStr)
 		fmt.Println()
 	}
 }
@@ -187,9 +187,9 @@ func hasClass(n *html.Node, class string) bool {
 	return false
 }
 
-func ExtractMarks (element *goquery.Selection) ([][]string,float64,int) {
+func ExtractMarks(element *goquery.Selection) ([][]string, float64, int) {
 	// Find all elements with the specified class
-	var SingleSubTable [][]string 
+	var SingleSubTable [][]string
 	weightageMarkSum := 0.0
 	maxSubjectMarksSum := 0
 	//SingleSubTable = append(SingleSubTable, []string{"Title", "MaxMark", "Weightage%", "Status", "ScoredMark", "WeightageMark"})
@@ -202,14 +202,14 @@ func ExtractMarks (element *goquery.Selection) ([][]string,float64,int) {
 		weightageMark := strings.TrimSpace(rowSelection.Find("td").Eq(6).Text())
 		SingleSubTable = append(SingleSubTable, []string{title, maxMark, weightage, status, scoredMark, weightageMark})
 		maxMarkInt, err := strconv.Atoi(weightage)
-        if err == nil {
-            maxSubjectMarksSum = maxSubjectMarksSum + maxMarkInt
-        } 
+		if err == nil {
+			maxSubjectMarksSum = maxSubjectMarksSum + maxMarkInt
+		}
 		weightageFloat, err := strconv.ParseFloat(weightageMark, 64)
-        if err == nil {
-            weightageMarkSum = weightageMarkSum + weightageFloat
-        } 	
+		if err == nil {
+			weightageMarkSum = weightageMarkSum + weightageFloat
+		}
 	})
 
-	return SingleSubTable,weightageMarkSum,maxSubjectMarksSum
+	return SingleSubTable, weightageMarkSum, maxSubjectMarksSum
 }
