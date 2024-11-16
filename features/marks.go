@@ -1,173 +1,173 @@
 package features
 
 import (
-    "bytes"
-    "cli-top/debug"
-    "cli-top/helpers"
-    "cli-top/types"
-    "fmt"
-    "strconv"
-    "strings"
+	"bytes"
+	"cli-top/debug"
+	"cli-top/helpers"
+	"cli-top/types"
+	"fmt"
+	"strconv"
+	"strings"
 
-    "github.com/PuerkitoBio/goquery"
+	"github.com/PuerkitoBio/goquery"
 )
 
 func GetMarks(regNo string, cookies types.Cookies, semID string, semChoice int) {
-    if !helpers.ValidateCookies(cookies) {
-        fmt.Println("Please login first using the cli-top login command")
-        return
-    }
+	if !helpers.ValidateCookies(cookies) {
+		fmt.Println("Please login first using the cli-top login command")
+		return
+	}
 
-    url := "https://vtop.vit.ac.in/vtop/examinations/doStudentMarkView"
-    semester, err := helpers.SelectSemester(regNo, cookies, semChoice)
-    if err != nil {
-        helpers.HandleError("fetching semesters", err)
-        fmt.Println()
-        return
-    }
+	url := "https://vtop.vit.ac.in/vtop/examinations/doStudentMarkView"
+	semester, err := helpers.SelectSemester(regNo, cookies, semChoice)
+	if err != nil {
+		helpers.HandleError("fetching semesters", err)
+		fmt.Println()
+		return
+	}
 
-    payload := fmt.Sprintf(
-        "------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"authorizedID\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"semesterSubId\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"_csrf\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J--\r\n",
-        regNo,
-        semester.SemID,
-        cookies.CSRF,
-    )
+	payload := fmt.Sprintf(
+		"------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"authorizedID\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"semesterSubId\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J\r\nContent-Disposition: form-data; name=\"_csrf\"\r\n\r\n%s\r\n------WebKitFormBoundary9yjNZXu7BBjgQK7J--\r\n",
+		regNo,
+		semester.SemID,
+		cookies.CSRF,
+	)
 
-    bodyText, err := helpers.FetchReq(regNo, cookies, url, semester.SemID, payload, "POST", "marks")
-    if err != nil && debug.Debug {
-        fmt.Println(err)
-    }
+	bodyText, err := helpers.FetchReq(regNo, cookies, url, semester.SemID, payload, "POST", "marks")
+	if err != nil && debug.Debug {
+		fmt.Println(err)
+	}
 
-    doc, err := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
-    if err != nil && debug.Debug {
-        fmt.Println(err)
-    }
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
+	if err != nil && debug.Debug {
+		fmt.Println(err)
+	}
 
-    courseDetails := subjectDetails(doc)
+	courseDetails := subjectDetails(doc)
 
-    class := "customTable-level1"
-    elements := findElementsByClass(doc, class)
+	class := "customTable-level1"
+	elements := findElementsByClass(doc, class)
 
-    if len(elements) == 0 {
-        fmt.Println()
-        in := "No Data Found"
-        out := fmt.Sprintf("\033[1;31m%s\033[0m", in) 
-        fmt.Println(out)
-        return
-    }
+	if len(elements) == 0 {
+		fmt.Println()
+		in := "No Data Found"
+		out := fmt.Sprintf("\033[1;31m%s\033[0m", in)
+		fmt.Println(out)
+		return
+	}
 
-    courseHeaders := []string{"Course Title"}
-    var coursesTable [][]string
-    coursesTable = append(coursesTable, courseHeaders)
+	courseHeaders := []string{"Course Title"}
+	var coursesTable [][]string
+	coursesTable = append(coursesTable, courseHeaders)
 
-    for _, course := range courseDetails {
-        coursesTable = append(coursesTable, []string{course.CourseTitle})
-    }
+	for _, course := range courseDetails {
+		coursesTable = append(coursesTable, []string{course.CourseTitle})
+	}
 
-    fmt.Println("Please select a course to view marks:")
-    selectedIndex := helpers.TableSelector("course", coursesTable, 0)
-    if selectedIndex < 1 || selectedIndex > len(courseDetails) {
-        fmt.Println("Invalid course selection.")
-        return
-    }
+	fmt.Println("Please select a course to view marks:")
+	selectedIndex := helpers.TableSelector("course", coursesTable, 0)
+	if selectedIndex < 1 || selectedIndex > len(courseDetails) {
+		fmt.Println("Invalid course selection.")
+		return
+	}
 
-    selectedElement := elements[selectedIndex-1]
-    selectedCourseDetail := courseDetails[selectedIndex-1]
+	selectedElement := elements[selectedIndex-1]
+	selectedCourseDetail := courseDetails[selectedIndex-1]
 
-    OneSubTable, weightageMark, maxMarkSum := ExtractMarks(selectedElement)
-    if err != nil && debug.Debug {
-        fmt.Println(OneSubTable)
-        fmt.Println(err)
-    }
-    if len(OneSubTable) == 0 {
-        fmt.Printf("No Data Found for %s\n", selectedCourseDetail.CourseTitle)
-        return
-    }
+	OneSubTable, weightageMark, maxMarkSum := ExtractMarks(selectedElement)
+	if err != nil && debug.Debug {
+		fmt.Println(OneSubTable)
+		fmt.Println(err)
+	}
+	if len(OneSubTable) == 0 {
+		fmt.Printf("No Data Found for %s\n", selectedCourseDetail.CourseTitle)
+		return
+	}
 
-    courseDetail := fmt.Sprintf("\033[1;34m%s\033[0m", selectedCourseDetail.CourseTitle)
-    fmt.Println(courseDetail)
+	courseDetail := fmt.Sprintf("\033[1;34m%s\033[0m", selectedCourseDetail.CourseTitle)
+	fmt.Println(courseDetail)
 
-    fmt.Println()
+	fmt.Println()
 
-    headers := []string{"Title", "Max Marks", "Weightage %", "Status", "Scored Mark", "Weightage Mark"}
+	headers := []string{"Title", "Max Marks", "Weightage %", "Status", "Scored Mark", "Weightage Mark"}
 
-    tableData := append([][]string{headers}, OneSubTable...)
+	tableData := append([][]string{headers}, OneSubTable...)
 
-    helpers.PrintTable(tableData, 1)
+	helpers.PrintTable(tableData, 1)
 
-    weightageMarkStr := fmt.Sprintf("\033[32m%.2f\033[0m", weightageMark)
-    maxMarkSumStr := fmt.Sprintf("\033[32m%d\033[0m", maxMarkSum)
-    fmt.Printf("%s/%s\n\n", weightageMarkStr, maxMarkSumStr)
+	weightageMarkStr := fmt.Sprintf("\033[32m%.2f\033[0m", weightageMark)
+	maxMarkSumStr := fmt.Sprintf("\033[32m%d\033[0m", maxMarkSum)
+	fmt.Printf("%s/%s\n\n", weightageMarkStr, maxMarkSumStr)
 }
 
 func subjectDetails(doc *goquery.Document) []types.CourseDetail {
-    var details []types.CourseDetail
+	var details []types.CourseDetail
 
-    doc.Find("tr.tableContent").Each(func(i int, s *goquery.Selection) {
-        if i%2 != 0 {
-            return
-        }
+	doc.Find("tr.tableContent").Each(func(i int, s *goquery.Selection) {
+		if i%2 != 0 {
+			return
+		}
 
-        td := s.Find("td")
-        courseCode := strings.TrimSpace(td.Eq(2).Text())
-        courseTitle := strings.TrimSpace(td.Eq(3).Text())
-        courseType := strings.TrimSpace(td.Eq(4).Text())
-        faculty := strings.TrimSpace(td.Eq(6).Text())
-        slot := strings.TrimSpace(td.Eq(7).Text())
+		td := s.Find("td")
+		courseCode := strings.TrimSpace(td.Eq(2).Text())
+		courseTitle := strings.TrimSpace(td.Eq(3).Text())
+		courseType := strings.TrimSpace(td.Eq(4).Text())
+		faculty := strings.TrimSpace(td.Eq(6).Text())
+		slot := strings.TrimSpace(td.Eq(7).Text())
 
-        course := types.CourseDetail{
-            CourseCode:  courseCode,
-            CourseTitle: courseTitle,
-            CourseType:  courseType,
-            Faculty:     faculty,
-            Slot:        slot,
-        }
+		course := types.CourseDetail{
+			CourseCode:  courseCode,
+			CourseTitle: courseTitle,
+			CourseType:  courseType,
+			Faculty:     faculty,
+			Slot:        slot,
+		}
 
-        details = append(details, course)
-    })
-    return details
+		details = append(details, course)
+	})
+	return details
 }
 
 func findElementsByClass(doc *goquery.Document, class string) []*goquery.Selection {
-    var result []*goquery.Selection
+	var result []*goquery.Selection
 
-    doc.Find("." + class).Each(func(_ int, selection *goquery.Selection) {
-        result = append(result, selection)
-    })
+	doc.Find("." + class).Each(func(_ int, selection *goquery.Selection) {
+		result = append(result, selection)
+	})
 
-    return result
+	return result
 }
 
 func ExtractMarks(element *goquery.Selection) ([][]string, float64, int) {
-    var SingleSubTable [][]string
-    var weightageMarkSum float64
-    var maxSubjectMarksSum int
+	var SingleSubTable [][]string
+	var weightageMarkSum float64
+	var maxSubjectMarksSum int
 
-    element.Find("tbody tr").Each(func(_ int, rowSelection *goquery.Selection) {
-        firstCell := strings.TrimSpace(rowSelection.Find("td").Eq(0).Text())
-        if firstCell == "Sl.No." || firstCell == "Index" || firstCell == "" {
-            return
-        }
+	element.Find("tbody tr").Each(func(_ int, rowSelection *goquery.Selection) {
+		firstCell := strings.TrimSpace(rowSelection.Find("td").Eq(0).Text())
+		if firstCell == "Sl.No." || firstCell == "Index" || firstCell == "" {
+			return
+		}
 
-        title := strings.TrimSpace(rowSelection.Find("td").Eq(1).Text())
-        maxMark := strings.TrimSpace(rowSelection.Find("td").Eq(2).Text())
-        weightage := strings.TrimSpace(rowSelection.Find("td").Eq(3).Text())
-        status := strings.TrimSpace(rowSelection.Find("td").Eq(4).Text())
-        scoredMark := strings.TrimSpace(rowSelection.Find("td").Eq(5).Text())
-        weightageMark := strings.TrimSpace(rowSelection.Find("td").Eq(6).Text())
+		title := strings.TrimSpace(rowSelection.Find("td").Eq(1).Text())
+		maxMark := strings.TrimSpace(rowSelection.Find("td").Eq(2).Text())
+		weightage := strings.TrimSpace(rowSelection.Find("td").Eq(3).Text())
+		status := strings.TrimSpace(rowSelection.Find("td").Eq(4).Text())
+		scoredMark := strings.TrimSpace(rowSelection.Find("td").Eq(5).Text())
+		weightageMark := strings.TrimSpace(rowSelection.Find("td").Eq(6).Text())
 
-        SingleSubTable = append(SingleSubTable, []string{title, maxMark, weightage, status, scoredMark, weightageMark})
+		SingleSubTable = append(SingleSubTable, []string{title, maxMark, weightage, status, scoredMark, weightageMark})
 
-        weightageFloat, err := strconv.ParseFloat(weightageMark, 64)
-        if err == nil {
-            weightageMarkSum += weightageFloat
-        }
+		weightageFloat, err := strconv.ParseFloat(weightageMark, 64)
+		if err == nil {
+			weightageMarkSum += weightageFloat
+		}
 
-        maxMarkInt, err := strconv.Atoi(weightage)
-        if err == nil {
-            maxSubjectMarksSum += maxMarkInt
-        }
-    })
+		maxMarkInt, err := strconv.Atoi(weightage)
+		if err == nil {
+			maxSubjectMarksSum += maxMarkInt
+		}
+	})
 
-    return SingleSubTable, weightageMarkSum, maxSubjectMarksSum
+	return SingleSubTable, weightageMarkSum, maxSubjectMarksSum
 }
