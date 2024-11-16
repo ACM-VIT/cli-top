@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
 	// "github.com/olekukonko/tablewriter"
 )
 
@@ -141,7 +140,7 @@ func ReplaceCrossWithPlus(input string) string {
 // 	fmt.Print(output)
 // 	fmt.Println()
 // }
-	
+
 // func SelectFaculty(faculties []types.Faculty, facultyFlag int) (types.Faculty, error) {
 // 	if len(faculties) == 0 {
 // 		return types.Faculty{}, fmt.Errorf("no faculties available for selection")

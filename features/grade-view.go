@@ -13,12 +13,12 @@ import (
 
 func GetGrades(regNo string, cookies types.Cookies, semId string, sem_choice int) {
 	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-        fmt.Println("Please login first using the cli-top login command")
-        return
-    }
+		fmt.Println("Please login first using the cli-top login command")
+		return
+	}
 	url := "https://vtop.vit.ac.in/vtop/examinations/examGradeView/doStudentGradeView"
 
-	semester,err := helpers.SelectSemester(regNo, cookies, sem_choice)
+	semester, err := helpers.SelectSemester(regNo, cookies, sem_choice)
 	if err != nil {
 		if debug.Debug {
 			fmt.Printf("Error fetching semesters: %v\n", err)
@@ -78,7 +78,7 @@ func findAndSaveGrade(doc *goquery.Document) {
 	fmt.Println(markdownTable.String())
 	doc.Find("span[style='font-size: 18px; font-weight: bold;']").Each(func(i int, s *goquery.Selection) {
 		gpa := s.Text()
-		fmt.Println("\x1b[32;1mCourse not included in GPA/CGPA\x1b[0m\n")
+		fmt.Println("\x1b[32;1mCourse not included in GPA/CGPA\x1b[0m")
 		fmt.Println(gpa)
 	})
 }
@@ -96,7 +96,7 @@ func printTableGrade(title string, data [][]string, builder *strings.Builder) {
 }
 
 func printFormattedRowGrade(row []string, builder *strings.Builder, count int) {
-	snum,err := strconv.Atoi(row[0])
+	snum, err := strconv.Atoi(row[0])
 	if err != nil && debug.Debug {
 		fmt.Println(err)
 	}

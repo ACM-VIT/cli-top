@@ -5,12 +5,12 @@ import (
 	"time"
 )
 
-const MaxDownloads = 100        
+const MaxDownloads = 100
 const RateLimitWindow = 10 * time.Minute
 
 var (
-	mu           sync.Mutex
-	downloadTimestamps []time.Time 
+	mu                 sync.Mutex
+	downloadTimestamps []time.Time
 )
 
 func IsRateLimitExceeded() bool {
