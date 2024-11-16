@@ -1,23 +1,23 @@
 package cmd
 
 import (
-	// "bytes"
+	"bytes"
 	"cli-top/debug"
 	"cli-top/features"
 	"cli-top/helpers"
 	"cli-top/login"
 	"cli-top/types"
-	// "encoding/json"
+	"encoding/json"
 	"fmt"
-	// "io"
-	// "log"
-	// "net/http"
+	"io"
+	"log"
+	"net/http"
 	"os"
 	"path/filepath"
-	// "time"
+	"time"
 
-	 "github.com/fatih/color"
-	// "github.com/google/uuid"
+	"github.com/fatih/color"
+	"github.com/google/uuid"
 	"github.com/lpernett/godotenv"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -39,134 +39,115 @@ type TrackingData struct {
 	Timestamp string `json:"timestamp"`
 }
 
-// func getOrCreateUUID() string {
-// 	registeredUUID := viper.GetString("UUID")
-// 	if registeredUUID != "" {
-// 		return registeredUUID
-// 	}
+func getOrCreateUUID() string {
+	registeredUUID := viper.GetString("UUID")
+	if registeredUUID != "" {
+		return registeredUUID
+	}
 
-// 	unregisteredUUID := viper.GetString("UNREGISTERED_UUID")
-// 	if unregisteredUUID == "" {
-// 		unregisteredUUID = uuid.New().String()
-// 		viper.Set("UNREGISTERED_UUID", unregisteredUUID)
-// 		if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
-// 			fmt.Println("Error saving unregistered UUID to config:", err)
-// 		}
-// 	}
+	unregisteredUUID := viper.GetString("UNREGISTERED_UUID")
+	if unregisteredUUID == "" {
+		unregisteredUUID = uuid.New().String()
+		viper.Set("UNREGISTERED_UUID", unregisteredUUID)
+		if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
+			fmt.Println("Error saving unregistered UUID to config:", err)
+		}
+	}
 
-// 	if err := helpers.RegisterUUID(unregisteredUUID); err != nil {
-// 		if debug.Debug {
-// 			fmt.Println("Error registering UUID with server:", err)
-// 		}
-// 		return unregisteredUUID
-// 	}
+	if err := helpers.RegisterUUID(unregisteredUUID); err != nil {
+		if debug.Debug {
+			fmt.Println("Error registering UUID with server:", err)
+		}
+		return unregisteredUUID
+	}
 
-// 	viper.Set("UUID", unregisteredUUID)
-// 	viper.Set("UNREGISTERED_UUID", "")
-// 	if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
-// 		fmt.Println("Error updating registered UUID in config:", err)
-// 	}
+	viper.Set("UUID", unregisteredUUID)
+	viper.Set("UNREGISTERED_UUID", "")
+	if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
+		fmt.Println("Error updating registered UUID in config:", err)
+	}
 
-// 	return unregisteredUUID
-// }
+	return unregisteredUUID
+}
 
-// func trackCommand(command string) {
-// 	userUUID := viper.GetString("UUID")
-// 	if userUUID == "" {
-// 		if debug.Debug {
-// 			log.Println("UUID is empty or not initialized. Skipping tracking.")
-// 		}
-// 		return
-// 	}
+func trackCommand(command string) {
+	userUUID := viper.GetString("UUID")
+	if userUUID == "" {
+		if debug.Debug {
+			log.Println("UUID is empty or not initialized. Skipping tracking.")
+		}
+		return
+	}
 
-// 	data := TrackingData{
-// 		UUID:      userUUID,
-// 		Command:   command,
-// 		Timestamp: time.Now().Format(time.RFC3339),
-// 	}
+	data := TrackingData{
+		UUID:      userUUID,
+		Command:   command,
+		Timestamp: time.Now().Format(time.RFC3339),
+	}
 
-// 	jsonData, err := json.Marshal(data)
-// 	if err != nil {
-// 		if debug.Debug {
-// 			log.Println("Error marshaling tracking data:", err)
-// 		}
-// 		return
-// 	}
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		if debug.Debug {
+			log.Println("Error marshaling tracking data:", err)
+		}
+		return
+	}
 
-// 	serverURL := "https://cli-calendar.acmvit.in/track"
+	serverURL := "https://cli-calendar.acmvit.in/track"
 
-// 	req, err := http.NewRequest("POST", serverURL, bytes.NewBuffer(jsonData))
-// 	if err != nil {
-// 		if debug.Debug {
-// 			log.Println("Error creating tracking request:", err)
-// 		}
-// 		return
-// 	}
+	req, err := http.NewRequest("POST", serverURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		if debug.Debug {
+			log.Println("Error creating tracking request:", err)
+		}
+		return
+	}
 
-// 	req.Header.Set("Content-Type", "application/json")
-// 	req.Header.Set("x-api-key", data.UUID)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-api-key", data.UUID)
 
-// 	client := &http.Client{Timeout: 5 * time.Second}
-// 	resp, err := client.Do(req)
-// 	if err != nil {
-// 		if debug.Debug {
-// 			log.Println("Error sending tracking data:", err)
-// 		}
-// 		return
-// 	}
-// 	defer resp.Body.Close()
+	client := &http.Client{Timeout: 5 * time.Second}
 
-// 	if resp.StatusCode == http.StatusUnauthorized {
-// 		if debug.Debug {
-// 			log.Println("Invalid UUID detected. Generating a new one and registering...")
-// 		}
-// 		newUUID := uuid.New().String()
-// 		err = helpers.RegisterUUID(newUUID)
-// 		if err != nil {
-// 			if debug.Debug {
-// 				log.Println("Failed to register new UUID:", err)
-// 			}
-// 			return
-// 		}
-// 		data.UUID = newUUID
-// 		req.Header.Set("x-api-key", newUUID)
-// 		resp, err = client.Do(req)
-// 		if err != nil {
-// 			if debug.Debug {
-// 				log.Println("Error sending tracking data after UUID regeneration:", err)
-// 			}
-// 			return
-// 		}
-// 		defer resp.Body.Close()
+	// Send the POST request asynchronously
+	resp, err := client.Do(req)
+	if err != nil {
+		if debug.Debug {
+			log.Println("Error sending tracking data:", err)
+		}
+		return
+	}
+	defer resp.Body.Close()
 
-// 		if resp.StatusCode == http.StatusOK {
-// 			if debug.Debug {
-// 				log.Println("Tracking data sent after UUID regeneration, response status:", resp.Status)
-// 				body, _ := io.ReadAll(resp.Body)
-// 				log.Printf("Response body: %s", string(body))
-// 			}
-// 			return
-// 		}
+	// Discard the response body to free resources
+	io.Copy(io.Discard, resp.Body)
 
-// 		if debug.Debug {
-// 			log.Println("Failed to track command after UUID regeneration, response status:", resp.Status)
-// 			body, _ := io.ReadAll(resp.Body)
-// 			log.Printf("Response body: %s", string(body))
-// 		}
-// 	} else if resp.StatusCode != http.StatusOK {
-// 		if debug.Debug {
-// 			log.Println("Unexpected response status during tracking:", resp.Status)
-// 			body, _ := io.ReadAll(resp.Body)
-// 			log.Printf("Response body: %s", string(body))
-// 		}
-// 	} else {
-// 		if debug.Debug {
-// 			log.Println("Tracking data sent, response status:", resp.Status)
-// 			body, _ := io.ReadAll(resp.Body)
-// 			log.Printf("Response body: %s", string(body))
-// 		}
-// 	}
-// }
+	if resp.StatusCode == http.StatusUnauthorized {
+		if debug.Debug {
+			log.Println("Invalid UUID detected. Generating a new one and registering...")
+		}
+		newUUID := uuid.New().String()
+		err = helpers.RegisterUUID(newUUID)
+		if err != nil {
+			if debug.Debug {
+				log.Println("Failed to register new UUID:", err)
+			}
+			return
+		}
+		viper.Set("UUID", newUUID)
+		viper.Set("UNREGISTERED_UUID", "")
+		if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
+			fmt.Println("Error updating registered UUID in config:", err)
+		}
+	} else if resp.StatusCode != http.StatusOK {
+		if debug.Debug {
+			log.Println("Unexpected response status during tracking:", resp.Status)
+		}
+	} else {
+		if debug.Debug {
+			log.Println("Tracking data sent successfully.")
+		}
+	}
+}
 
 func startfn(cmd *cobra.Command, args []string) {
 	red := color.New(color.FgRed)
@@ -216,10 +197,10 @@ func startfn(cmd *cobra.Command, args []string) {
 		fmt.Println("Error checking file existence:", err)
 	}
 
-	// userUUID := getOrCreateUUID()
-	// if debug.Debug {
-	// 	fmt.Println("User UUID:", userUUID)
-	// }
+	userUUID := getOrCreateUUID()
+	if debug.Debug {
+		fmt.Println("User UUID:", userUUID)
+	}
 }
 
 func vtop_login() (types.Cookies, string) {
@@ -295,8 +276,10 @@ var rootCmd = &cobra.Command{
 	Short: "A simple CLI tool for vtop",
 
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		// Exclude specific commands from tracking
 		if cmd.Name() != "login" && cmd.Name() != "logout" && cmd.Name() != "cli-top" {
-			// trackCommand(cmd.Name())
+			// Launch trackCommand in a separate goroutine
+			go trackCommand(cmd.Name())
 		}
 	},
 
@@ -348,11 +331,12 @@ func Execute() {
 		fmt.Println("Error loading .env file:", err)
 	}
 
-	// userUUID := getOrCreateUUID()
-	// if debug.Debug {
-	// 	fmt.Println("User UUID:", userUUID)
-	// }
+	userUUID := getOrCreateUUID()
+	if debug.Debug {
+		fmt.Println("User UUID:", userUUID)
+	}
 
+	// Define flags for subcommands
 	marksCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	gradesCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	attendanceCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
@@ -366,10 +350,12 @@ func Execute() {
 	coursePageCmd.PersistentFlags().IntVarP(&fuzzyIndexFlag, "fuzzy-index", "i", 0, "Specify the fuzzy index")
 	daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
 
+	// Define global flags
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
 	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
 
+	// Add subcommands to root command
 	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd)
 
 	rootCmd.SetArgs(os.Args[1:])

@@ -22,7 +22,7 @@ func GetAttendance(regNo string, cookies types.Cookies, sem_choice int) {
 		if debug.Debug {
 			fmt.Printf("Error fetching semesters: %v\n", err)
 		}
-		fmt.Println("Failed to retrieve semester details.")
+		fmt.Println("Please login using the cli-top login command.")
 		return
 	}
 

@@ -14,7 +14,7 @@ import (
 
 func GetMarks(regNo string, cookies types.Cookies, semID string, semChoice int) {
 	if !helpers.ValidateCookies(cookies) {
-		fmt.Println("Please login first using the cli-top login command")
+		fmt.Println("Please login using the cli-top login command.")
 		return
 	}
 
@@ -56,48 +56,47 @@ func GetMarks(regNo string, cookies types.Cookies, semID string, semChoice int) 
 		return
 	}
 
-	courseHeaders := []string{"Course Title"}
-	var coursesTable [][]string
-	coursesTable = append(coursesTable, courseHeaders)
+	for idx, course := range courseDetails {
+		if idx >= len(elements) {
+			if debug.Debug {
+				fmt.Printf("No corresponding table found for course: %s\n", course.CourseTitle)
+			}
+			continue
+		}
 
-	for _, course := range courseDetails {
-		coursesTable = append(coursesTable, []string{course.CourseTitle})
+		selectedElement := elements[idx]
+		selectedCourseDetail := courseDetails[idx]
+
+		OneSubTable, weightageMark, maxMarkSum := ExtractMarks(selectedElement)
+		if err != nil && debug.Debug {
+			fmt.Println(OneSubTable)
+			fmt.Println(err)
+		}
+		if len(OneSubTable) == 0 {
+			fmt.Printf("No Data Found for %s\n\n", selectedCourseDetail.CourseTitle)
+			continue
+		}
+
+		courseDetail := fmt.Sprintf("\033[1;34m%s\033[0m", selectedCourseDetail.CourseTitle)
+		fmt.Println(courseDetail)
+		fmt.Println()
+
+		headers := []string{"Title", "Max Marks", "Weightage %", "Status", "Scored Mark", "Weightage Mark"}
+
+		tableData := append([][]string{headers}, OneSubTable...)
+
+		helpers.PrintTable(tableData, 0)
+
+		weightageMarkStr := fmt.Sprintf("\033[32m%.2f\033[0m", weightageMark)
+		maxMarkSumStr := fmt.Sprintf("\033[32m%d\033[0m", maxMarkSum)
+		fmt.Printf("%s/%s\n\n", weightageMarkStr, maxMarkSumStr)
 	}
 
-	fmt.Println("Please select a course to view marks:")
-	selectedIndex := helpers.TableSelector("course", coursesTable, 0)
-	if selectedIndex < 1 || selectedIndex > len(courseDetails) {
-		fmt.Println("Invalid course selection.")
-		return
-	}
-
-	selectedElement := elements[selectedIndex-1]
-	selectedCourseDetail := courseDetails[selectedIndex-1]
-
-	OneSubTable, weightageMark, maxMarkSum := ExtractMarks(selectedElement)
-	if err != nil && debug.Debug {
-		fmt.Println(OneSubTable)
-		fmt.Println(err)
-	}
-	if len(OneSubTable) == 0 {
-		fmt.Printf("No Data Found for %s\n", selectedCourseDetail.CourseTitle)
-		return
-	}
-
-	courseDetail := fmt.Sprintf("\033[1;34m%s\033[0m", selectedCourseDetail.CourseTitle)
-	fmt.Println(courseDetail)
-
-	fmt.Println()
-
-	headers := []string{"Title", "Max Marks", "Weightage %", "Status", "Scored Mark", "Weightage Mark"}
-
-	tableData := append([][]string{headers}, OneSubTable...)
-
-	helpers.PrintTable(tableData, 1)
-
-	weightageMarkStr := fmt.Sprintf("\033[32m%.2f\033[0m", weightageMark)
-	maxMarkSumStr := fmt.Sprintf("\033[32m%d\033[0m", maxMarkSum)
-	fmt.Printf("%s/%s\n\n", weightageMarkStr, maxMarkSumStr)
+	doc.Find("span[style='font-size: 18px; font-weight: bold;']").Each(func(i int, s *goquery.Selection) {
+		gpa := s.Text()
+		fmt.Println("\x1b[32;1mCourse not included in GPA/CGPA\x1b[0m")
+		fmt.Println(gpa)
+	})
 }
 
 func subjectDetails(doc *goquery.Document) []types.CourseDetail {
