@@ -106,7 +106,7 @@ func trackCommand(command string) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-api-key", data.UUID)
 
-	client := &http.Client{Timeout: 5 * time.Second}
+	client := &http.Client{Timeout: 10 * time.Second}
 
 	// Send the POST request asynchronously
 	resp, err := client.Do(req)
