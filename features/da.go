@@ -17,9 +17,10 @@ import (
 
 func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-        fmt.Println("Please login first using the cli-top login command")
-        return
-    }
+		fmt.Println("Please login using the cli-top login command.")
+		return
+	}
+
 	allSems, err := helpers.GetSemDetails(cookies, regNo)
 	if err != nil {
 		if debug.Debug {
@@ -33,11 +34,26 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		return
 	}
 
-	semID := allSems[len(allSems)-1].SemID
+	var semID string
+	var listOfSubjects []types.DAsubject
 
-	listOfSubjects := getAllSubs(regNo, cookies, semID)
+	for i := len(allSems) - 1; i >= 0; i-- {
+		semID = allSems[i].SemID
+		listOfSubjects = getAllSubs(regNo, cookies, semID)
+		if len(listOfSubjects) > 0 {
+			if debug.Debug {
+				fmt.Printf("Selected Semester: %s (%s)\n", allSems[i].SemName, semID)
+			}
+			break
+		} else {
+			if debug.Debug {
+				fmt.Printf("No subjects found for Semester: %s (%s). Trying previous semester.\n", allSems[i].SemName, semID)
+			}
+		}
+	}
+
 	if len(listOfSubjects) == 0 {
-		fmt.Println("No subjects found.")
+		fmt.Println("No subjects available in any semester.")
 		return
 	}
 
@@ -129,7 +145,7 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		if err != nil {
 			fmt.Println("Error generating ICS file:", err)
 		} else {
-			serverURL := "https://cli-calendar.acmvit.in" 
+			serverURL := "https://cli-calendar.acmvit.in"
 			uploadedFileURL, err = helpers.UploadICSFile(icsFilePath, serverURL)
 			if err != nil {
 				fmt.Println("Error uploading ICS file:", err)
@@ -150,7 +166,6 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 	if len(subjectsTable) > 0 {
 		header := []string{"Subjects", "STATUS"}
 		subjectsTable = append([][]string{header}, subjectsTable...)
-
 
 		if icsGenerated {
 			helpers.GenerateCalendarImportLinks(uploadedFileURL, "DAs")
@@ -286,7 +301,7 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 			selectedSubjectName = strings.ReplaceAll(selectedSubjectName, "\\", "_")
 
 			// Append the subject name to the file name
-			fileName := fmt.Sprintf("%s_%s.pdf", selectedSubjectName,selectedDA[0])
+			fileName := fmt.Sprintf("%s_%s.pdf", selectedSubjectName, selectedDA[0])
 			downloadsDir := helpers.GetDownloadsDir()
 			filePath := filepath.Join(downloadsDir, fileName)
 
@@ -464,9 +479,9 @@ func pendingDAs(doc *goquery.Document, subject types.DAsubject) (types.LatestDA,
 					today := time.Now().UTC().Truncate(24 * time.Hour)
 					dueDateMidnight := tempDA.DueDate.Truncate(24 * time.Hour)
 					diff := dueDateMidnight.Sub(today)
-					tempDA.DaysLeft = int(diff.Hours() / 24) - 1 
+					tempDA.DaysLeft = int(diff.Hours() / 24)
 					if tempDA.DaysLeft < 0 {
-						tempDA.DaysLeft = 0 
+						tempDA.DaysLeft = 0
 					}
 				} else {
 					tempDA.DaysLeft = 0

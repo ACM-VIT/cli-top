@@ -1,4 +1,3 @@
-// features/exam-schedule.go
 package features
 
 import (
@@ -15,59 +14,75 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choice int) {
+func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-        fmt.Println("Please login first using the cli-top login command")
-        return
-    }
+		fmt.Println("Please login using the cli-top login command.")
+		return
+	}
+
 	url := "https://vtop.vit.ac.in/vtop/examinations/doSearchExamScheduleForStudent"
 
-	semDetails, err := helpers.GetSemDetails(cookies, regNo)
+	allSems, err := helpers.GetSemDetails(cookies, regNo)
 	if err != nil {
 		if debug.Debug {
-			fmt.Println(err)
+			fmt.Println("Error retrieving semester details:", err)
 		}
 		fmt.Println("Failed to retrieve semester details.")
 		return
 	}
 
-	if len(semDetails) == 0 {
+	if len(allSems) == 0 {
 		fmt.Println("No semester details found.")
 		return
 	}
 
-	semesterID := semDetails[len(semDetails)-1].SemID
+	var semID string
+	var examSchedule []types.ExamEvent
 
-	bodyText, err := helpers.FetchReq(regNo, cookies, url, semesterID, "UTC", "POST", "")
-	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error fetching exam schedule:", err)
+	for i := len(allSems) - 1; i >= 0; i-- {
+		semID = allSems[i].SemID
+		bodyText, err := helpers.FetchReq(regNo, cookies, url, semID, "UTC", "POST", "")
+		if err != nil {
+			if debug.Debug {
+				fmt.Printf("Error fetching exam schedule for Semester %s: %v\n", allSems[i].SemName, err)
+			}
+			continue
 		}
-		fmt.Println("Failed to fetch exam schedule.")
-		return
-	}
 
-	if debug.Debug {
-		fmt.Println("HTML Response:\n", string(bodyText))
-	}
-
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
-	if err != nil {
 		if debug.Debug {
-			fmt.Println("Error parsing HTML document:", err)
+			fmt.Printf("HTML Response for Semester %s:\n%s\n", allSems[i].SemName, string(bodyText))
 		}
-		fmt.Println("Failed to parse exam schedule data.")
-		return
-	}
 
-	examSchedule, err := parseExamSchedule(doc)
-	if err != nil {
-		fmt.Println("Error parsing exam schedule:", err)
-		return
+		doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
+		if err != nil {
+			if debug.Debug {
+				fmt.Printf("Error parsing HTML document for Semester %s: %v\n", allSems[i].SemName, err)
+			}
+			continue
+		}
+
+		examSchedule, err = parseExamSchedule(doc)
+		if err != nil {
+			if debug.Debug {
+				fmt.Printf("Error parsing exam schedule for Semester %s: %v\n", allSems[i].SemName, err)
+			}
+			continue
+		}
+
+		if len(examSchedule) > 0 {
+			if debug.Debug {
+				fmt.Printf("Selected Semester: %s (%s)\n", allSems[i].SemName, semID)
+			}
+			break
+		} else {
+			if debug.Debug {
+				fmt.Printf("No exams found for Semester: %s (%s). Trying previous semester.\n", allSems[i].SemName, semID)
+			}
+		}
 	}
 
 	if len(examSchedule) == 0 {
-		fmt.Println("No exams scheduled.")
+		fmt.Println("No exams scheduled in any semester.")
 		return
 	}
 
@@ -128,6 +143,9 @@ func GetExamSchedule(regNo string, cookies types.Cookies, semId string, sem_choi
 func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
 	var exams []types.ExamEvent
 
+	now := time.Now()
+	todayDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
 	doc.Find("table.customTable tbody tr").Each(func(i int, s *goquery.Selection) {
 		cells := s.Find("td")
 		if cells.Length() >= 13 {
@@ -148,19 +166,23 @@ func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
 			seat := strings.TrimSpace(cells.Eq(11).Text())
 			seatNo := strings.TrimSpace(cells.Eq(12).Text())
 
-			if examDateStr == "" || examDateStr == "Exam Date" {
+			if examDateStr == "" || strings.ToLower(examDateStr) == "exam date" {
 				return
 			}
 
-			examDate, err := time.Parse("02-Jan-2006", examDateStr)
+			examDate, err := time.ParseInLocation("02-Jan-2006", examDateStr, now.Location())
 			if err != nil {
 				if debug.Debug {
-					fmt.Println("Error parsing exam date:", err)
+					fmt.Printf("Error parsing exam date '%s': %v\n", examDateStr, err)
 				}
 				return
 			}
 
-			daysLeft := int(examDate.Sub(time.Now()).Hours() / 24)
+			daysLeft := int(examDate.Sub(todayDate).Hours() / 24)
+
+			if examDate.After(todayDate) && examDate.Sub(todayDate).Hours()/24 > float64(daysLeft) {
+				daysLeft += 1
+			}
 
 			examEvent := types.ExamEvent{
 				CourseCode:  courseCode,
