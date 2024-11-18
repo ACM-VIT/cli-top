@@ -1,7 +1,6 @@
 package helpers
 
 import (
-	"bytes"
 	"cli-top/debug"
 	"cli-top/types"
 	"fmt"
@@ -9,8 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/olekukonko/tablewriter"
+	// "github.com/olekukonko/tablewriter"
 )
 
 func RemoveCourseCode(courseName string) string {
@@ -73,168 +71,168 @@ func ReplaceCrossWithPlus(input string) string {
 	return strings.ReplaceAll(input, "┼", "+")
 }
 
-func GenerateFacultyDetailsTable(faculties []types.Faculty, query string) {
-	var buf bytes.Buffer
-	table := tablewriter.NewWriter(&buf)
+// func GenerateFacultyDetailsTable(faculties []types.Faculty, query string) {
+// 	var buf bytes.Buffer
+// 	table := tablewriter.NewWriter(&buf)
 
-	table.SetHeader([]string{"INDEX", "SLOT", "NAME"})
+// 	table.SetHeader([]string{"INDEX", "SLOT", "NAME"})
 
-	table.SetBorder(false)
-	table.SetHeaderLine(true)
-	table.SetRowLine(false)
-	table.SetAutoWrapText(false)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetColumnSeparator("│")
+// 	table.SetBorder(false)
+// 	table.SetHeaderLine(true)
+// 	table.SetRowLine(false)
+// 	table.SetAutoWrapText(false)
+// 	table.SetAlignment(tablewriter.ALIGN_LEFT)
+// 	table.SetColumnSeparator("│")
 
-	for i, faculty := range faculties {
-		index := fmt.Sprintf("%5d", i+1)
-		slot := ReplaceCrossWithPlus(faculty.Slot)
+// 	for i, faculty := range faculties {
+// 		index := fmt.Sprintf("%5d", i+1)
+// 		slot := ReplaceCrossWithPlus(faculty.Slot)
 
-		name := RedactERPID(faculty.Name)
+// 		name := RedactERPID(faculty.Name)
 
-		if query != "" {
-			name = HighlightMatches(name, query)
-		}
+// 		if query != "" {
+// 			name = HighlightMatches(name, query)
+// 		}
 
-		table.Append([]string{index, slot, name})
-	}
+// 		table.Append([]string{index, slot, name})
+// 	}
 
-	table.Render()
-	output := buf.String()
-	output = strings.ReplaceAll(output, "-", "─")
-	output = strings.ReplaceAll(output, "|", "│")
+// 	table.Render()
+// 	output := buf.String()
+// 	output = strings.ReplaceAll(output, "-", "─")
+// 	output = strings.ReplaceAll(output, "|", "│")
 
-	output = AddLeftPadding(output, 2)
+// 	output = AddLeftPadding(output, 2)
 
-	fmt.Print(output)
-	fmt.Println()
-}
+// 	fmt.Print(output)
+// 	fmt.Println()
+// }
 
-func GenerateCourseDetailsTable(courses []types.Course) {
-	var buf bytes.Buffer
-	table := tablewriter.NewWriter(&buf)
+// func GenerateCourseDetailsTable(courses []types.Course) {
+// 	var buf bytes.Buffer
+// 	table := tablewriter.NewWriter(&buf)
 
-	table.SetHeader([]string{"INDEX", "COURSE CODE", "COURSE NAME"})
+// 	table.SetHeader([]string{"INDEX", "COURSE CODE", "COURSE NAME"})
 
-	table.SetBorder(false)
-	table.SetHeaderLine(true)
-	table.SetRowLine(false)
-	table.SetAutoWrapText(false)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetColumnSeparator("│")
+// 	table.SetBorder(false)
+// 	table.SetHeaderLine(true)
+// 	table.SetRowLine(false)
+// 	table.SetAutoWrapText(false)
+// 	table.SetAlignment(tablewriter.ALIGN_LEFT)
+// 	table.SetColumnSeparator("│")
 
-	for i, course := range courses {
-		index := fmt.Sprintf("%5d", i+1)
-		courseCode, courseName := SplitCourseName(course.Name)
+// 	for i, course := range courses {
+// 		index := fmt.Sprintf("%5d", i+1)
+// 		courseCode, courseName := SplitCourseName(course.Name)
 
-		courseCode = ReplaceCrossWithPlus(courseCode)
+// 		courseCode = ReplaceCrossWithPlus(courseCode)
 
-		table.Append([]string{index, courseCode, courseName})
-	}
+// 		table.Append([]string{index, courseCode, courseName})
+// 	}
 
-	table.Render()
-	output := buf.String()
-	output = strings.ReplaceAll(output, "-", "─")
-	output = strings.ReplaceAll(output, "|", "│")
+// 	table.Render()
+// 	output := buf.String()
+// 	output = strings.ReplaceAll(output, "-", "─")
+// 	output = strings.ReplaceAll(output, "|", "│")
 
-	output = AddLeftPadding(output, 2)
+// 	output = AddLeftPadding(output, 2)
 
-	fmt.Print(output)
-	fmt.Println()
-}
+// 	fmt.Print(output)
+// 	fmt.Println()
+// }
 
-func SelectFaculty(faculties []types.Faculty, facultyFlag int) (types.Faculty, error) {
-	if len(faculties) == 0 {
-		return types.Faculty{}, fmt.Errorf("no faculties available for selection")
-	}
+// func SelectFaculty(faculties []types.Faculty, facultyFlag int) (types.Faculty, error) {
+// 	if len(faculties) == 0 {
+// 		return types.Faculty{}, fmt.Errorf("no faculties available for selection")
+// 	}
 
-	if facultyFlag > 0 && facultyFlag <= len(faculties) {
-		return faculties[facultyFlag-1], nil
-	}
+// 	if facultyFlag > 0 && facultyFlag <= len(faculties) {
+// 		return faculties[facultyFlag-1], nil
+// 	}
 
-	if len(faculties) <= 15 {
-		GenerateFacultyDetailsTable(faculties, "")
-		fmt.Println()
-		fmt.Print("Select a Faculty by entering the number: ")
-		var index int
-		_, err := fmt.Scanln(&index)
-		if err != nil {
-			if debug.Debug {
-				fmt.Println("Invalid input for faculty selection:", err)
-			}
-			return types.Faculty{}, fmt.Errorf("invalid input for faculty selection")
-		}
-		if index < 1 || index > len(faculties) {
-			fmt.Println("Invalid selection. Please enter a valid number.")
-			return types.Faculty{}, fmt.Errorf("invalid faculty selection")
-		}
-		return faculties[index-1], nil
-	}
+// 	if len(faculties) <= 15 {
+// 		GenerateFacultyDetailsTable(faculties, "")
+// 		fmt.Println()
+// 		fmt.Print("Select a Faculty by entering the number: ")
+// 		var index int
+// 		_, err := fmt.Scanln(&index)
+// 		if err != nil {
+// 			if debug.Debug {
+// 				fmt.Println("Invalid input for faculty selection:", err)
+// 			}
+// 			return types.Faculty{}, fmt.Errorf("invalid input for faculty selection")
+// 		}
+// 		if index < 1 || index > len(faculties) {
+// 			fmt.Println("Invalid selection. Please enter a valid number.")
+// 			return types.Faculty{}, fmt.Errorf("invalid faculty selection")
+// 		}
+// 		return faculties[index-1], nil
+// 	}
 
-	for {
-		fmt.Print("\nEnter search query (or press Enter to list all, type 'exit' to cancel): ")
-		var query string
-		_, err := fmt.Scanln(&query)
-		if err != nil {
-			if debug.Debug {
-				fmt.Println("Error reading input:", err)
-			}
-			return types.Faculty{}, fmt.Errorf("error reading input")
-		}
+// 	for {
+// 		fmt.Print("\nEnter search query (or press Enter to list all, type 'exit' to cancel): ")
+// 		var query string
+// 		_, err := fmt.Scanln(&query)
+// 		if err != nil {
+// 			if debug.Debug {
+// 				fmt.Println("Error reading input:", err)
+// 			}
+// 			return types.Faculty{}, fmt.Errorf("error reading input")
+// 		}
 
-		query = strings.TrimSpace(query)
+// 		query = strings.TrimSpace(query)
 
-		if strings.ToLower(query) == "exit" {
-			fmt.Println("Operation cancelled by user.")
-			return types.Faculty{}, fmt.Errorf("selection cancelled")
-		}
+// 		if strings.ToLower(query) == "exit" {
+// 			fmt.Println("Operation cancelled by user.")
+// 			return types.Faculty{}, fmt.Errorf("selection cancelled")
+// 		}
 
-		var displayFaculties []types.Faculty
-		if query != "" {
-			for _, faculty := range faculties {
-				if FuzzyMatch(query, faculty.Name) {
-					displayFaculties = append(displayFaculties, faculty)
-				}
-			}
-			if len(displayFaculties) == 0 {
-				fmt.Println("No faculties matched your search. Try again.")
-				continue
-			}
-		} else {
-			displayFaculties = faculties
-		}
+// 		var displayFaculties []types.Faculty
+// 		if query != "" {
+// 			for _, faculty := range faculties {
+// 				if FuzzyMatch(query, faculty.Name) {
+// 					displayFaculties = append(displayFaculties, faculty)
+// 				}
+// 			}
+// 			if len(displayFaculties) == 0 {
+// 				fmt.Println("No faculties matched your search. Try again.")
+// 				continue
+// 			}
+// 		} else {
+// 			displayFaculties = faculties
+// 		}
 
-		GenerateFacultyDetailsTable(displayFaculties, query)
-		fmt.Println()
-		fmt.Print("Enter the number of the faculty to select (or type 's' to search again, 'exit' to cancel): ")
-		var selection string
-		_, err = fmt.Scanln(&selection)
-		if err != nil {
-			if debug.Debug {
-				fmt.Println("Error reading selection:", err)
-			}
-			return types.Faculty{}, fmt.Errorf("error reading selection")
-		}
+// 		GenerateFacultyDetailsTable(displayFaculties, query)
+// 		fmt.Println()
+// 		fmt.Print("Enter the number of the faculty to select (or type 's' to search again, 'exit' to cancel): ")
+// 		var selection string
+// 		_, err = fmt.Scanln(&selection)
+// 		if err != nil {
+// 			if debug.Debug {
+// 				fmt.Println("Error reading selection:", err)
+// 			}
+// 			return types.Faculty{}, fmt.Errorf("error reading selection")
+// 		}
 
-		selection = strings.TrimSpace(selection)
+// 		selection = strings.TrimSpace(selection)
 
-		if strings.ToLower(selection) == "s" {
-			continue
-		}
-		if strings.ToLower(selection) == "exit" {
-			fmt.Println("Operation cancelled by user.")
-			return types.Faculty{}, fmt.Errorf("selection cancelled")
-		}
+// 		if strings.ToLower(selection) == "s" {
+// 			continue
+// 		}
+// 		if strings.ToLower(selection) == "exit" {
+// 			fmt.Println("Operation cancelled by user.")
+// 			return types.Faculty{}, fmt.Errorf("selection cancelled")
+// 		}
 
-		index, err := strconv.Atoi(selection)
-		if err != nil || index < 1 || index > len(displayFaculties) {
-			fmt.Println("Invalid selection. Please enter a valid number.")
-			continue
-		}
+// 		index, err := strconv.Atoi(selection)
+// 		if err != nil || index < 1 || index > len(displayFaculties) {
+// 			fmt.Println("Invalid selection. Please enter a valid number.")
+// 			continue
+// 		}
 
-		return displayFaculties[index-1], nil
-	}
-}
+// 		return displayFaculties[index-1], nil
+// 	}
+// }
 
 func RemoveDuplicateFaculties(faculties []types.Faculty) []types.Faculty {
 	uniqueFaculties := make([]types.Faculty, 0, len(faculties))
@@ -255,38 +253,38 @@ func SortFacultiesAlphabetically(faculties []types.Faculty) {
 	})
 }
 
-func GenerateCourseMaterialsTable(materials []types.CourseMaterial) {
-	var buf bytes.Buffer
-	table := tablewriter.NewWriter(&buf)
+// func GenerateCourseMaterialsTable(materials []types.CourseMaterial) {
+// 	var buf bytes.Buffer
+// 	table := tablewriter.NewWriter(&buf)
 
-	table.SetHeader([]string{"INDEX", "DATE", "DAY ORDER/SLOT", "TOPIC", "REF MATERIALS"})
+// 	table.SetHeader([]string{"INDEX", "DATE", "DAY ORDER/SLOT", "TOPIC", "REF MATERIALS"})
 
-	table.SetBorder(false)
-	table.SetHeaderLine(true)
-	table.SetRowLine(false)
-	table.SetAutoWrapText(false)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetColumnSeparator("│")
+// 	table.SetBorder(false)
+// 	table.SetHeaderLine(true)
+// 	table.SetRowLine(false)
+// 	table.SetAutoWrapText(false)
+// 	table.SetAlignment(tablewriter.ALIGN_LEFT)
+// 	table.SetColumnSeparator("│")
 
-	for _, material := range materials {
-		index := fmt.Sprintf("%5d", material.Index)
-		date := material.Date
-		dayOrderSlot := ReplaceCrossWithPlus(material.DayOrderSlot)
-		topic := TruncateString(material.Topic, 40)
-		refMaterialsCount := fmt.Sprintf("%d", len(material.ReferenceMaterials))
-		table.Append([]string{index, date, dayOrderSlot, topic, refMaterialsCount})
-	}
+// 	for _, material := range materials {
+// 		index := fmt.Sprintf("%5d", material.Index)
+// 		date := material.Date
+// 		dayOrderSlot := ReplaceCrossWithPlus(material.DayOrderSlot)
+// 		topic := TruncateString(material.Topic, 40)
+// 		refMaterialsCount := fmt.Sprintf("%d", len(material.ReferenceMaterials))
+// 		table.Append([]string{index, date, dayOrderSlot, topic, refMaterialsCount})
+// 	}
 
-	table.Render()
-	output := buf.String()
-	output = strings.ReplaceAll(output, "-", "─")
-	output = strings.ReplaceAll(output, "|", "│")
+// 	table.Render()
+// 	output := buf.String()
+// 	output = strings.ReplaceAll(output, "-", "─")
+// 	output = strings.ReplaceAll(output, "|", "│")
 
-	output = AddLeftPadding(output, 2)
+// 	output = AddLeftPadding(output, 2)
 
-	fmt.Print(output)
-	fmt.Println()
-}
+// 	fmt.Print(output)
+// 	fmt.Println()
+// }
 
 func SelectCourseMaterials(materials []types.CourseMaterial) ([]types.CourseMaterial, error) {
 	for {
