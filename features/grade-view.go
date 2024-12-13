@@ -79,7 +79,7 @@ func findAndSaveGrade(doc *goquery.Document) {
 			row[1],  // Course Code
 			row[2],  // Course Title
 			row[3],  // Course Type
-			row[4],  // Credits
+			row[7],  // Credits
 			row[9],  // Total
 			row[8],  // Grading
 			row[10], // Grade
@@ -96,7 +96,7 @@ func findAndSaveGrade(doc *goquery.Document) {
 		courseType := strings.ToUpper(strings.TrimSpace(selectedRow[3]))
 		grade := strings.ToUpper(strings.TrimSpace(selectedRow[7]))
 
-		if courseType == "ONLINE COURSE" {
+		if courseType == "ONLINE COURSE" || courseType == "PROJECT" || courseType == "EXTRA CURRICULAR ACTIVITY" {
 			for idx := range selectedRow {
 				selectedRow[idx] = fmt.Sprintf("\x1b[32m%s\x1b[0m", selectedRow[idx]) // Green
 			}
@@ -118,7 +118,7 @@ func findAndSaveGrade(doc *goquery.Document) {
 
 	doc.Find("span[style='font-size: 18px; font-weight: bold;']").Each(func(i int, s *goquery.Selection) {
 		gpa := s.Text()
-		fmt.Println("\x1b[32;1mCourse not included in GPA/CGPA\x1b[0m")
+		fmt.Println("\x1b[32;1m**Course not included in GPA/CGPA\x1b[0m")
 		fmt.Println(gpa)
 	})
 }
