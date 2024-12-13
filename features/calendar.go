@@ -118,6 +118,8 @@ func PrintCal(regNo string, cookies types.Cookies, sem_choice int, classGrpFlag 
 						k = 2
 					} else if strings.Contains(span.Text(), "Instructional Day") {
 						k = 3
+                    } else if strings.Contains(span.Text(), "Day Order") {
+                        k = 3
 					} else {
 						k = 1
 					}
