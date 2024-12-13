@@ -34,7 +34,7 @@ func GetReceipt(regNo string, cookies types.Cookies) {
 	// Initialize the nested list for receipts
 	var receipts [][]string
 	// Add the header row
-	receipts = append(receipts, []string{"SERIAL", "RECEIPT NUMBER", "DATE", "AMOUNT"})
+	receipts = append(receipts, []string{"SERIAL", "RECEIPT NUMBER", "AMOUNT", "DATE"})
 
 	// Iterate through the table rows and extract data
 	doc.Find("table.table-bordered tbody tr").Each(func(i int, rowSelection *goquery.Selection) {

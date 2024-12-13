@@ -511,13 +511,12 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 }
 
 func displayCourseMaterials(materials []types.CourseMaterial) {
-	nestedList := [][]string{{"DATE", "DAY ORDER/SLOT", "TOPIC", "REF MATERIALS"}}
+	nestedList := [][]string{{"DATE", "TOPIC", "REF MATERIALS"}}
 	for _, material := range materials {
 		refCount := strconv.Itoa(len(material.ReferenceMaterials))
 		truncatedTopic := helpers.TruncateWithEllipsis(material.Topic, 30)
 		nestedList = append(nestedList, []string{
 			material.Date,
-			material.DayOrderSlot,
 			truncatedTopic,
 			refCount,
 		})
