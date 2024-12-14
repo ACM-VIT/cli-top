@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -814,8 +815,9 @@ func isSuccessfulDownload(body []byte) bool {
 }
 
 func clearSingleNewline() {
-	reader := bufio.NewReader(os.Stdin)
-	_, _ = reader.ReadByte()
+	if runtime.GOOS == "windows" {
+        exec.Command("cmd", "/C", "cls").Run()
+    }
 }
 
 func getOptimalConcurrency() int {
