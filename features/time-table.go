@@ -71,6 +71,67 @@ var schedule = map[string]map[string][]string{
 	"TCC1": {
 		"Thursday":    []string{"12:00", "12:50"},
 		},
+	"A2": {	
+		"Monday":	[]string{"14:00", "14:50"},
+		"Wednesday":	[]string{"15:00", "15:50"},
+		},
+	"B2": {
+		"Tuesday":	[]string{"14:00", "14:50"},
+		"Thursday":	[]string{"15:00", "15:50"},
+		},
+	"C2": {
+		"Wednesday":	[]string{"14:00", "14:50"},
+		"Friday":	[]string{"15:00", "15:50"},
+		},
+	"D2": {
+		"Monday":	[]string{"16:00", "16:50"},
+		"Thursday":	[]string{"14:00", "14:50"},
+		},
+	"E2": {
+		"Tuesday":	[]string{"16:00", "16:50"},
+		"Friday":	[]string{"14:00", "14:50"},
+		},
+	"F2": {
+		"Monday":	[]string{"15:00", "15:50"},
+		"Wednesday":	[]string{"16:00", "16:50"},
+		},
+	"G2": {
+		"Tuesday":	[]string{"15:00", "15:50"},
+		"Thursday":	[]string{"16:00", "16:50"},
+		},
+	"TA2": {
+		"Friday":	[]string{"16:00", "16:50"},
+		},
+	"TB2": {
+		"Monday":	[]string{"17:00", "17:50"},
+		},
+	"TC2": {
+		"Tuesday":	[]string{"17:00", "17:50"},
+		},
+	"TD2": {
+		"Friday":	[]string{"18:00", "18:50"},
+		},
+	"TE2": {
+		"Thursday":	[]string{"17:00", "17:50"},
+		},
+	"TF2": {
+		"Friday":	[]string{"17:00", "17:50"},
+		},
+	"TG2": {
+		"Monday":	[]string{"18:00", "18:50"},
+		},
+	"TAA2": {
+		"Tuesday":	[]string{"18:00", "18:50"},
+		},
+	"TBB2": {
+		"Wednesday":	[]string{"18:00", "18:50"},
+		},
+	"TCC2": {
+		"Thursday":	[]string{"18:00", "18:50"},
+		},
+	"TDD2": {
+		"Friday":	[]string{"18:00", "18:50"},
+		},
 	"L1+L2": {
 		"Monday":    []string{"08:00", "09:40"},
 		},
@@ -161,68 +222,111 @@ var schedule = map[string]map[string][]string{
 	"L59+L60": {
 		"Friday":    []string{"17:40", "19:20"},
 		},
-	"A2": {	
-		"Monday":	[]string{"14:00", "14:50"},
-		"Wednesday":	[]string{"15:00", "15:50"},
-		},
-	"B2": {
-		"Tuesday":	[]string{"14:00", "14:50"},
-		"Thursday":	[]string{"15:00", "15:50"},
-		},
-	"C2": {
-		"Wednesday":	[]string{"14:00", "14:50"},
-		"Friday":	[]string{"15:00", "15:50"},
-		},
-	"D2": {
-		"Monday":	[]string{"16:00", "16:50"},
-		"Thursday":	[]string{"14:00", "14:50"},
-		},
-	"E2": {
-		"Tuesday":	[]string{"16:00", "16:50"},
-		"Friday":	[]string{"14:00", "14:50"},
-		},
-	"F2": {
-		"Monday":	[]string{"15:00", "15:50"},
-		"Wednesday":	[]string{"16:00", "16:50"},
-		},
-	"G2": {
-		"Tuesday":	[]string{"15:00", "15:50"},
-		"Thursday":	[]string{"16:00", "16:50"},
-		},
-	"TA2": {
-		"Friday":	[]string{"16:00", "16:50"},
-		},
-	"TB2": {
-		"Monday":	[]string{"17:00", "17:50"},
-		},
-	"TC2": {
-		"Tuesday":	[]string{"17:00", "17:50"},
-		},
-	"TD2": {
-		"Friday":	[]string{"18:00", "18:50"},
-		},
-	"TE2": {
-		"Thursday":	[]string{"17:00", "17:50"},
-		},
-	"TF2": {
-		"Friday":	[]string{"17:00", "17:50"},
-		},
-	"TG2": {
-		"Monday":	[]string{"18:00", "18:50"},
-		},
-	"TAA2": {
-		"Tuesday":	[]string{"18:00", "18:50"},
-		},
-	"TBB2": {
-		"Wednesday":	[]string{"18:00", "18:50"},
-		},
-	"TCC2": {
-		"Thursday":	[]string{"18:00", "18:50"},
-		},
-	"TDD2": {
-		"Friday":	[]string{"18:00", "18:50"},
-		},
-	
+	"V1": {
+		"Wednesday":    []string{"11:00", "11:50"},
+	},
+	"V2": {
+		"Wednesday":    []string{"12:00", "12:50"},
+	},
+	"V3": {
+		"Monday":    []string{"19:00", "19:50"},
+	},
+	"V4": {
+		"Tuesday":    []string{"19:00", "19:50"},
+	},
+	"V5": {
+		"Wednesday":    []string{"19:00", "19:50"},
+	},
+	"V6": {
+		"Thursday":    []string{"19:00", "19:50"},
+	},
+	"V7": {
+		"Friday":    []string{"19:00", "19:50"},
+	},
+	"V8": {
+		"Saturday":    []string{"08:00", "08:50"},
+	},
+	"X11": {
+		"Saturday":    []string{"09:00", "09:50"},
+		"Sunday":   []string{"11:00", "11:50"},
+	},
+	"X12": {
+		"Saturday":    []string{"10:00", "10:50"},
+		"Sunday":    []string{"12:00", "12:50"},
+	},
+	"Y11": {
+		"Saturday":    []string{"11:00", "11:50"},
+		"Sunday":    []string{"09:00", "09:50"},
+	},
+	"Y12": {
+		"Saturday":    []string{"12:00", "12:50"},
+		"Sunday":    []string{"10:00", "10:50"},
+	},
+	"X21": {
+		"Saturday":    []string{"14:00", "14:50"},
+		"Sunday":    []string{"16:00", "16:50"},
+	},
+	"Z21": {
+		"Saturday":    []string{"15:00", "15:50"},
+		"Sunday":    []string{"15:00", "15:50"},
+	},
+	"Y21": {
+		"Saturday":    []string{"16:00", "16:50"},
+		"Sunday":    []string{"14:00", "14:50"},
+	},
+	"W21": {
+		"Saturday":    []string{"17:00", "17:50"},
+		"Sunday":    []string{"17:00", "17:50"},
+	},
+	"W22": {
+		"Saturday":    []string{"18:00", "18:50"},
+		"Sunday":    []string{"18:00", "18:50"},
+	},
+	"V9": {
+		"Saturday":    []string{"19:00", "19:50"},
+	},
+	"V10": {
+		"Sunday":    []string{"08:00", "08:50"},
+	},
+	"V11": {
+		"Sunday":    []string{"19:00", "19:50"},
+	},
+	"L71+L72": {
+		"Saturday":    []string{"08:00", "09:40"},
+	},
+	"L73+L74": {
+		"Saturday":    []string{"09:50", "11:30"},
+	},
+	"L75+L76": {
+		"Saturday":    []string{"11:40", "13:20"},
+	},
+	"L77+L78": {
+		"Saturday":    []string{"14:00", "15:40"},
+	},
+	"L79+L80": {
+		"Saturday":    []string{"15:50", "17:30"},
+	},
+	"L81+L82": {
+		"Saturday":    []string{"17:40", "19:20"},
+	},
+	"L83+L84": {
+		"Sunday":    []string{"08:00", "09:40"},
+	},
+	"L85+L86": {
+		"Sunday":    []string{"09:50", "11:30"},
+	},
+	"L87+L88": {
+		"Sunday":    []string{"11:40", "13:20"},
+	},
+	"L89+L90": {
+		"Sunday":    []string{"14:00", "15:40"},
+	},
+	"L91+L92": {
+		"Sunday":    []string{"15:50", "17:30"},
+	},
+	"L93+L94": {
+		"Sunday":    []string{"17:40", "19:20"},
+	},
 }
 
 
@@ -249,13 +353,22 @@ func GetTimeTable(regNo string, cookies types.Cookies, semId string, sem_choice 
 		fmt.Println(err)
 	}
 
+	grp_list := getClassGroups(regNo, cookies, semester)
+    datelist := getDateList(regNo, cookies, semester, grp_list[1][1])
+	semSec,month,year :=processDates(regNo, cookies, semester, grp_list[1][1], datelist, 0)
+	fmt.Println("Semester Section: ",semSec)
+	fmt.Println("Month: ",month)
+	fmt.Println("Year: ",year)
+
+
 	// Making a map, that maps the courseCode to the courseName
 	courseMap := getCourseName(doc)
 	timetable := makeTT(schedule,courseMap)
-    printTT(timetable)
+	fmt.Println(timetable)
+	printTT(timetable)
 	icsFilename := "VITtimetable.ics"
 	icsFilepath := filepath.Join(helpers.GetDownloadsDir(), icsFilename)
-	icsContent := makeISC(timetable)
+	icsContent := makeISC(timetable, semSec, month, year)
 	err = writetoFile(icsFilepath, icsContent)
 	if err != nil {
 		fmt.Println("Error generating ICS file:", err)
@@ -291,18 +404,77 @@ func makeTT(schedule map[string]map[string][]string, courseMap map[string]types.
     return timetable
 }
 
-func makeISC(timetable map[string][]types.Class) string {
+func makeISC(timetable map[string][]types.Class, semSection [][]int, startMonth int, startYear int) string {
     icsContent := "BEGIN:VCALENDAR\nVERSION:2.0\nCALSCALE:GREGORIAN\n"
-    for day, classes := range timetable {
-        for _, class := range classes {
-            startDateTime := fmt.Sprintf("%sT%s00", getStartDate(day), strings.ReplaceAll(class.StartTime, ":", ""))
-            endDateTime := fmt.Sprintf("%sT%s00", getStartDate(day), strings.ReplaceAll(class.EndTime, ":", ""))
-            icsContent += fmt.Sprintf("BEGIN:VEVENT\nSUMMARY:%s\nDTSTART;TZID=Asia/Kolkata:%s\nDTEND;TZID=Asia/Kolkata:%s\nLOCATION:%s\nRRULE:FREQ=WEEKLY;BYDAY=%s\nBEGIN:VALARM\nTRIGGER:-PT5M\nDESCRIPTION:Reminder\nACTION:DISPLAY\nEND:VALARM\nEND:VEVENT\n",
-                class.Subject, startDateTime, endDateTime, class.Venue, getDayAbbreviation(day))
+
+    // Get the first day of the start month
+    startDate := time.Date(startYear, time.Month(startMonth), 1, 0, 0, 0, 0, time.UTC)
+
+    // Process each day in the semester section
+    for dayIndex := 0; dayIndex < len(semSection); dayIndex++ {
+        for weekIndex := 0; weekIndex < len(semSection[dayIndex]); weekIndex++ {
+            // Skip if marked as -1
+            if semSection[dayIndex][weekIndex] == -1 {
+                continue
+            }
+
+            // Get the day of week (Monday = 0, Sunday = 6)
+            currentDay := time.Weekday((dayIndex + 1) % 7)
+            currentDayStr := getDayName(currentDay)
+
+            // Calculate the actual date for this day
+            daysToAdd := weekIndex*7 + int(currentDay-startDate.Weekday())
+            eventDate := startDate.AddDate(0, 0, daysToAdd)
+
+            // Add events for this day
+            if classes, exists := timetable[currentDayStr]; exists {
+                for _, class := range classes {
+                    startDateTime := fmt.Sprintf("%sT%s00", eventDate.Format("20060102"),
+                        strings.ReplaceAll(class.StartTime, ":", ""))
+                    endDateTime := fmt.Sprintf("%sT%s00", eventDate.Format("20060102"),
+                        strings.ReplaceAll(class.EndTime, ":", ""))
+
+                    icsContent += fmt.Sprintf("BEGIN:VEVENT\n"+
+                        "SUMMARY:%s\n"+
+                        "DTSTART;TZID=Asia/Kolkata:%s\n"+
+                        "DTEND;TZID=Asia/Kolkata:%s\n"+
+                        "LOCATION:%s\n"+
+                        "DESCRIPTION:Slot: %s\n"+
+                        "BEGIN:VALARM\n"+
+                        "TRIGGER:-PT5M\n"+
+                        "ACTION:DISPLAY\n"+
+                        "END:VALARM\n"+
+                        "END:VEVENT\n",
+                        class.Subject, startDateTime, endDateTime,
+                        class.Venue, class.Slot)
+                }
+            }
         }
     }
+
     icsContent += "END:VCALENDAR"
     return icsContent
+}
+
+func getDayName(day time.Weekday) string {
+    switch day {
+    case time.Monday:
+        return "Monday"
+    case time.Tuesday:
+        return "Tuesday"
+    case time.Wednesday:
+        return "Wednesday"
+    case time.Thursday:
+        return "Thursday"
+    case time.Friday:
+        return "Friday"
+    case time.Saturday:
+        return "Saturday"
+    case time.Sunday:
+        return "Sunday"
+    default:
+        return ""
+    }
 }
 
 func writetoFile(filepath string, content string) error{
@@ -423,12 +595,12 @@ func getCourseName(doc *goquery.Document) map[string]types.SubjectTime {
 }
 
 func printTT(timetable map[string][]types.Class) {
-    daysOfWeek := []string{"Monday", "Tuesday", "Wednesday", "Thursday", "Friday"}
+    daysOfWeek := []string{"Monday", "Tuesday", "Wednesday", "Thursday", "Friday","Saturday","Sunday"}
 
     for _, day := range daysOfWeek {
-        fmt.Printf("%s\n\n", day)
         classes, exists := timetable[day]
         if exists {
+			fmt.Printf("%s\n\n", day)
             sort.Slice(classes, func(i, j int) bool {
                 return classes[i].StartTime < classes[j].StartTime
             })
@@ -444,9 +616,7 @@ func printTT(timetable map[string][]types.Class) {
                 })
             }
             helpers.PrintTable(tableData, 0)
-        } else {
-            fmt.Println("  No classes")
+			fmt.Println()
         }
-		fmt.Println()
     }
 }
