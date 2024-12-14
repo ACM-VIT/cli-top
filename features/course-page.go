@@ -351,7 +351,7 @@ func selectFaculty(faculties []types.Faculty, facultyFlag string, fuzzyFlag int)
 		for _, faculty := range faculties {
 			cleanName := removeNumberPrefix(faculty.Name)
 			nestedList = append(nestedList, []string{
-				cleanName,
+				strings.TrimSpace(cleanName),
 				faculty.Slot,
 			})
 		}
