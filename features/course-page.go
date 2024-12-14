@@ -17,9 +17,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"os/exec"
-
 	"github.com/PuerkitoBio/goquery"
 	"github.com/schollz/progressbar/v3"
 )
