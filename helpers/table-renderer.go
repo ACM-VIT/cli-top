@@ -18,12 +18,15 @@ func TableSelector(subject string, nestedList [][]string, choice int) int {
 	if choice != 0 {
 		return choice
 	}
+	reader := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Println("")
 		PrintTable(nestedList, 1)
 		fmt.Println("")
 		fmt.Print("Choose a ", subject, ": ")
-		_, err := fmt.Scan(&choice)
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(input)
+		choice, err := strconv.Atoi(input)
 		if err != nil {
 			fmt.Println("Invalid input. Please enter a valid number.")
 			continue
@@ -58,7 +61,7 @@ func TableSelectorFuzzy(subject string, nestedList [][]string, choice string) in
 				var indexInput string
 				_, err := fmt.Scanln(&indexInput)
 				if err != nil {
-					fmt.Println("Invalid input. Please enter a valid number.")
+					fmt.Println("\nInvalid input. Please enter a valid number.")
 					continue
 				}
 
