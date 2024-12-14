@@ -356,15 +356,9 @@ func GetTimeTable(regNo string, cookies types.Cookies, semId string, sem_choice 
 	grp_list := getClassGroups(regNo, cookies, semester)
     datelist := getDateList(regNo, cookies, semester, grp_list[1][1])
 	semSec,month,year :=processDates(regNo, cookies, semester, grp_list[1][1], datelist, 0)
-	fmt.Println("Semester Section: ",semSec)
-	fmt.Println("Month: ",month)
-	fmt.Println("Year: ",year)
-
-
 	// Making a map, that maps the courseCode to the courseName
 	courseMap := getCourseName(doc)
 	timetable := makeTT(schedule,courseMap)
-	fmt.Println(timetable)
 	printTT(timetable)
 	icsFilename := "VITtimetable.ics"
 	icsFilepath := filepath.Join(helpers.GetDownloadsDir(), icsFilename)
@@ -406,55 +400,89 @@ func makeTT(schedule map[string]map[string][]string, courseMap map[string]types.
 
 func makeISC(timetable map[string][]types.Class, semSection [][]int, startMonth int, startYear int) string {
     icsContent := "BEGIN:VCALENDAR\nVERSION:2.0\nCALSCALE:GREGORIAN\n"
-
+	startMonth++
     // Get the first day of the start month
     startDate := time.Date(startYear, time.Month(startMonth), 1, 0, 0, 0, 0, time.UTC)
 
-    // Process each day in the semester section
-    for dayIndex := 0; dayIndex < len(semSection); dayIndex++ {
-        for weekIndex := 0; weekIndex < len(semSection[dayIndex]); weekIndex++ {
-            // Skip if marked as -1
-            if semSection[dayIndex][weekIndex] == -1 {
-                continue
-            }
-
-            // Get the day of week (Monday = 0, Sunday = 6)
-            currentDay := time.Weekday((dayIndex + 1) % 7)
-            currentDayStr := getDayName(currentDay)
-
-            // Calculate the actual date for this day
-            daysToAdd := weekIndex*7 + int(currentDay-startDate.Weekday())
-            eventDate := startDate.AddDate(0, 0, daysToAdd)
-
-            // Add events for this day
-            if classes, exists := timetable[currentDayStr]; exists {
-                for _, class := range classes {
-                    startDateTime := fmt.Sprintf("%sT%s00", eventDate.Format("20060102"),
-                        strings.ReplaceAll(class.StartTime, ":", ""))
-                    endDateTime := fmt.Sprintf("%sT%s00", eventDate.Format("20060102"),
-                        strings.ReplaceAll(class.EndTime, ":", ""))
-
-                    icsContent += fmt.Sprintf("BEGIN:VEVENT\n"+
-                        "SUMMARY:%s\n"+
-                        "DTSTART;TZID=Asia/Kolkata:%s\n"+
-                        "DTEND;TZID=Asia/Kolkata:%s\n"+
-                        "LOCATION:%s\n"+
-                        "DESCRIPTION:Slot: %s\n"+
-                        "BEGIN:VALARM\n"+
-                        "TRIGGER:-PT5M\n"+
-                        "ACTION:DISPLAY\n"+
-                        "END:VALARM\n"+
-                        "END:VEVENT\n",
-                        class.Subject, startDateTime, endDateTime,
-                        class.Venue, class.Slot)
-                }
-            }
-        }
-    }
-
+	for months:=0; months<len(semSection); months=months+1 {
+		for dayofMonth:=0; dayofMonth<len(semSection[months]); dayofMonth=dayofMonth+1 {
+			var day string
+			if semSection[months][dayofMonth] == -1 {
+				startDate = startDate.AddDate(0, 0, 1)
+				continue
+			} else if semSection[months][dayofMonth] == 0 {
+				day = startDate.Format("Monday")
+			} else {
+				dayInt := semSection[months][dayofMonth]
+				day = getDayName(time.Weekday(dayInt))
+			}
+			for _, class := range timetable[day] {
+				startDateTime := fmt.Sprintf("%sT%s00", startDate.Format("20060102"),
+					strings.ReplaceAll(class.StartTime, ":", ""))
+				endDateTime := fmt.Sprintf("%sT%s00", startDate.Format("20060102"),
+					strings.ReplaceAll(class.EndTime, ":", ""))
+				icsContent += fmt.Sprintf("BEGIN:VEVENT\n"+
+					"SUMMARY:%s\n"+
+					"DTSTART;TZID=Asia/Kolkata:%s\n"+
+					"DTEND;TZID=Asia/Kolkata:%s\n"+
+					"LOCATION:%s\n"+
+					"DESCRIPTION:Slot: %s\n"+
+					"BEGIN:VALARM\n"+
+					"TRIGGER:-PT5M\n"+
+					"ACTION:DISPLAY\n"+
+					"END:VALARM\n"+
+					"END:VEVENT\n",
+					class.Subject, startDateTime, endDateTime,
+					class.Venue, class.Slot)
+			}	
+			startDate = startDate.AddDate(0, 0, 1)	
+		}
+	}    
     icsContent += "END:VCALENDAR"
     return icsContent
 }
+
+
+// for dayIndex := 0; dayIndex < len(semSection); dayIndex++ {
+// 	for weekIndex := 0; weekIndex < len(semSection[dayIndex]); weekIndex++ {
+// 		// Skip if marked as -1
+// 		if semSection[dayIndex][weekIndex] == -1 {
+// 			continue
+// 		}
+
+// 		// Get the day of week (Monday = 0, Sunday = 6)
+// 		currentDay := time.Weekday((dayIndex + 1) % 7)
+// 		currentDayStr := getDayName(currentDay)
+
+// 		// Calculate the actual date for this day
+// 		daysToAdd := weekIndex*7 + int(currentDay-startDate.Weekday())
+// 		eventDate := startDate.AddDate(0, 0, daysToAdd)
+
+// 		// Add events for this day
+// 		if classes, exists := timetable[currentDayStr]; exists {
+// 			for _, class := range classes {
+// 				startDateTime := fmt.Sprintf("%sT%s00", eventDate.Format("20060102"),
+// 					strings.ReplaceAll(class.StartTime, ":", ""))
+// 				endDateTime := fmt.Sprintf("%sT%s00", eventDate.Format("20060102"),
+// 					strings.ReplaceAll(class.EndTime, ":", ""))
+
+// 				icsContent += fmt.Sprintf("BEGIN:VEVENT\n"+
+// 					"SUMMARY:%s\n"+
+// 					"DTSTART;TZID=Asia/Kolkata:%s\n"+
+// 					"DTEND;TZID=Asia/Kolkata:%s\n"+
+// 					"LOCATION:%s\n"+
+// 					"DESCRIPTION:Slot: %s\n"+
+// 					"BEGIN:VALARM\n"+
+// 					"TRIGGER:-PT5M\n"+
+// 					"ACTION:DISPLAY\n"+
+// 					"END:VALARM\n"+
+// 					"END:VEVENT\n",
+// 					class.Subject, startDateTime, endDateTime,
+// 					class.Venue, class.Slot)
+// 			}
+// 		}
+// 	}
+// }
 
 func getDayName(day time.Weekday) string {
     switch day {
@@ -490,58 +518,6 @@ func writetoFile(filepath string, content string) error{
 	return nil
 }
 
-func getDayAbbreviation(day string) string {
-    switch day {
-    case "Monday":
-        return "MO"
-    case "Tuesday":
-        return "TU"
-    case "Wednesday":
-        return "WE"
-    case "Thursday":
-        return "TH"
-    case "Friday":
-        return "FR"
-    case "Saturday":
-        return "SA"
-    case "Sunday":
-        return "SU"
-    default:
-        return "MO"
-    }
-}
-
-func getStartDate(day string) string {
-    now := time.Now()
-    weekday := getWeekday(day)
-    diff := (int(weekday) - int(now.Weekday()) + 7) % 7
-    if diff == 0 {
-        diff = 7
-    }
-    eventDate := now.AddDate(0, 0, diff)
-    return eventDate.Format("20060102")
-}
-
-func getWeekday(day string) time.Weekday {
-    switch day {
-    case "Monday":
-        return time.Monday
-    case "Tuesday":
-        return time.Tuesday
-    case "Wednesday":
-        return time.Wednesday
-    case "Thursday":
-        return time.Thursday
-    case "Friday":
-        return time.Friday
-    case "Saturday":
-        return time.Saturday
-    case "Sunday":
-        return time.Sunday
-    default:
-        return time.Monday
-    }
-}
 
 func getCourseName(doc *goquery.Document) map[string]types.SubjectTime {
 	courseMap := make(map[string]types.SubjectTime)
@@ -620,3 +596,6 @@ func printTT(timetable map[string][]types.Class) {
         }
     }
 }
+
+
+

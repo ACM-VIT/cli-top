@@ -99,8 +99,7 @@ func processDates(regNo string, cookies types.Cookies, semester types.Semester, 
             return true
         }
         return false
-    }
-    
+    }    
     // Convert year string to integer
     yearInt, err := strconv.Atoi(year)
     if err != nil {
@@ -109,8 +108,9 @@ func processDates(regNo string, cookies types.Cookies, semester types.Semester, 
     }
 
     daysInMonth := []int{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
-    if isLeapYear(yearInt) {
+    if isLeapYear(yearInt+1) {
         daysInMonth[1] = 29 // February has 29 days in a leap year
+
     }
     
     // Map to convert month abbreviations to integers
@@ -270,7 +270,7 @@ func renderMonths(months []string, year string, nestedColour [][]int) {
 
 func generateCalendarLines(month string, colour []int) []string {
     var lines []string
-    monthHeader := fmt.Sprintf("%s", month)
+    monthHeader := month
     maxLength := 20
     padding := (maxLength - len(monthHeader)/2) / 2
     monthHeader = fmt.Sprintf("%s%s%s", strings.Repeat(" ", padding), monthHeader, strings.Repeat(" ", padding))
