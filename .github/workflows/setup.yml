@@ -116,8 +116,8 @@ jobs:
 
           [Code]
           const
-            HWND_BROADCAST_CUSTOM = &FFFF; 
-            WM_SETTINGCHANGE = &1A;
+            HWND_BROADCAST_CUSTOM = &HFFFF; 
+            WM_SETTINGCHANGE = &H1A;
 
           function SendMessageTimeoutA(hwnd: LongWord; msg: LongWord; wParam: LongWord;
                                       lParam: PAnsiChar; flags: LongWord;
