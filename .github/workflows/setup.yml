@@ -395,18 +395,18 @@ jobs:
           git commit -m "Add binaries and update latest.json for version v${{ steps.extract_version.outputs.version }}" || echo "No changes to commit"
           git push origin ${{ steps.define_branch.outputs.branch }}
 
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v3
-        with:
-          token: ${{ secrets.FORK_PAT }}
-          base: main
-          branch: ${{ steps.define_branch.outputs.branch }}
-          title: "Add binaries and update latest.json for version v${{ steps.extract_version.outputs.version }}"
-          body: |
-            This PR adds the binaries (zipped), the Windows installer, and updates the latest.json file for version v${{ steps.extract_version.outputs.version }}.
-          add-paths: "."
-          commit-message: "[create-pull-request] automated change"
-          committer: "GitHub <noreply@github.com>"
-          author: "theg1239 <theg1239@users.noreply.github.com>"
-          delete-branch: false
-          draft: false
+      # Authenticate with GitHub CLI using the PAT
+      - name: Authenticate GH CLI
+        run: |
+          echo "${{ secrets.FORK_PAT }}" | gh auth login --with-token
+
+      # Create Pull Request using GH CLI
+      - name: Create Pull Request via GH CLI
+        run: |
+          VERSION=${{ steps.extract_version.outputs.version }}
+          gh pr create \
+            --repo ${{ env.TARGET_REPO }} \
+            --base main \
+            --head theg1239:${{ steps.define_branch.outputs.branch }} \
+            --title "Add binaries and update latest.json for version v${VERSION}" \
+            --body "This PR adds the binaries (zipped), the Windows installer, and updates the latest.json file for version v${VERSION}."
