@@ -146,3 +146,8 @@ type CourseDetail struct {
 	Faculty     string
 	Slot        string
 }
+
+type ICSWithLocation struct {
+	Event ICSEvent `json:"EVENT"`
+	Time  string   `json:"TIME"`
+}
