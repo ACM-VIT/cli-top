@@ -182,8 +182,9 @@ jobs:
           Set-Content -Path installer.iss -Value $installerScript
 
       - name: Compile Installer
+        shell: pwsh
         run: |
-          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer.iss"
 
       - name: Upload Windows Executable
         uses: actions/upload-artifact@v3
@@ -283,10 +284,10 @@ jobs:
       - name: Create Version Directory
         run: |
           VERSION_DIR="${{ env.VERSION_DIR_PREFIX }}${{ steps.extract_version.outputs.version }}"
-          mkdir -p ${VERSION_DIR}/linux
-          mkdir -p ${VERSION_DIR}/windows
-          mkdir -p ${VERSION_DIR}/macos
-          mkdir -p ${VERSION_DIR}/android
+          mkdir -p "${VERSION_DIR}/linux"
+          mkdir -p "${VERSION_DIR}/windows"
+          mkdir -p "${VERSION_DIR}/macos"
+          mkdir -p "${VERSION_DIR}/android"
 
       - name: Download Linux Binary
         uses: actions/download-artifact@v3
