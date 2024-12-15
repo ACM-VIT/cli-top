@@ -8,7 +8,7 @@ on:
 
 env:
   TARGET_REPO: technical-director-acmvit/cli-top-website       # Original target repository
-  FORK_REPO: theg1239/cli-top-website                        # Your forked repository
+  FORK_REPO: theg1239/cli-top-website                          # Your forked repository
   VERSION_DIR_PREFIX: v
 
 jobs:
@@ -49,6 +49,7 @@ jobs:
         id: extract_version
         run: |
           VERSION=$(grep 'var Version string =' ./debug/debug.go | awk -F '"' '{print $2}')
+          # VERSION is expected to be something like v2.5.0
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
   build-windows:
@@ -88,7 +89,6 @@ jobs:
         id: extract_version
         shell: pwsh
         run: |
-          # Read the specific line containing the version
           $line = Get-Content -Path './debug/debug.go' | Select-String -Pattern 'var Version string ='
           if ($line -match 'var Version string = "(.*)"') {
               $version = $matches[1]
@@ -180,7 +180,6 @@ jobs:
           end;
           '@
 
-          # Ensure no BOM is added by using UTF8NoBOM encoding
           Set-Content -Path installer.iss -Value $installerScript -Encoding UTF8NoBOM
 
       - name: Show Inno Setup Script (Debugging)
@@ -288,7 +287,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: ${{ env.FORK_REPO }}
-          token: ${{ secrets.FORK_PAT }}    # Use the PAT for your fork
+          token: ${{ secrets.FORK_PAT }}
           path: target-repo
 
       - name: Verify Fork Repository Checkout
@@ -302,10 +301,7 @@ jobs:
       - name: Create Version Directory
         run: |
           VERSION_DIR="${{ env.VERSION_DIR_PREFIX }}${{ steps.extract_version.outputs.version }}"
-          mkdir -p "target-repo/${VERSION_DIR}/linux"
-          mkdir -p "target-repo/${VERSION_DIR}/windows"
-          mkdir -p "target-repo/${VERSION_DIR}/macos"
-          mkdir -p "target-repo/${VERSION_DIR}/android"
+          mkdir -p "target-repo/${VERSION_DIR}"
 
       - name: Download Linux Binary
         uses: actions/download-artifact@v3
@@ -341,37 +337,58 @@ jobs:
         run: |
           echo "Linux Binary:"
           ls -R ./linux
-          echo "Windows Executable:"
-          ls -R ./windows
-          echo "Windows Installer:"
+          echo "Windows Executable & Installer:"
           ls -R ./windows
           echo "MacOS Binary:"
           ls -R ./macos
           echo "Android Binary:"
           ls -R ./android
 
-      - name: Move Artifacts to Fork Repository
+      - name: Zip and Rename Artifacts
         run: |
-          VERSION_DIR="${{ env.VERSION_DIR_PREFIX }}${{ steps.extract_version.outputs.version }}"
-          mv linux/cli-top "target-repo/${VERSION_DIR}/linux/"
-          mv windows/cli-top.exe "target-repo/${VERSION_DIR}/windows/"
-          mv windows/cli-top-installer-${{ steps.extract_version.outputs.version }}.exe "target-repo/${VERSION_DIR}/windows/"
-          mv macos/cli-top "target-repo/${VERSION_DIR}/macos/"
-          mv android/cli-top "target-repo/${VERSION_DIR}/android/"
+          VERSION=${{ steps.extract_version.outputs.version }}
+          # Linux
+          mv linux/cli-top linux/cli-top-linux_v${VERSION}
+          zip linux/cli-top-linux_v${VERSION}.zip linux/cli-top-linux_v${VERSION}
+          rm linux/cli-top-linux_v${VERSION}
+
+          # Windows Executable
+          mv windows/cli-top.exe windows/cli-top-windows_v${VERSION}.exe
+          zip windows/cli-top-windows_v${VERSION}.zip windows/cli-top-windows_v${VERSION}.exe
+          rm windows/cli-top-windows_v${VERSION}.exe
+
+          # Windows Installer
+          mv windows/cli-top-installer-${VERSION}.exe windows/cli-top-windows-installer_v${VERSION}.exe
+          zip windows/cli-top-windows-installer_v${VERSION}.zip windows/cli-top-windows-installer_v${VERSION}.exe
+          rm windows/cli-top-windows-installer_v${VERSION}.exe
+
+          # MacOS
+          mv macos/cli-top macos/cli-top-macos_v${VERSION}
+          zip macos/cli-top-macos_v${VERSION}.zip macos/cli-top-macos_v${VERSION}
+          rm macos/cli-top-macos_v${VERSION}
+
+          # Android
+          mv android/cli-top android/cli-top-android_v${VERSION}
+          zip android/cli-top-android_v${VERSION}.zip android/cli-top-android_v${VERSION}
+          rm android/cli-top-android_v${VERSION}
+
+      - name: Move Zipped Artifacts to Fork Repository
+        run: |
+          VERSION=${{ steps.extract_version.outputs.version }}
+          VERSION_DIR="${{ env.VERSION_DIR_PREFIX }}${VERSION}"
+          mv linux/cli-top-linux_v${VERSION}.zip "target-repo/${VERSION_DIR}/"
+          mv windows/cli-top-windows_v${VERSION}.zip "target-repo/${VERSION_DIR}/"
+          mv windows/cli-top-windows-installer_v${VERSION}.zip "target-repo/${VERSION_DIR}/"
+          mv macos/cli-top-macos_v${VERSION}.zip "target-repo/${VERSION_DIR}/"
+          mv android/cli-top-android_v${VERSION}.zip "target-repo/${VERSION_DIR}/"
 
       - name: Update latest.json
         run: |
           cd target-repo
-          # Ensure jq is installed
           sudo apt-get update
           sudo apt-get install -y jq
-          
-          # Path to latest.json
           LATEST_JSON="latest.json"
-          
-          # Check if latest.json exists
           if [ -f "$LATEST_JSON" ]; then
-            # Update the version field
             jq --arg v "${{ steps.extract_version.outputs.version }}" '.version = $v' "$LATEST_JSON" > tmp.json && mv tmp.json "$LATEST_JSON"
           else
             echo "latest.json not found!"
@@ -393,11 +410,11 @@ jobs:
           git push origin ${{ steps.define_branch.outputs.branch }}
 
       - name: Create Pull Request from Fork to Target
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v11
         with:
           token: ${{ secrets.FORK_PAT }}
           repository: ${{ env.TARGET_REPO }}
           base: main
           head: theg1239:${{ steps.define_branch.outputs.branch }}
           title: "Add binaries and update latest.json for version v${{ steps.extract_version.outputs.version }}"
-          body: "This PR adds the binaries, Windows installer, and updates the latest.json file for version v${{ steps.extract_version.outputs.version }}."
+          body: "This PR adds the binaries (zipped), the Windows installer, and updates the latest.json file for version v${{ steps.extract_version.outputs.version }}."
