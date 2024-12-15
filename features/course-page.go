@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -16,12 +17,30 @@ import (
 	"strings"
 	"sync"
 	"time"
-
 	"github.com/PuerkitoBio/goquery"
 	"github.com/schollz/progressbar/v3"
 )
 
 var httpClient *http.Client
+
+func openFolder(path string) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("explorer", path)
+	case "darwin": // macOS
+		cmd = exec.Command("open", path)
+	case "linux":
+		cmd = exec.Command("xdg-open", path)
+	default:
+		fmt.Println("Unsupported platform. Open the folder manually:", path)
+		return
+	}
+	err := cmd.Start()
+	if err != nil {
+		fmt.Println("Error opening folder:", err)
+	}
+}
 
 func init() {
 	httpClient = &http.Client{
@@ -329,7 +348,7 @@ func selectFaculty(faculties []types.Faculty, facultyFlag string, fuzzyFlag int)
 		for _, faculty := range faculties {
 			cleanName := removeNumberPrefix(faculty.Name)
 			nestedList = append(nestedList, []string{
-				cleanName,
+				strings.TrimSpace(cleanName),
 				faculty.Slot,
 			})
 		}
@@ -392,7 +411,7 @@ func selectFaculty(faculties []types.Faculty, facultyFlag string, fuzzyFlag int)
 			}
 			if fuzzyFlag == 0 {
 				fmt.Println("\nMultiple matches found. Please select an index from the results below:")
-				fuzzyFlag = helpers.TableSelector("Faculty", facultyWithMultipleSlotList, 0)
+				fuzzyFlag = helpers.TableSelector("Faculty index", facultyWithMultipleSlotList, 0)
 			} else {
 				if fuzzyFlag < 1 || fuzzyFlag > len(reducedFacultyList) {
 					fmt.Println("Invalid selection. Please enter a valid index number.")
@@ -511,13 +530,12 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 }
 
 func displayCourseMaterials(materials []types.CourseMaterial) {
-	nestedList := [][]string{{"DATE", "DAY ORDER/SLOT", "TOPIC", "REF MATERIALS"}}
+	nestedList := [][]string{{"DATE", "TOPIC", "REF MATERIALS"}}
 	for _, material := range materials {
 		refCount := strconv.Itoa(len(material.ReferenceMaterials))
 		truncatedTopic := helpers.TruncateWithEllipsis(material.Topic, 30)
 		nestedList = append(nestedList, []string{
 			material.Date,
-			material.DayOrderSlot,
 			truncatedTopic,
 			refCount,
 		})
@@ -770,7 +788,7 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 	wg.Wait()
 	bar.Finish()
 	fmt.Println("\nSelected course materials downloaded successfully.")
-	fmt.Printf("\033[34m\033[4m\033]8;;file://%s\033\\%s\033]8;;\033\\\033[0m to open the folder.\n", fullDirPath, "Click Here")
+	openFolder(fullDirPath)
 	return nil
 }
 
@@ -794,8 +812,9 @@ func isSuccessfulDownload(body []byte) bool {
 }
 
 func clearSingleNewline() {
-	reader := bufio.NewReader(os.Stdin)
-	_, _ = reader.ReadByte()
+	if runtime.GOOS == "windows" {
+        exec.Command("cmd", "/C", "cls").Run()
+    }
 }
 
 func getOptimalConcurrency() int {
