@@ -85,9 +85,18 @@ jobs:
 
       - name: Extract Version for Installer
         id: extract_version
+        shell: pwsh
         run: |
-          VERSION=$(grep 'var Version string =' ./debug/debug.go | awk -F '"' '{print $2}')
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          # Read the specific line containing the version
+          $line = Get-Content -Path './debug/debug.go' | Select-String -Pattern 'var Version string ='
+          if ($line -match 'var Version string = "(.*)"') {
+              $version = $matches[1]
+              echo "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          }
+          else {
+              Write-Error "Version not found in debug.go"
+              exit 1
+          }
 
       - name: Create Inno Setup Script
         run: |
