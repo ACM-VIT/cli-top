@@ -116,8 +116,8 @@ jobs:
 
           [Code]
           const
-            HWND_BROADCAST_CUSTOM = $FFFF; 
-            WM_SETTINGCHANGE = $001A;
+            HWND_BROADCAST_CUSTOM = &FFFF; 
+            WM_SETTINGCHANGE = &001A;
 
           function SendMessageTimeoutA(hwnd: LongWord; msg: LongWord; wParam: LongWord;
                                       lParam: PAnsiChar; flags: LongWord;
@@ -136,7 +136,7 @@ jobs:
                  WM_SETTINGCHANGE,       
                  0,                      
                  PAnsiChar(EnvironmentStr), 
-                 $0002,                  
+                 &0002,                  
                  5000,                   
                  ResultValue             
                ) = 0 then
@@ -191,6 +191,15 @@ jobs:
         shell: pwsh
         run: |
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer.iss"
+
+      - name: Verify Installer Generation
+        shell: pwsh
+        run: |
+          if (!(Test-Path -Path "./cli-top-installer-${{ steps.extract_version.outputs.version }}.exe")) {
+              Write-Error "Installer file not found: ./cli-top-installer-${{ steps.extract_version.outputs.version }}.exe"
+              exit 1
+          }
+          Write-Host "Installer file exists: ./cli-top-installer-${{ steps.extract_version.outputs.version }}.exe"
 
       - name: Upload Windows Executable
         uses: actions/upload-artifact@v3
@@ -325,6 +334,19 @@ jobs:
         with:
           name: cli-top-android
           path: ./android
+
+      - name: List Downloaded Artifacts (Debugging)
+        run: |
+          echo "Linux Binary:"
+          ls -R ./linux
+          echo "Windows Executable:"
+          ls -R ./windows
+          echo "Windows Installer:"
+          ls -R ./windows
+          echo "MacOS Binary:"
+          ls -R ./macos
+          echo "Android Binary:"
+          ls -R ./android
 
       - name: Move Artifacts to Target Repository
         run: |
