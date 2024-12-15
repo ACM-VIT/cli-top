@@ -208,7 +208,6 @@ jobs:
           git commit -m "Add binaries for version v${{ steps.extract_version.outputs.version }}" || echo "No changes to commit"
 
       - name: Create Pull Request
-        working-directory: cli-top-website
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -217,3 +216,4 @@ jobs:
           body: "This PR adds the binaries for version v${{ steps.extract_version.outputs.version }}."
           base: main
           branch: "add-binaries-v${{ steps.extract_version.outputs.version }}"
+        working-directory: cli-top-website
