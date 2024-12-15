@@ -82,8 +82,7 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 	}
 
 	if len(examSchedule) == 0 {
-		fmt.Println("No exams scheduled in any semester.")
-		return
+		fmt.Println("No exams scheduled in this Semester. Printing previous one")
 	}
 
 	sortExamsByDateAsc(examSchedule)
