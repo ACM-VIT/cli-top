@@ -6,7 +6,6 @@ import (
 	"cli-top/helpers"
 	"cli-top/types"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -34,7 +33,7 @@ func GetReceipt(regNo string, cookies types.Cookies) {
 	// Initialize the nested list for receipts
 	var receipts [][]string
 	// Add the header row
-	receipts = append(receipts, []string{"SERIAL", "RECEIPT NUMBER", "DATE", "AMOUNT"})
+	receipts = append(receipts, []string{"RECEIPT NUMBER", "AMOUNT", "DATE"})
 
 	// Iterate through the table rows and extract data
 	doc.Find("table.table-bordered tbody tr").Each(func(i int, rowSelection *goquery.Selection) {
@@ -44,7 +43,6 @@ func GetReceipt(regNo string, cookies types.Cookies) {
 
 		// Extract data from each cell in the row
 		var row []string
-		row = append(row, strconv.Itoa(i)) // Add serial number
 		rowSelection.Find("td").Each(func(j int, cellSelection *goquery.Selection) {
 			if j < 4 { // Exclude the "VIEW" column
 				cellText := strings.TrimSpace(cellSelection.Text())
@@ -56,5 +54,5 @@ func GetReceipt(regNo string, cookies types.Cookies) {
 	})
 
 	// Print the table using the helpers.PrintTable function
-	helpers.PrintTable(receipts, 0)
+	helpers.PrintTable(receipts, 1)
 }
