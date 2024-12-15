@@ -418,3 +418,4 @@ jobs:
             last month
 
             cli-top-windows_v${{ steps.extract_version.outputs.version }}.zip
+
