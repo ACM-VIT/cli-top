@@ -291,8 +291,19 @@ jobs:
           token: ${{ secrets.FORK_PAT }}    # Use the PAT for your fork
           path: target-repo
 
-      - name: Verify Fork Repository Checkout
-        run: ls -R target-repo
+      - name: Verify Git Repository
+        run: |
+          cd target-repo
+          git remote -v
+          git branch
+
+      - name: Initialize Git Repository (Fallback)
+        run: |
+          cd target-repo
+          if [ ! -d ".git" ]; then
+            git init
+            git remote add origin https://github.com/${{ env.FORK_REPO }}.git
+          fi
 
       - name: Extract Version from Build
         id: extract_version
@@ -362,17 +373,8 @@ jobs:
       - name: Update latest.json
         run: |
           cd target-repo
-          # Ensure jq is installed
-          sudo apt-get update
-          sudo apt-get install -y jq
-          
-          # Path to latest.json
-          LATEST_JSON="latest.json"
-          
-          # Check if latest.json exists
-          if [ -f "$LATEST_JSON" ]; then
-            # Update the version field
-            jq --arg v "${{ steps.extract_version.outputs.version }}" '.version = $v' "$LATEST_JSON" > tmp.json && mv tmp.json "$LATEST_JSON"
+          if [ -f "latest.json" ]; then
+            jq --arg v "${{ steps.extract_version.outputs.version }}" '.version = $v' latest.json > tmp.json && mv tmp.json latest.json
           else
             echo "latest.json not found!"
             exit 1
