@@ -307,6 +307,9 @@ func generateCalendarLines(month string, colour []int) []string {
             lines[i] = fmt.Sprintf("%-*s", maxLength, lines[i])
         }
     }
+    if len(lines) == 8 {
+		lines = append(lines, strings.Repeat(" ", 21))
+	}
     return lines
 }
 
