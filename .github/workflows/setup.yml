@@ -155,8 +155,8 @@ jobs:
       - name: Checkout Target Repository
         uses: actions/checkout@v3
         with:
-          repository: technical-director-acmvit/cli-top-website
-          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ env.TARGET_REPO }}
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
       - name: Verify Target Repository Checkout
         run: ls -R
@@ -198,17 +198,36 @@ jobs:
           name: cli-top-android
           path: ./${{ env.VERSION_DIR_PREFIX }}${{ steps.extract_version.outputs.version }}/android
 
+      - name: Update latest.json
+        run: |
+          # Ensure jq is installed
+          sudo apt-get update
+          sudo apt-get install -y jq
+          
+          # Path to latest.json
+          LATEST_JSON="latest.json"
+          
+          # Check if latest.json exists
+          if [ -f "$LATEST_JSON" ]; then
+            # Update the version field
+            jq --arg v "${{ steps.extract_version.outputs.version }}" '.version = $v' "$LATEST_JSON" > tmp.json && mv tmp.json "$LATEST_JSON"
+          else
+            echo "latest.json not found!"
+            exit 1
+          fi
+
       - name: Commit and Push Changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .
           git commit -m "Add binaries for version v${{ steps.extract_version.outputs.version }}" || echo "No changes to commit"
+          git push origin HEAD:${{ github.head_ref }}
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           commit-message: "Add binaries for version v${{ steps.extract_version.outputs.version }}"
           title: "Add binaries for version v${{ steps.extract_version.outputs.version }}"
           body: "This PR adds the binaries for version v${{ steps.extract_version.outputs.version }}."
