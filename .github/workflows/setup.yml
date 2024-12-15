@@ -393,7 +393,7 @@ jobs:
           git push origin ${{ steps.define_branch.outputs.branch }}
 
       - name: Create Pull Request from Fork to Target
-        uses: peter-evans/create-pull-request@v5
+        uses: peter-evans/create-pull-request@v11
         with:
           token: ${{ secrets.FORK_PAT }}
           repository: ${{ env.TARGET_REPO }}
