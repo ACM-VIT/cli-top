@@ -399,7 +399,7 @@ func makeTT(schedule map[string]map[string][]string, courseMap map[string]types.
 }
 
 func makeISC(timetable map[string][]types.Class, semSection [][]int, startMonth int, startYear int) string {
-    icsContent := "BEGIN:VCALENDAR\nVERSION:2.0\nCALSCALE:GREGORIAN\n"
+	icsContent := "BEGIN:VCALENDAR\nVERSION:2.0\nCALSCALE:GREGORIAN\nX-WR-CALNAME:VIT timetable\n"
 	startMonth++
     // Get the first day of the start month
     startDate := time.Date(startYear, time.Month(startMonth), 1, 0, 0, 0, 0, time.UTC)
@@ -441,48 +441,6 @@ func makeISC(timetable map[string][]types.Class, semSection [][]int, startMonth 
     icsContent += "END:VCALENDAR"
     return icsContent
 }
-
-
-// for dayIndex := 0; dayIndex < len(semSection); dayIndex++ {
-// 	for weekIndex := 0; weekIndex < len(semSection[dayIndex]); weekIndex++ {
-// 		// Skip if marked as -1
-// 		if semSection[dayIndex][weekIndex] == -1 {
-// 			continue
-// 		}
-
-// 		// Get the day of week (Monday = 0, Sunday = 6)
-// 		currentDay := time.Weekday((dayIndex + 1) % 7)
-// 		currentDayStr := getDayName(currentDay)
-
-// 		// Calculate the actual date for this day
-// 		daysToAdd := weekIndex*7 + int(currentDay-startDate.Weekday())
-// 		eventDate := startDate.AddDate(0, 0, daysToAdd)
-
-// 		// Add events for this day
-// 		if classes, exists := timetable[currentDayStr]; exists {
-// 			for _, class := range classes {
-// 				startDateTime := fmt.Sprintf("%sT%s00", eventDate.Format("20060102"),
-// 					strings.ReplaceAll(class.StartTime, ":", ""))
-// 				endDateTime := fmt.Sprintf("%sT%s00", eventDate.Format("20060102"),
-// 					strings.ReplaceAll(class.EndTime, ":", ""))
-
-// 				icsContent += fmt.Sprintf("BEGIN:VEVENT\n"+
-// 					"SUMMARY:%s\n"+
-// 					"DTSTART;TZID=Asia/Kolkata:%s\n"+
-// 					"DTEND;TZID=Asia/Kolkata:%s\n"+
-// 					"LOCATION:%s\n"+
-// 					"DESCRIPTION:Slot: %s\n"+
-// 					"BEGIN:VALARM\n"+
-// 					"TRIGGER:-PT5M\n"+
-// 					"ACTION:DISPLAY\n"+
-// 					"END:VALARM\n"+
-// 					"END:VEVENT\n",
-// 					class.Subject, startDateTime, endDateTime,
-// 					class.Venue, class.Slot)
-// 			}
-// 		}
-// 	}
-// }
 
 func getDayName(day time.Weekday) string {
     switch day {
