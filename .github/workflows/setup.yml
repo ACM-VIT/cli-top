@@ -380,7 +380,7 @@ jobs:
 
       - name: Define Branch Name
         id: define_branch
-        run: echo "branch=add-binaries-v${{ steps.extract_version.outputs.version }}" >> $GITHUB_OUTPUT
+        run: echo "branch=add-binaries-v${{ steps.extract_version.outputs.version }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
 
       - name: Commit and Push Changes to Fork
         run: |
@@ -393,7 +393,7 @@ jobs:
           git push origin ${{ steps.define_branch.outputs.branch }}
 
       - name: Create Pull Request from Fork to Target
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v11
         with:
           token: ${{ secrets.FORK_PAT }}
           repository: ${{ env.TARGET_REPO }}
