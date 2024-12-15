@@ -122,7 +122,7 @@ jobs:
           function SendMessageTimeoutA(hwnd: LongWord; msg: LongWord; wParam: LongWord;
                                       lParam: PAnsiChar; flags: LongWord;
                                       uTimeout: LongWord; var lpdwResult: LongWord): LongWord;
-          external 'SendMessageTimeoutA@user32.dll stdcall';
+            external 'SendMessageTimeoutA@user32.dll stdcall';
 
           procedure RefreshEnvironment;
           var
@@ -179,7 +179,8 @@ jobs:
           end;
           '@
 
-          Set-Content -Path installer.iss -Value $installerScript
+          # Ensure no BOM is added by using UTF8NoBOM encoding
+          Set-Content -Path installer.iss -Value $installerScript -Encoding UTF8NoBOM
 
       - name: Show Inno Setup Script (Debugging)
         shell: pwsh
