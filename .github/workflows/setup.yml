@@ -112,7 +112,7 @@ jobs:
           PrivilegesRequired=lowest
 
           [Files]
-          Source: "build\windows\cli-top.exe"; DestDir: "{app}"; Flags: ignoreversion
+          Source: "build/windows/cli-top.exe"; DestDir: "{app}"; Flags: ignoreversion
 
           [Code]
           const
@@ -180,6 +180,12 @@ jobs:
           "@
 
           Set-Content -Path installer.iss -Value $installerScript
+
+      - name: Show Inno Setup Script (Debugging)
+        shell: pwsh
+        run: |
+          Write-Host "Generated installer.iss content:"
+          Get-Content installer.iss
 
       - name: Compile Installer
         shell: pwsh
@@ -272,9 +278,10 @@ jobs:
         with:
           repository: ${{ env.TARGET_REPO }}
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          path: target-repo
 
       - name: Verify Target Repository Checkout
-        run: ls -R
+        run: ls -R target-repo
 
       - name: Extract Version from Build
         id: extract_version
@@ -284,43 +291,53 @@ jobs:
       - name: Create Version Directory
         run: |
           VERSION_DIR="${{ env.VERSION_DIR_PREFIX }}${{ steps.extract_version.outputs.version }}"
-          mkdir -p "${VERSION_DIR}/linux"
-          mkdir -p "${VERSION_DIR}/windows"
-          mkdir -p "${VERSION_DIR}/macos"
-          mkdir -p "${VERSION_DIR}/android"
+          mkdir -p "target-repo/${VERSION_DIR}/linux"
+          mkdir -p "target-repo/${VERSION_DIR}/windows"
+          mkdir -p "target-repo/${VERSION_DIR}/macos"
+          mkdir -p "target-repo/${VERSION_DIR}/android"
 
       - name: Download Linux Binary
         uses: actions/download-artifact@v3
         with:
           name: cli-top-linux
-          path: ./${{ env.VERSION_DIR_PREFIX }}${{ steps.extract_version.outputs.version }}/linux
+          path: ./linux
 
       - name: Download Windows Executable
         uses: actions/download-artifact@v3
         with:
           name: cli-top-windows
-          path: ./${{ env.VERSION_DIR_PREFIX }}${{ steps.extract_version.outputs.version }}/windows
+          path: ./windows
 
       - name: Download Windows Installer
         uses: actions/download-artifact@v3
         with:
           name: cli-top-windows-installer
-          path: ./${{ env.VERSION_DIR_PREFIX }}${{ steps.extract_version.outputs.version }}/windows
+          path: ./windows
 
       - name: Download MacOS Binary
         uses: actions/download-artifact@v3
         with:
           name: cli-top-macos
-          path: ./${{ env.VERSION_DIR_PREFIX }}${{ steps.extract_version.outputs.version }}/macos
+          path: ./macos
 
       - name: Download Android Binary
         uses: actions/download-artifact@v3
         with:
           name: cli-top-android
-          path: ./${{ env.VERSION_DIR_PREFIX }}${{ steps.extract_version.outputs.version }}/android
+          path: ./android
+
+      - name: Move Artifacts to Target Repository
+        run: |
+          VERSION_DIR="${{ env.VERSION_DIR_PREFIX }}${{ steps.extract_version.outputs.version }}"
+          mv linux/cli-top "target-repo/${VERSION_DIR}/linux/"
+          mv windows/cli-top.exe "target-repo/${VERSION_DIR}/windows/"
+          mv windows/cli-top-installer-${{ steps.extract_version.outputs.version }}.exe "target-repo/${VERSION_DIR}/windows/"
+          mv macos/cli-top "target-repo/${VERSION_DIR}/macos/"
+          mv android/cli-top "target-repo/${VERSION_DIR}/android/"
 
       - name: Update latest.json
         run: |
+          cd target-repo
           # Ensure jq is installed
           sudo apt-get update
           sudo apt-get install -y jq
@@ -343,6 +360,7 @@ jobs:
 
       - name: Commit and Push Changes
         run: |
+          cd target-repo
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .
