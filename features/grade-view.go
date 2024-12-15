@@ -56,7 +56,7 @@ func findAndSaveGrade(doc *goquery.Document) {
 	}
 
 	headers := []string{
-		"S.NO.", "Course Code", "Course Title", "Course Type",
+		"Course Code", "Course Title", "Course Type",
 		"Credits", "Total", "Grading", "Grade",
 	}
 	gradesData = append(gradesData, headers)
@@ -75,7 +75,6 @@ func findAndSaveGrade(doc *goquery.Document) {
 		}
 
 		selectedRow := []string{
-			row[0],  // S.NO.
 			row[1],  // Course Code
 			row[2],  // Course Title
 			row[3],  // Course Type
@@ -85,20 +84,22 @@ func findAndSaveGrade(doc *goquery.Document) {
 			row[10], // Grade
 		}
 
-		grading := strings.ToUpper(strings.TrimSpace(selectedRow[6]))
+		grading := strings.ToUpper(strings.TrimSpace(selectedRow[5]))
 		switch grading {
 		case "AG":
-			selectedRow[6] = "Absolute"
+			selectedRow[5] = "Absolute"
 		case "RG":
-			selectedRow[6] = "Relative"
+			selectedRow[5] = "Relative"
 		}
 
-		courseType := strings.ToUpper(strings.TrimSpace(selectedRow[3]))
-		grade := strings.ToUpper(strings.TrimSpace(selectedRow[7]))
+		courseType := strings.ToUpper(strings.TrimSpace(selectedRow[2]))
+		grade := strings.ToUpper(strings.TrimSpace(selectedRow[6]))
 
 		if courseType == "ONLINE COURSE" || courseType == "PROJECT" || courseType == "EXTRA CURRICULAR ACTIVITY" {
 			for idx := range selectedRow {
-				selectedRow[idx] = fmt.Sprintf("\x1b[32m%s\x1b[0m", selectedRow[idx]) // Green
+				if selectedRow[0][0:4]!="CFOC" {
+					selectedRow[idx] = fmt.Sprintf("\x1b[32m%s\x1b[0m", selectedRow[idx]) // Green
+				}
 			}
 		} else {
 			if grade == "F" || grade == "N" {
@@ -113,7 +114,7 @@ func findAndSaveGrade(doc *goquery.Document) {
 
 	gradesData = filterEmptyRows(gradesData, len(headers))
 
-	helpers.PrintTable(gradesData, 0)
+	helpers.PrintTable(gradesData, 1)
 	fmt.Println()
 
 	doc.Find("span[style='font-size: 18px; font-weight: bold;']").Each(func(i int, s *goquery.Selection) {

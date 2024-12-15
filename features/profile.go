@@ -13,7 +13,7 @@ import (
 
 func fetchStudentDetails(cookies types.Cookies, regNo string) (types.StudentDetails, error) {
 	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-		return types.StudentDetails{}, fmt.Errorf("Please login using the cli-top login command.")
+		return types.StudentDetails{}, fmt.Errorf("please login using the cli-top login command")
 	}
 	url := "https://vtop.vit.ac.in/vtop/studentsRecord/StudentProfileAllView"
 	payload := fmt.Sprintf("verifyMenu=true&authorizedID=%s&_csrf=%s&nocache=%d", regNo, cookies.CSRF, time.Now().UnixNano())
