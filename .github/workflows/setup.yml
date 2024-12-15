@@ -7,8 +7,8 @@ on:
     branches: ["main", "release"]
 
 env:
-  TARGET_REPO: technical-director-acmvit/cli-top-website
-  FORK_REPO: theg1239/cli-top-website
+  TARGET_REPO: technical-director-acmvit/cli-top-website       # Original target repository
+  FORK_REPO: theg1239/cli-top-website                        # Your forked repository
   VERSION_DIR_PREFIX: v
 
 jobs:
@@ -39,20 +39,17 @@ jobs:
           mkdir -p build/linux
           go build -o build/linux/cli-top .
 
+      - name: Upload Linux Binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: cli-top-linux
+          path: ./build/linux/cli-top
+
       - name: Extract Version
         id: extract_version
         run: |
           VERSION=$(grep 'var Version string =' ./debug/debug.go | awk -F '"' '{print $2}')
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
-
-      - name: Zip Linux Binary
-        run: zip cli-top-linux_v${{ steps.extract_version.outputs.version }}.zip build/linux/cli-top
-
-      - name: Upload Linux Binary
-        uses: actions/upload-artifact@v3
-        with:
-          name: cli-top-linux
-          path: cli-top-linux_v${{ steps.extract_version.outputs.version }}.zip
 
   build-windows:
     name: Build Windows Executable and Installer
@@ -91,19 +88,20 @@ jobs:
         id: extract_version
         shell: pwsh
         run: |
+          # Read the specific line containing the version
           $line = Get-Content -Path './debug/debug.go' | Select-String -Pattern 'var Version string ='
           if ($line -match 'var Version string = "(.*)"') {
               $version = $matches[1]
               echo "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          } else {
+          }
+          else {
               Write-Error "Version not found in debug.go"
               exit 1
           }
 
       - name: Create Inno Setup Script
-        shell: pwsh
         run: |
-          $installerScript = @"
+          $installerScript = @'
           [Setup]
           AppName=CLI-TOP
           AppVersion=${{ steps.extract_version.outputs.version }}
@@ -119,7 +117,7 @@ jobs:
 
           [Code]
           const
-            HWND_BROADCAST_CUSTOM = $FFFF;
+            HWND_BROADCAST_CUSTOM = $FFFF; 
             WM_SETTINGCHANGE = $1A;
 
           function SendMessageTimeoutA(hwnd: LongWord; msg: LongWord; wParam: LongWord;
@@ -130,18 +128,18 @@ jobs:
           procedure RefreshEnvironment;
           var
             ResultValue: LongWord;
-            EnvironmentStr: AnsiString;
+            EnvironmentStr: AnsiString; 
           begin
             EnvironmentStr := 'Environment';
 
             if SendMessageTimeoutA(
-                 HWND_BROADCAST_CUSTOM,
-                 WM_SETTINGCHANGE,
-                 0,
-                 PAnsiChar(EnvironmentStr),
-                 $2,
-                 5000,
-                 ResultValue
+                 HWND_BROADCAST_CUSTOM,  
+                 WM_SETTINGCHANGE,       
+                 0,                      
+                 PAnsiChar(EnvironmentStr), 
+                 $2,                  
+                 5000,                   
+                 ResultValue             
                ) = 0 then
             begin
               MsgBox('Failed to refresh environment variables.', mbError, MB_OK);
@@ -154,7 +152,7 @@ jobs:
             RegKey: string;
           begin
             RegKey := 'Environment';
-
+            
             if not RegQueryStringValue(HKCU, RegKey, 'Path', Path) then
               Path := '';
 
@@ -163,7 +161,7 @@ jobs:
               if Path <> '' then
                 Path := Path + ';';
               Path := Path + ExpandConstant('{app}');
-
+              
               if not RegWriteStringValue(HKCU, RegKey, 'Path', Path) then
                 MsgBox('Failed to update PATH variable.', mbError, MB_OK);
             end;
@@ -176,11 +174,13 @@ jobs:
             if CurStep = ssPostInstall then
             begin
               UpdatePath;
-              MsgBox('CLI-TOP has been installed successfully. Please open a new Command Prompt window to use the CLI-TOP command.',
+              MsgBox('CLI-TOP has been installed successfully. Please open a new Command Prompt window to use the CLI-TOP command.', 
                      mbInformation, MB_OK);
             end;
           end;
-          "@
+          '@
+
+          # Ensure no BOM is added by using UTF8NoBOM encoding
           Set-Content -Path installer.iss -Value $installerScript -Encoding UTF8NoBOM
 
       - name: Show Inno Setup Script (Debugging)
@@ -203,15 +203,17 @@ jobs:
           }
           Write-Host "Installer file exists: ./Output/cli-top-installer-${{ steps.extract_version.outputs.version }}.exe"
 
-      - name: Zip Windows Binary
-        shell: pwsh
-        run: Compress-Archive -Path 'build/windows/cli-top.exe' -DestinationPath "cli-top-windows_v${{ steps.extract_version.outputs.version }}.zip"
-
       - name: Upload Windows Executable
         uses: actions/upload-artifact@v3
         with:
           name: cli-top-windows
-          path: cli-top-windows_v${{ steps.extract_version.outputs.version }}.zip
+          path: ./build/windows/cli-top.exe
+
+      - name: Upload Windows Installer
+        uses: actions/upload-artifact@v3
+        with:
+          name: cli-top-windows-installer
+          path: ./Output/cli-top-installer-${{ steps.extract_version.outputs.version }}.exe
 
   build-macos:
     name: Build MacOS Binary
@@ -239,20 +241,11 @@ jobs:
           GOOS=darwin GOARCH=amd64 go build -o build/macos/cli-top .
           chmod +x build/macos/cli-top
 
-      - name: Extract Version
-        id: extract_version
-        run: |
-          VERSION=$(grep 'var Version string =' ./debug/debug.go | awk -F '"' '{print $2}')
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-
-      - name: Zip MacOS Binary
-        run: zip cli-top-macos_v${{ steps.extract_version.outputs.version }}.zip build/macos/cli-top
-
       - name: Upload MacOS Binary
         uses: actions/upload-artifact@v3
         with:
           name: cli-top-macos
-          path: cli-top-macos_v${{ steps.extract_version.outputs.version }}.zip
+          path: ./build/macos/cli-top
 
   build-android:
     name: Build Android Binary
@@ -280,20 +273,11 @@ jobs:
           GOOS=linux GOARCH=arm64 go build -o build/android/cli-top .
           chmod +x build/android/cli-top
 
-      - name: Extract Version
-        id: extract_version
-        run: |
-          VERSION=$(grep 'var Version string =' ./debug/debug.go | awk -F '"' '{print $2}')
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-
-      - name: Zip Android Binary
-        run: zip cli-top-android_v${{ steps.extract_version.outputs.version }}.zip build/android/cli-top
-
       - name: Upload Android Binary
         uses: actions/upload-artifact@v3
         with:
           name: cli-top-android
-          path: cli-top-android_v${{ steps.extract_version.outputs.version }}.zip
+          path: ./build/android/cli-top
 
   deploy:
     name: Deploy Binaries
@@ -304,27 +288,11 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: ${{ env.FORK_REPO }}
-          token: ${{ secrets.FORK_PAT }}
+          token: ${{ secrets.FORK_PAT }}    # Use the PAT for your fork
           path: target-repo
 
-      - name: Debug Repository Directory
-        run: |
-          echo "Contents of the target-repo directory:"
-          ls -la target-repo
-          if [ ! -d "target-repo/.git" ]; then
-            echo "No Git repository detected in target-repo. Initializing..."
-            cd target-repo
-            git init
-            git remote add origin https://github.com/${{ env.FORK_REPO }}.git
-            git fetch origin
-            git checkout -b main || git checkout -b default_branch
-          fi
-
-      - name: Verify Git Configuration
-        run: |
-          cd target-repo
-          git remote -v
-          git branch
+      - name: Verify Fork Repository Checkout
+        run: ls -R target-repo
 
       - name: Extract Version from Build
         id: extract_version
@@ -334,45 +302,77 @@ jobs:
       - name: Create Version Directory
         run: |
           VERSION_DIR="${{ env.VERSION_DIR_PREFIX }}${{ steps.extract_version.outputs.version }}"
-          mkdir -p "target-repo/${VERSION_DIR}"
+          mkdir -p "target-repo/${VERSION_DIR}/linux"
+          mkdir -p "target-repo/${VERSION_DIR}/windows"
+          mkdir -p "target-repo/${VERSION_DIR}/macos"
+          mkdir -p "target-repo/${VERSION_DIR}/android"
 
-      - name: Download Linux Artifact
+      - name: Download Linux Binary
         uses: actions/download-artifact@v3
         with:
           name: cli-top-linux
-          path: ./artifacts
+          path: ./linux
 
-      - name: Download Windows Artifact
+      - name: Download Windows Executable
         uses: actions/download-artifact@v3
         with:
           name: cli-top-windows
-          path: ./artifacts
+          path: ./windows
 
-      - name: Download MacOS Artifact
+      - name: Download Windows Installer
+        uses: actions/download-artifact@v3
+        with:
+          name: cli-top-windows-installer
+          path: ./windows
+
+      - name: Download MacOS Binary
         uses: actions/download-artifact@v3
         with:
           name: cli-top-macos
-          path: ./artifacts
+          path: ./macos
 
-      - name: Download Android Artifact
+      - name: Download Android Binary
         uses: actions/download-artifact@v3
         with:
           name: cli-top-android
-          path: ./artifacts
+          path: ./android
+
+      - name: List Downloaded Artifacts (Debugging)
+        run: |
+          echo "Linux Binary:"
+          ls -R ./linux
+          echo "Windows Executable:"
+          ls -R ./windows
+          echo "Windows Installer:"
+          ls -R ./windows
+          echo "MacOS Binary:"
+          ls -R ./macos
+          echo "Android Binary:"
+          ls -R ./android
 
       - name: Move Artifacts to Fork Repository
         run: |
           VERSION_DIR="${{ env.VERSION_DIR_PREFIX }}${{ steps.extract_version.outputs.version }}"
-          mv artifacts/cli-top-linux_v${{ steps.extract_version.outputs.version }}.zip "target-repo/${VERSION_DIR}/"
-          mv artifacts/cli-top-windows_v${{ steps.extract_version.outputs.version }}.zip "target-repo/${VERSION_DIR}/"
-          mv artifacts/cli-top-macos_v${{ steps.extract_version.outputs.version }}.zip "target-repo/${VERSION_DIR}/"
-          mv artifacts/cli-top-android_v${{ steps.extract_version.outputs.version }}.zip "target-repo/${VERSION_DIR}/"
+          mv linux/cli-top "target-repo/${VERSION_DIR}/linux/"
+          mv windows/cli-top.exe "target-repo/${VERSION_DIR}/windows/"
+          mv windows/cli-top-installer-${{ steps.extract_version.outputs.version }}.exe "target-repo/${VERSION_DIR}/windows/"
+          mv macos/cli-top "target-repo/${VERSION_DIR}/macos/"
+          mv android/cli-top "target-repo/${VERSION_DIR}/android/"
 
       - name: Update latest.json
         run: |
           cd target-repo
-          if [ -f "latest.json" ]; then
-            jq --arg v "${{ steps.extract_version.outputs.version }}" '.version = $v' latest.json > tmp.json && mv tmp.json latest.json
+          # Ensure jq is installed
+          sudo apt-get update
+          sudo apt-get install -y jq
+          
+          # Path to latest.json
+          LATEST_JSON="latest.json"
+          
+          # Check if latest.json exists
+          if [ -f "$LATEST_JSON" ]; then
+            # Update the version field
+            jq --arg v "${{ steps.extract_version.outputs.version }}" '.version = $v' "$LATEST_JSON" > tmp.json && mv tmp.json "$LATEST_JSON"
           else
             echo "latest.json not found!"
             exit 1
@@ -389,30 +389,15 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b ${{ steps.define_branch.outputs.branch }}
           git add .
-          git commit -m "feat:v${{ steps.extract_version.outputs.version }} release" || echo "No changes to commit"
+          git commit -m "Add binaries and update latest.json for version v${{ steps.extract_version.outputs.version }}" || echo "No changes to commit"
           git push origin ${{ steps.define_branch.outputs.branch }}
 
       - name: Create Pull Request from Fork to Target
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.FORK_PAT }}
-          branch: ${{ steps.define_branch.outputs.branch }}
-          commit-message: "feat:v${{ steps.extract_version.outputs.version }} release"
-          title: "feat:v${{ steps.extract_version.outputs.version }} release"
-          body: |
-            This PR adds the binaries and updates the latest.json file for version v${{ steps.extract_version.outputs.version }}.
-
-            cli-top-android_v${{ steps.extract_version.outputs.version }}.zip
-            feat:v${{ steps.extract_version.outputs.version }} release
-            last month
-
-            cli-top-linux_v${{ steps.extract_version.outputs.version }}.zip
-            feat:v${{ steps.extract_version.outputs.version }} release
-            last month
-
-            cli-top-macos_v${{ steps.extract_version.outputs.version }}.zip
-            feat:v${{ steps.extract_version.outputs.version }} release
-            last month
-
-            cli-top-windows_v${{ steps.extract_version.outputs.version }}.zip
-
+          repository: ${{ env.TARGET_REPO }}
+          base: main
+          head: theg1239:${{ steps.define_branch.outputs.branch }}
+          title: "Add binaries and update latest.json for version v${{ steps.extract_version.outputs.version }}"
+          body: "This PR adds the binaries, Windows installer, and updates the latest.json file for version v${{ steps.extract_version.outputs.version }}."
