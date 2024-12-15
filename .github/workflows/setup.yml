@@ -180,7 +180,7 @@ jobs:
                      mbInformation, MB_OK);
             end;
           end;
-"@
+          "@
           Set-Content -Path installer.iss -Value $installerScript -Encoding UTF8NoBOM
 
       - name: Show Inno Setup Script (Debugging)
