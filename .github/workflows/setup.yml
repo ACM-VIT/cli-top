@@ -396,8 +396,7 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.FORK_PAT }}
-          repository: ${{ env.TARGET_REPO }}
-          base: main
-          head: theg1239:${{ steps.define_branch.outputs.branch }}
+          branch: ${{ steps.define_branch.outputs.branch }}
+          commit-message: "Add binaries and update latest.json for version v${{ steps.extract_version.outputs.version }}"
           title: "Add binaries and update latest.json for version v${{ steps.extract_version.outputs.version }}"
           body: "This PR adds the binaries, Windows installer, and updates the latest.json file for version v${{ steps.extract_version.outputs.version }}."
