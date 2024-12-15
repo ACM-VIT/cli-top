@@ -116,8 +116,8 @@ jobs:
 
           [Code]
           const
-            HWND_BROADCAST_CUSTOM = &HFFFF; 
-            WM_SETTINGCHANGE = &H1A;
+            HWND_BROADCAST_CUSTOM = $FFFF; 
+            WM_SETTINGCHANGE = $1A;
 
           function SendMessageTimeoutA(hwnd: LongWord; msg: LongWord; wParam: LongWord;
                                       lParam: PAnsiChar; flags: LongWord;
@@ -136,7 +136,7 @@ jobs:
                  WM_SETTINGCHANGE,       
                  0,                      
                  PAnsiChar(EnvironmentStr), 
-                 &H2,                  
+                 $2,                  
                  5000,                   
                  ResultValue             
                ) = 0 then
@@ -196,11 +196,11 @@ jobs:
       - name: Verify Installer Generation
         shell: pwsh
         run: |
-          if (!(Test-Path -Path "./cli-top-installer-${{ steps.extract_version.outputs.version }}.exe")) {
-              Write-Error "Installer file not found: ./cli-top-installer-${{ steps.extract_version.outputs.version }}.exe"
+          if (!(Test-Path -Path "./Output/cli-top-installer-${{ steps.extract_version.outputs.version }}.exe")) {
+              Write-Error "Installer file not found: ./Output/cli-top-installer-${{ steps.extract_version.outputs.version }}.exe"
               exit 1
           }
-          Write-Host "Installer file exists: ./cli-top-installer-${{ steps.extract_version.outputs.version }}.exe"
+          Write-Host "Installer file exists: ./Output/cli-top-installer-${{ steps.extract_version.outputs.version }}.exe"
 
       - name: Upload Windows Executable
         uses: actions/upload-artifact@v3
@@ -212,7 +212,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: cli-top-windows-installer
-          path: ./cli-top-installer-${{ steps.extract_version.outputs.version }}.exe
+          path: ./Output/cli-top-installer-${{ steps.extract_version.outputs.version }}.exe
 
   build-macos:
     name: Build MacOS Binary
