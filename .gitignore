@@ -19,6 +19,8 @@ output_image.jpg
 
 # Ignore Binary
 cli-top*
+*.exe
 
+# Calendar files
 *.ics
 /.vs
