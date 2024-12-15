@@ -180,7 +180,8 @@ jobs:
 
       - name: Compile Installer
         shell: pwsh
-        run: "& 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' 'installer.iss'"
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer.iss"
 
       - name: Verify Installer Generation
         shell: pwsh
