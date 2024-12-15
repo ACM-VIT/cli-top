@@ -356,7 +356,6 @@ func GetTimeTable(regNo string, cookies types.Cookies, semId string, sem_choice 
 	grp_list := getClassGroups(regNo, cookies, semester)
     datelist := getDateList(regNo, cookies, semester, grp_list[1][1])
 	semSec,month,year :=processDates(regNo, cookies, semester, grp_list[1][1], datelist, 0)
-	// Making a map, that maps the courseCode to the courseName
 	courseMap := getCourseName(doc)
 	timetable := makeTT(schedule,courseMap)
 	printTT(timetable)
