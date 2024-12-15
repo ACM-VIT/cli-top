@@ -89,7 +89,7 @@ func GetMarks(regNo string, cookies types.Cookies, semID string, semChoice int) 
 
 		weightageMarkStr := fmt.Sprintf("\033[32m%.2f\033[0m", weightageMark)
 		maxMarkSumStr := fmt.Sprintf("\033[32m%d\033[0m", maxMarkSum)
-		fmt.Printf("%s/%s\n\n", weightageMarkStr, maxMarkSumStr)
+		fmt.Printf("\n%s/%s\n\n", weightageMarkStr, maxMarkSumStr)
 	}
 
 	doc.Find("span[style='font-size: 18px; font-weight: bold;']").Each(func(i int, s *goquery.Selection) {
