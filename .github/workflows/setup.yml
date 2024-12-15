@@ -209,7 +209,6 @@ jobs:
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
-        working-directory: cli-top-website
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "Add binaries for version v${{ steps.extract_version.outputs.version }}"
