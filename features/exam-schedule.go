@@ -82,8 +82,7 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 	}
 
 	if len(examSchedule) == 0 {
-		fmt.Println("No exams scheduled in any semester.")
-		return
+		fmt.Println("No exams scheduled in this Semester. Printing previous one")
 	}
 
 	sortExamsByDateAsc(examSchedule)
@@ -102,20 +101,57 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 
 	displayExamScheduleTable(upcomingExams)
 
-	var icsEvents []types.ICSEvent
+	var icsEvents []types.ICSWithLocation
 	for _, exam := range upcomingExams {
-		startDate := exam.ExamDate.Format("20060102")
-		endDate := exam.ExamDate.AddDate(0, 0, 1).Format("20060102")
 
-		event := types.ICSEvent{
-			UID:     helpers.GenerateUID("Exam"),
-			DtStamp: time.Now().UTC().Format("20060102T150405Z"),
-			DtStart: startDate,
-			DtEnd:   endDate,
-			Summary: fmt.Sprintf("Exam: %s - %s", exam.Slot, exam.CourseTitle),
-			Description: fmt.Sprintf("Exam for %s (%s) scheduled on %s at %s.",
-				exam.CourseTitle, exam.CourseCode, exam.ExamDate.Format("02-Jan-2006"), exam.Venue),
+		timeRange := strings.Split(exam.ExamTime, " - ")
+		if len(timeRange) != 2 {
+			fmt.Println("Invalid time range format")
+			continue
 		}
+
+		inputTimeLayout := "3:04 PM"
+		outputTimeLayout := "20060102T150405"
+
+		startTime, err1 := time.Parse(inputTimeLayout, timeRange[0])
+		endTime, err2 := time.Parse(inputTimeLayout, timeRange[1])
+
+		if err1 != nil || err2 != nil {
+			fmt.Println("Error parsing time range:", err1, err2)
+			continue
+		}
+
+		examDate := exam.ExamDate
+		location := examDate.Location()
+
+		startDateTime := time.Date(
+			examDate.Year(), examDate.Month(), examDate.Day(),
+			startTime.Hour(), startTime.Minute(), startTime.Second(), 0, location,
+		)
+		endDateTime := time.Date(
+			examDate.Year(), examDate.Month(), examDate.Day(),
+			endTime.Hour(), endTime.Minute(), endTime.Second(), 0, location,
+		)
+
+		startFormatted := fmt.Sprintf("TZID=Asia/Kolkata:%s", startDateTime.Format(outputTimeLayout))
+		endFormatted := fmt.Sprintf("TZID=Asia/Kolkata:%s", endDateTime.Format(outputTimeLayout))
+
+		eventwithoutlocation := types.ICSEvent{
+			UID:     helpers.GenerateUID("Exam"),
+			DtStamp: time.Now().UTC().Format(outputTimeLayout + "Z"), // DtStamp in UTC
+			DtStart: startFormatted,
+			DtEnd:   endFormatted,
+			Summary: fmt.Sprintf("Exam: %s - %s", exam.Slot, exam.CourseTitle),
+			Description: fmt.Sprintf("Exam for %s (%s) scheduled on %s at %s. Seat Number: %s.",
+				exam.CourseTitle, exam.CourseCode, exam.ExamDate.Format("02-Jan-2006"), exam.Venue, exam.SeatNo),
+		}
+
+		event := types.ICSWithLocation{
+			Event: eventwithoutlocation,
+			Time:  fmt.Sprintf("%s - %s", startFormatted, endFormatted), // Include both start and end
+		}
+
+		fmt.Println(event)
 
 		icsEvents = append(icsEvents, event)
 	}
@@ -123,7 +159,7 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 	icsFileName := "Exam_Schedule.ics"
 	icsFilePath := filepath.Join(helpers.GetDownloadsDir(), icsFileName)
 
-	err = helpers.GenerateICSFileDateOnly(icsEvents, icsFilePath, "CLI-TOP Exams")
+	err = helpers.VenueAdd(icsEvents, icsFilePath, "CLI-TOP Exams")
 	if err != nil {
 		fmt.Println("Error generating ICS file:", err)
 	} else {
@@ -264,7 +300,6 @@ func displayExamScheduleTable(exams []types.ExamEvent) {
 			daysLeftColored,
 		})
 	}
-
 	if len(tableData) == 1 {
 		fmt.Println("No upcoming exams scheduled!")
 	} else {
