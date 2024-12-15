@@ -51,7 +51,7 @@ jobs:
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
   build-windows:
-    name: Build Windows Executable
+    name: Build Windows Executable and Installer
     runs-on: windows-latest
     steps:
       - name: Checkout Repository
@@ -77,11 +77,116 @@ jobs:
           $env:GOARCH = "amd64"
           go build -o build\windows\cli-top.exe .
 
+      - name: Install Inno Setup
+        run: |
+          Invoke-WebRequest -Uri https://jrsoftware.org/download.php/is.exe -OutFile is.exe
+          Start-Process -FilePath is.exe -Args '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /LOG="install.log"' -Wait
+          Remove-Item is.exe -Force
+
+      - name: Extract Version for Installer
+        id: extract_version
+        run: |
+          VERSION=$(grep 'var Version string =' ./debug/debug.go | awk -F '"' '{print $2}')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Create Inno Setup Script
+        run: |
+          $installerScript = @"
+          [Setup]
+          AppName=CLI-TOP
+          AppVersion=${{ steps.extract_version.outputs.version }}
+          DefaultDirName={localappdata}\CLI-TOP
+          DefaultGroupName=CLI-TOP
+          OutputBaseFilename=cli-top-installer-${{ steps.extract_version.outputs.version }}
+          Compression=lzma
+          SolidCompression=yes
+          PrivilegesRequired=lowest
+
+          [Files]
+          Source: "build\windows\cli-top.exe"; DestDir: "{app}"; Flags: ignoreversion
+
+          [Code]
+          const
+            HWND_BROADCAST_CUSTOM = $FFFF; 
+            WM_SETTINGCHANGE = $001A;
+
+          function SendMessageTimeoutA(hwnd: LongWord; msg: LongWord; wParam: LongWord;
+                                      lParam: PAnsiChar; flags: LongWord;
+                                      uTimeout: LongWord; var lpdwResult: LongWord): LongWord;
+            external 'SendMessageTimeoutA@user32.dll stdcall';
+
+          procedure RefreshEnvironment;
+          var
+            ResultValue: LongWord;
+            EnvironmentStr: AnsiString; 
+          begin
+            EnvironmentStr := 'Environment';
+
+            if SendMessageTimeoutA(
+                 HWND_BROADCAST_CUSTOM,  
+                 WM_SETTINGCHANGE,       
+                 0,                      
+                 PAnsiChar(EnvironmentStr), 
+                 $0002,                  
+                 5000,                   
+                 ResultValue             
+               ) = 0 then
+            begin
+              MsgBox('Failed to refresh environment variables.', mbError, MB_OK);
+            end;
+          end;
+
+          procedure UpdatePath;
+          var
+            Path: string;
+            RegKey: string;
+          begin
+            RegKey := 'Environment';
+            
+            if not RegQueryStringValue(HKCU, RegKey, 'Path', Path) then
+              Path := '';
+
+            if Pos(ExpandConstant('{app}'), Path) = 0 then
+            begin
+              if Path <> '' then
+                Path := Path + ';';
+              Path := Path + ExpandConstant('{app}');
+              
+              if not RegWriteStringValue(HKCU, RegKey, 'Path', Path) then
+                MsgBox('Failed to update PATH variable.', mbError, MB_OK);
+            end;
+
+            RefreshEnvironment;
+          end;
+
+          procedure CurStepChanged(CurStep: TSetupStep);
+          begin
+            if CurStep = ssPostInstall then
+            begin
+              UpdatePath;
+              MsgBox('CLI-TOP has been installed successfully. Please open a new Command Prompt window to use the CLI-TOP command.', 
+                     mbInformation, MB_OK);
+            end;
+          end;
+          "@
+
+          Set-Content -Path installer.iss -Value $installerScript
+
+      - name: Compile Installer
+        run: |
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+
       - name: Upload Windows Executable
         uses: actions/upload-artifact@v3
         with:
           name: cli-top-windows
           path: ./build/windows/cli-top.exe
+
+      - name: Upload Windows Installer
+        uses: actions/upload-artifact@v3
+        with:
+          name: cli-top-windows-installer
+          path: ./cli-top-installer-${{ steps.extract_version.outputs.version }}.exe
 
   build-macos:
     name: Build MacOS Binary
@@ -186,6 +291,12 @@ jobs:
           name: cli-top-windows
           path: ./${{ env.VERSION_DIR_PREFIX }}${{ steps.extract_version.outputs.version }}/windows
 
+      - name: Download Windows Installer
+        uses: actions/download-artifact@v3
+        with:
+          name: cli-top-windows-installer
+          path: ./${{ env.VERSION_DIR_PREFIX }}${{ steps.extract_version.outputs.version }}/windows
+
       - name: Download MacOS Binary
         uses: actions/download-artifact@v3
         with:
@@ -216,20 +327,24 @@ jobs:
             exit 1
           fi
 
+      - name: Define Branch Name
+        id: define_branch
+        run: echo "branch=add-binaries-v${{ steps.extract_version.outputs.version }}" >> $GITHUB_OUTPUT
+
       - name: Commit and Push Changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .
-          git commit -m "Add binaries for version v${{ steps.extract_version.outputs.version }}" || echo "No changes to commit"
-          git push origin HEAD:${{ github.head_ref }}
+          git commit -m "Add binaries and update latest.json for version v${{ steps.extract_version.outputs.version }}" || echo "No changes to commit"
+          git push origin HEAD:${{ steps.define_branch.outputs.branch }}
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          commit-message: "Add binaries for version v${{ steps.extract_version.outputs.version }}"
-          title: "Add binaries for version v${{ steps.extract_version.outputs.version }}"
-          body: "This PR adds the binaries for version v${{ steps.extract_version.outputs.version }}."
+          commit-message: "Add binaries and update latest.json for version v${{ steps.extract_version.outputs.version }}"
+          title: "Add binaries and update latest.json for version v${{ steps.extract_version.outputs.version }}"
+          body: "This PR adds the binaries, Windows installer, and updates the latest.json file for version v${{ steps.extract_version.outputs.version }}."
           base: main
-          branch: "add-binaries-v${{ steps.extract_version.outputs.version }}"
+          branch: ${{ steps.define_branch.outputs.branch }}
