@@ -127,7 +127,7 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag
 		return
 	}
 
-	err = downloadMaterialsIndividually(regNo, cookies, selectedCourse, selectedFaculty, materials, selectedMaterials, selectedSemester)
+	err = downloadMaterialsIndividually(regNo, cookies, selectedCourse, selectedFaculty, materials, selectedMaterials)
 	if err != nil {
 		fmt.Println("Error downloading materials:", err)
 		return
@@ -379,13 +379,12 @@ func selectFaculty(faculties []types.Faculty, facultyFlag string, fuzzyFlag int)
 					fmt.Printf("Invalid number. Please enter a number between 1 and %d.\n\n", len(faculties))
 					continue
 				}
-				facultyFlag = ""
 			}
 		}
 		fmt.Printf("%s \n", facultyFlag)
 		selectedIndices := helpers.NewFuzzySearch(nestedList, facultyFlag)
 		if len(selectedIndices) == 0 {
-			fmt.Println("No matching faculty found for your query. Please try again.\n")
+			fmt.Println("No matching faculty found for your query. Please try again.")
 			facultyFlag = ""
 			continue
 		} else if len(selectedIndices) == 1 {
@@ -406,7 +405,7 @@ func selectFaculty(faculties []types.Faculty, facultyFlag string, fuzzyFlag int)
 				reducedFacultyList = append(reducedFacultyList, faculties[index-1])
 			}
 			if len(reducedFacultyList) == 0 {
-				fmt.Println("No valid faculties found in the selected indices.\n")
+				fmt.Println("No valid faculties found in the selected indices.")
 				continue
 			}
 			if fuzzyFlag == 0 {
@@ -620,7 +619,7 @@ func parseIndices(input string, max int) ([]int, []string) {
 	return uniqueIndices, invalid
 }
 
-func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selectedCourse types.Course, selectedFaculty types.Faculty, allMaterials []types.CourseMaterial, selectedMaterials []types.CourseMaterial, selectedSemester types.Semester) error {
+func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selectedCourse types.Course, selectedFaculty types.Faculty, allMaterials []types.CourseMaterial, selectedMaterials []types.CourseMaterial) error {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return err
@@ -817,13 +816,13 @@ func clearSingleNewline() {
     }
 }
 
-func getOptimalConcurrency() int {
-	numCPU := runtime.NumCPU()
-	if runtime.GOOS == "linux" {
-		return numCPU * 2
-	}
-	return numCPU
-}
+// func getOptimalConcurrency() int {
+// 	numCPU := runtime.NumCPU()
+// 	if runtime.GOOS == "linux" {
+// 		return numCPU * 2
+// 	}
+// 	return numCPU
+// }
 
 func getOptimizedConcurrency() int {
 	return 4
