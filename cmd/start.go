@@ -151,18 +151,19 @@ func trackCommand(command string) {
 
 func startfn() {
 	red := color.New(color.FgRed)
-	pink := color.New(color.FgHiMagenta)
-	//blue := color.New(color.FgBlue)
+	blue := color.New(color.FgBlue)
 
 	contentStr := logo()
-	ctlen := len(contentStr)
-	mid := (ctlen / 2)
-
-	fhlf := contentStr[:mid]
-	sndhlf := contentStr[mid:]
-
-	pink.Print(fhlf)
-	pink.Println(sndhlf)
+	for _, char := range contentStr {
+		switch char {
+		// Dripping elements (blue)
+		case '█', '▀', '▄', '▓':
+			red.Print(string(char))
+		// Regular characters (red)
+		default:
+			blue.Print(string(char))
+		}
+	}
 	red.Println("Welcome to CLI-TOP!\n ")
 	red.Println("Use \"cli-top help\" or \"cli-top --list\" to show available commands\nUse \"cli-top [command] --help\" for more information about a command.\n ")
 	fileName := "cli-top-config.env"
