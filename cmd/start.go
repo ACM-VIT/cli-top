@@ -149,20 +149,23 @@ func trackCommand(command string) {
 	}
 }
 
-func startfn(cmd *cobra.Command, args []string) {
-	red := color.New(color.FgRed)
-	blue := color.New(color.FgBlue)
+func startfn() {
+	red := color.New(color.FgHiRed)
+	//blue := color.New(color.FgHiBlue)
+	pink := color.New(color.FgHiMagenta)
 
 	contentStr := logo()
-	ctlen := len(contentStr)
-	mid := (ctlen / 2)
-
-	fhlf := contentStr[:mid]
-	sndhlf := contentStr[mid:]
-
-	red.Print(fhlf)
-	blue.Println(sndhlf)
-	red.Println("Welcome to CLI-TOP!\n ")
+	for _, char := range contentStr {
+		switch char {
+		// Dripping elements (blue)
+		case '█', '▀', '▄', '▓':
+			pink.Print(string(char))
+		// Regular characters (red)
+		default:
+			pink.Print(string(char))
+		}
+	}
+	red.Println("\nWelcome to CLI-TOP!\n ")
 	red.Println("Use \"cli-top help\" or \"cli-top --list\" to show available commands\nUse \"cli-top [command] --help\" for more information about a command.\n ")
 	fileName := "cli-top-config.env"
 
@@ -299,24 +302,24 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
-		startfn(cmd, args)
+		startfn()
 	},
 }
 
 func init() {
 	rootCmd.SetUsageTemplate(`Usage:
-      {{.CommandPath}} [global flags] <subcommand> [subcommand flags] [arguments]
+  {{.CommandPath}} [global flags] <subcommand> [subcommand flags] [arguments]
+{{if .HasAvailableLocalFlags}}
 
-    Global Flags:
-    {{.PersistentFlags.FlagUsages | trimTrailingWhitespaces}}
+Global Flags:
+{{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}
+{{if .HasAvailableSubCommands}}
 
-    {{if .HasAvailableSubCommands}}
-    Available Subcommands:
-    {{range .Commands}}{{if (and .IsAvailableCommand (not .Hidden))}}
-      {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}
+Available Subcommands:{{range .Commands}}{{if (and .IsAvailableCommand (not .Hidden))}}
+  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}
 
-    Use "{{.CommandPath}} <subcommand> --help" for more information about a subcommand.
-    `)
+Use "{{.CommandPath}} <subcommand> --help" for more information about a subcommand.
+`)
 }
 
 func Execute() {
@@ -339,7 +342,6 @@ func Execute() {
 	// Define flags for subcommands
 	marksCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	gradesCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
-	attendanceCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	timeTableCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	examScheduleCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	calendarCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
@@ -348,12 +350,12 @@ func Execute() {
 	coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
 	coursePageCmd.PersistentFlags().StringVarP(&facultyFlag, "faculty", "f", "", "Specify the faculty")
 	coursePageCmd.PersistentFlags().IntVarP(&fuzzyIndexFlag, "fuzzy-index", "i", 0, "Specify the fuzzy index")
-	daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
+	//daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
 
 	// Define global flags
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
-	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
+	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
 
 	// Add subcommands to root command
 	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd)
