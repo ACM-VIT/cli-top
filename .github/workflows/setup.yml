@@ -100,7 +100,7 @@ jobs:
 
       - name: Create Inno Setup Script
         run: |
-          $installerScript = @"
+          $installerScript = @'
           [Setup]
           AppName=CLI-TOP
           AppVersion=${{ steps.extract_version.outputs.version }}
@@ -177,7 +177,7 @@ jobs:
                      mbInformation, MB_OK);
             end;
           end;
-          "@
+          '@
 
           Set-Content -Path installer.iss -Value $installerScript
 
