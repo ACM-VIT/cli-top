@@ -382,9 +382,6 @@ jobs:
         id: define_branch
         run: echo "branch=add-binaries-v${{ steps.extract_version.outputs.version }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
 
-      - name: Debug Branch Name
-        run: echo "Generated branch name: ${{ steps.define_branch.outputs.branch }}"
-
       - name: Commit and Push Changes to Fork
         run: |
           cd target-repo
