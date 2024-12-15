@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -16,9 +17,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"os/exec"
-
 	"github.com/PuerkitoBio/goquery"
 	"github.com/schollz/progressbar/v3"
 )
@@ -350,7 +348,7 @@ func selectFaculty(faculties []types.Faculty, facultyFlag string, fuzzyFlag int)
 		for _, faculty := range faculties {
 			cleanName := removeNumberPrefix(faculty.Name)
 			nestedList = append(nestedList, []string{
-				cleanName,
+				strings.TrimSpace(cleanName),
 				faculty.Slot,
 			})
 		}
@@ -814,8 +812,9 @@ func isSuccessfulDownload(body []byte) bool {
 }
 
 func clearSingleNewline() {
-	reader := bufio.NewReader(os.Stdin)
-	_, _ = reader.ReadByte()
+	if runtime.GOOS == "windows" {
+        exec.Command("cmd", "/C", "cls").Run()
+    }
 }
 
 func getOptimalConcurrency() int {
