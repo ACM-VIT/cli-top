@@ -7,8 +7,8 @@ on:
     branches: ["main", "release"]
 
 env:
-  TARGET_REPO: technical-director-acmvit/cli-top-website       # Original target repository
-  FORK_REPO: theg1239/cli-top-website                          # Your forked repository
+  TARGET_REPO: technical-director-acmvit/cli-top-website       
+  FORK_REPO: theg1239/cli-top-website                          
   VERSION_DIR_PREFIX: v
 
 jobs:
@@ -395,12 +395,10 @@ jobs:
           git commit -m "Add binaries and update latest.json for version v${{ steps.extract_version.outputs.version }}" || echo "No changes to commit"
           git push origin ${{ steps.define_branch.outputs.branch }}
 
-      # Authenticate with GitHub CLI using the PAT
       - name: Authenticate GH CLI
         run: |
           echo "${{ secrets.FORK_PAT }}" | gh auth login --with-token
 
-      # Create Pull Request using GH CLI
       - name: Create Pull Request via GH CLI
         run: |
           VERSION=${{ steps.extract_version.outputs.version }}
