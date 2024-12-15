@@ -207,14 +207,13 @@ jobs:
           git add .
           git commit -m "Add binaries for version v${{ steps.extract_version.outputs.version }}" || echo "No changes to commit"
 
-- name: Create Pull Request
-  working-directory: cli-top-website
-  uses: peter-evans/create-pull-request@v5
-  with:
-    token: ${{ secrets.GITHUB_TOKEN }}
-    commit-message: "Add binaries for version v${{ steps.extract_version.outputs.version }}"
-    title: "Add binaries for version v${{ steps.extract_version.outputs.version }}"
-    body: "This PR adds the binaries for version v${{ steps.extract_version.outputs.version }}."
-    base: main
-    branch: "add-binaries-v${{ steps.extract_version.outputs.version }}"
-
+      - name: Create Pull Request
+        working-directory: cli-top-website
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Add binaries for version v${{ steps.extract_version.outputs.version }}"
+          title: "Add binaries for version v${{ steps.extract_version.outputs.version }}"
+          body: "This PR adds the binaries for version v${{ steps.extract_version.outputs.version }}."
+          base: main
+          branch: "add-binaries-v${{ steps.extract_version.outputs.version }}"
