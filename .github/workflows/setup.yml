@@ -49,7 +49,6 @@ jobs:
         id: extract_version
         run: |
           VERSION=$(grep 'var Version string =' ./debug/debug.go | awk -F '"' '{print $2}')
-          # VERSION is expected to be something like v2.5.0
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
   build-windows:
@@ -93,8 +92,7 @@ jobs:
           if ($line -match 'var Version string = "(.*)"') {
               $version = $matches[1]
               echo "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          }
-          else {
+          } else {
               Write-Error "Version not found in debug.go"
               exit 1
           }
@@ -131,15 +129,9 @@ jobs:
             EnvironmentStr: AnsiString; 
           begin
             EnvironmentStr := 'Environment';
-
             if SendMessageTimeoutA(
-                 HWND_BROADCAST_CUSTOM,  
-                 WM_SETTINGCHANGE,       
-                 0,                      
-                 PAnsiChar(EnvironmentStr), 
-                 $2,                  
-                 5000,                   
-                 ResultValue             
+                 HWND_BROADCAST_CUSTOM, WM_SETTINGCHANGE, 0, PAnsiChar(EnvironmentStr),
+                 $2, 5000, ResultValue
                ) = 0 then
             begin
               MsgBox('Failed to refresh environment variables.', mbError, MB_OK);
@@ -184,14 +176,11 @@ jobs:
 
       - name: Show Inno Setup Script (Debugging)
         shell: pwsh
-        run: |
-          Write-Host "Generated installer.iss content:"
-          Get-Content installer.iss
+        run: Get-Content installer.iss
 
       - name: Compile Installer
         shell: pwsh
-        run: |
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer.iss"
+        run: "& 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' 'installer.iss'"
 
       - name: Verify Installer Generation
         shell: pwsh
@@ -200,7 +189,6 @@ jobs:
               Write-Error "Installer file not found: ./Output/cli-top-installer-${{ steps.extract_version.outputs.version }}.exe"
               exit 1
           }
-          Write-Host "Installer file exists: ./Output/cli-top-installer-${{ steps.extract_version.outputs.version }}.exe"
 
       - name: Upload Windows Executable
         uses: actions/upload-artifact@v3
@@ -288,10 +276,9 @@ jobs:
         with:
           repository: ${{ env.FORK_REPO }}
           token: ${{ secrets.FORK_PAT }}
-          path: target-repo
 
       - name: Verify Fork Repository Checkout
-        run: ls -R target-repo
+        run: ls -R
 
       - name: Extract Version from Build
         id: extract_version
@@ -301,7 +288,7 @@ jobs:
       - name: Create Version Directory
         run: |
           VERSION_DIR="${{ env.VERSION_DIR_PREFIX }}${{ steps.extract_version.outputs.version }}"
-          mkdir -p "target-repo/${VERSION_DIR}"
+          mkdir -p "${VERSION_DIR}"
 
       - name: Download Linux Binary
         uses: actions/download-artifact@v3
@@ -372,19 +359,18 @@ jobs:
           zip android/cli-top-android_v${VERSION}.zip android/cli-top-android_v${VERSION}
           rm android/cli-top-android_v${VERSION}
 
-      - name: Move Zipped Artifacts to Fork Repository
+      - name: Move Zipped Artifacts
         run: |
           VERSION=${{ steps.extract_version.outputs.version }}
           VERSION_DIR="${{ env.VERSION_DIR_PREFIX }}${VERSION}"
-          mv linux/cli-top-linux_v${VERSION}.zip "target-repo/${VERSION_DIR}/"
-          mv windows/cli-top-windows_v${VERSION}.zip "target-repo/${VERSION_DIR}/"
-          mv windows/cli-top-windows-installer_v${VERSION}.zip "target-repo/${VERSION_DIR}/"
-          mv macos/cli-top-macos_v${VERSION}.zip "target-repo/${VERSION_DIR}/"
-          mv android/cli-top-android_v${VERSION}.zip "target-repo/${VERSION_DIR}/"
+          mv linux/cli-top-linux_v${VERSION}.zip "${VERSION_DIR}/"
+          mv windows/cli-top-windows_v${VERSION}.zip "${VERSION_DIR}/"
+          mv windows/cli-top-windows-installer_v${VERSION}.zip "${VERSION_DIR}/"
+          mv macos/cli-top-macos_v${VERSION}.zip "${VERSION_DIR}/"
+          mv android/cli-top-android_v${VERSION}.zip "${VERSION_DIR}/"
 
       - name: Update latest.json
         run: |
-          cd target-repo
           sudo apt-get update
           sudo apt-get install -y jq
           LATEST_JSON="latest.json"
@@ -401,7 +387,6 @@ jobs:
 
       - name: Commit and Push Changes
         run: |
-          cd target-repo
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b ${{ steps.define_branch.outputs.branch }}
