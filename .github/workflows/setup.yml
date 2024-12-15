@@ -136,7 +136,7 @@ jobs:
                  WM_SETTINGCHANGE,       
                  0,                      
                  PAnsiChar(EnvironmentStr), 
-                 &2,                  
+                 &H2,                  
                  5000,                   
                  ResultValue             
                ) = 0 then
