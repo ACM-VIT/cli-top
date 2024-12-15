@@ -399,7 +399,7 @@ jobs:
         id: define_branch
         run: echo "branch=add-binaries-v${{ steps.extract_version.outputs.version }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
 
-      - name: Commit and Push Changes to Fork
+      - name: Commit and Push Changes
         run: |
           cd target-repo
           git config user.name "github-actions[bot]"
@@ -409,12 +409,18 @@ jobs:
           git commit -m "Add binaries and update latest.json for version v${{ steps.extract_version.outputs.version }}" || echo "No changes to commit"
           git push origin ${{ steps.define_branch.outputs.branch }}
 
-      - name: Create Pull Request from Fork to Target
+      - name: Create Pull Request
         uses: peter-evans/create-pull-request@v3
         with:
           token: ${{ secrets.FORK_PAT }}
-          repository: ${{ env.TARGET_REPO }}
           base: main
-          head: theg1239:${{ steps.define_branch.outputs.branch }}
+          branch: ${{ steps.define_branch.outputs.branch }}
           title: "Add binaries and update latest.json for version v${{ steps.extract_version.outputs.version }}"
-          body: "This PR adds the binaries (zipped), the Windows installer, and updates the latest.json file for version v${{ steps.extract_version.outputs.version }}."
+          body: |
+            This PR adds the binaries (zipped), the Windows installer, and updates the latest.json file for version v${{ steps.extract_version.outputs.version }}.
+          add-paths: "."
+          commit-message: "[create-pull-request] automated change"
+          committer: "GitHub <noreply@github.com>"
+          author: "theg1239 <theg1239@users.noreply.github.com>"
+          delete-branch: false
+          draft: false
