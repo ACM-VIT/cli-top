@@ -31,7 +31,7 @@ jobs:
       - name: Build Linux Binary
         run: |
           mkdir -p build/linux
-          GOOS=linux GOARCH=amd64 go build -o ./build/linux/cli-top -v ./...
+          GOOS=linux GOARCH=amd64 go build -o ./build/linux/cli-top ./cmd/cli-top
           chmod +x ./build/linux/cli-top
 
       - name: Upload Linux Binary
@@ -62,7 +62,7 @@ jobs:
           mkdir build\windows
           $env:GOOS = "windows"
           $env:GOARCH = "amd64"
-          go build -o build\windows\cli-top.exe -v .\...
+          go build -o build\windows\cli-top.exe .\cmd\cli-top
 
       - name: Upload Windows Executable
         uses: actions/upload-artifact@v3
@@ -90,7 +90,7 @@ jobs:
       - name: Build MacOS Binary
         run: |
           mkdir -p build/macos
-          GOOS=darwin GOARCH=amd64 go build -o ./build/macos/cli-top -v ./...
+          GOOS=darwin GOARCH=amd64 go build -o ./build/macos/cli-top ./cmd/cli-top
           chmod +x ./build/macos/cli-top
 
       - name: Upload MacOS Binary
@@ -119,7 +119,7 @@ jobs:
       - name: Build Android Binary
         run: |
           mkdir -p build/android
-          GOOS=linux GOARCH=arm64 go build -o ./build/android/cli-top -v ./...
+          GOOS=linux GOARCH=arm64 go build -o ./build/android/cli-top ./cmd/cli-top
           chmod +x ./build/android/cli-top
 
       - name: Upload Android Binary
