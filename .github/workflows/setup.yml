@@ -7,8 +7,8 @@ on:
     branches: ["main", "release"]
 
 env:
-  TARGET_REPO: technical-director-acmvit/cli-top-website       
-  FORK_REPO: theg1239/cli-top-website                          
+  TARGET_REPO: technical-director-acmvit/cli-top-website
+  FORK_REPO: theg1239/cli-top-website
   VERSION_DIR_PREFIX: v
 
 jobs:
@@ -114,6 +114,52 @@ jobs:
           Source: "build/windows/cli-top.exe"; DestDir: "{app}"; Flags: ignoreversion
 
           [Code]
+          function SplitString(const S: string; const Delimiter: char): TArrayOfString;
+          var
+            i, n, Count: Integer;
+            part: String;
+          begin
+            Count := 1;
+            for i := 1 to Length(S) do
+              if S[i] = Delimiter then
+                Inc(Count);
+            SetArrayLength(Result, Count);
+            n := 0;
+            part := '';
+            for i := 1 to Length(S) do
+            begin
+              if S[i] = Delimiter then
+              begin
+                Result[n] := part;
+                part := '';
+                Inc(n);
+              end
+              else
+                part := part + S[i];
+            end;
+            Result[n] := part;
+          end;
+
+          function RemoveCliTopPaths(s: string): string;
+          var
+            i: integer;
+            SplitPaths: TArrayOfString;
+            CleanPaths: string;
+          begin
+            SplitPaths := SplitString(s, ';');
+            CleanPaths := '';
+            for i := 0 to GetArrayLength(SplitPaths)-1 do
+            begin
+              if (Pos('cli-top', LowerCase(SplitPaths[i])) = 0) and (Trim(SplitPaths[i]) <> '') then
+              begin
+                if CleanPaths <> '' then
+                  CleanPaths := CleanPaths + ';';
+                CleanPaths := CleanPaths + SplitPaths[i];
+              end;
+            end;
+            Result := CleanPaths;
+          end;
+
           const
             HWND_BROADCAST_CUSTOM = $FFFF; 
             WM_SETTINGCHANGE = $1A;
@@ -144,16 +190,20 @@ jobs:
             RegKey: string;
           begin
             RegKey := 'Environment';
-            
+
             if not RegQueryStringValue(HKCU, RegKey, 'Path', Path) then
               Path := '';
 
+            // Remove any old cli-top references
+            Path := RemoveCliTopPaths(Path);
+
+            // Now add the new cli-top path
             if Pos(ExpandConstant('{app}'), Path) = 0 then
             begin
               if Path <> '' then
                 Path := Path + ';';
               Path := Path + ExpandConstant('{app}');
-              
+
               if not RegWriteStringValue(HKCU, RegKey, 'Path', Path) then
                 MsgBox('Failed to update PATH variable.', mbError, MB_OK);
             end;
@@ -166,7 +216,7 @@ jobs:
             if CurStep = ssPostInstall then
             begin
               UpdatePath;
-              MsgBox('CLI-TOP has been installed successfully. Please open a new Command Prompt window to use the CLI-TOP command.', 
+              MsgBox('CLI-TOP has been installed successfully. Please open a new Command Prompt window to use the CLI-TOP command.',
                      mbInformation, MB_OK);
             end;
           end;
@@ -332,7 +382,7 @@ jobs:
           echo "Android Binary:"
           ls -R ./android
 
-      - name: Zip and Rename Artifacts
+      - name: Zip and Rename Artifacts (Except Installer)
         run: |
           VERSION=${{ steps.extract_version.outputs.version }}
           # Linux
@@ -345,10 +395,8 @@ jobs:
           zip windows/cli-top-windows_v${VERSION}.zip windows/cli-top-windows_v${VERSION}.exe
           rm windows/cli-top-windows_v${VERSION}.exe
 
-          # Windows Installer
+          # Windows Installer (no compression)
           mv windows/cli-top-installer-${VERSION}.exe windows/cli-top-windows-installer_v${VERSION}.exe
-          zip windows/cli-top-windows-installer_v${VERSION}.zip windows/cli-top-windows-installer_v${VERSION}.exe
-          rm windows/cli-top-windows-installer_v${VERSION}.exe
 
           # MacOS
           mv macos/cli-top macos/cli-top-macos_v${VERSION}
@@ -360,13 +408,14 @@ jobs:
           zip android/cli-top-android_v${VERSION}.zip android/cli-top-android_v${VERSION}
           rm android/cli-top-android_v${VERSION}
 
-      - name: Move Zipped Artifacts
+      - name: Move Artifacts
         run: |
           VERSION=${{ steps.extract_version.outputs.version }}
           VERSION_DIR="${{ env.VERSION_DIR_PREFIX }}${VERSION}"
           mv linux/cli-top-linux_v${VERSION}.zip "buildFiles/${VERSION_DIR}/"
           mv windows/cli-top-windows_v${VERSION}.zip "buildFiles/${VERSION_DIR}/"
-          mv windows/cli-top-windows-installer_v${VERSION}.zip "buildFiles/${VERSION_DIR}/"
+          # Move the uncompressed Windows Installer
+          mv windows/cli-top-windows-installer_v${VERSION}.exe "buildFiles/${VERSION_DIR}/"
           mv macos/cli-top-macos_v${VERSION}.zip "buildFiles/${VERSION_DIR}/"
           mv android/cli-top-android_v${VERSION}.zip "buildFiles/${VERSION_DIR}/"
 
@@ -407,5 +456,4 @@ jobs:
             --base main \
             --head theg1239:${{ steps.define_branch.outputs.branch }} \
             --title "Add binaries and update latest.json for version v${VERSION}" \
-            --body "This PR adds the binaries (zipped), the Windows installer, and updates the latest.json file for version v${VERSION}."
-
+            --body "This PR adds the binaries (zipped), the Windows installer (uncompressed), and updates the latest.json file for version v${VERSION}. Also removes older CLI-TOP references from PATH during installation."
