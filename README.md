@@ -121,7 +121,6 @@ After installation, you can access various features of **cli-top** by running sp
 - [Kaustav Patro](https://github.com/icky-kp)
 - [Amritsai](https://github.com/gekyxme)
 - [Pritam Satpathy](https://github.com/ps2181)
-- [Harshitaa Kashyap](https://github.com/harshitaak07)
 - [Adheesh Garg](https://github.com/qwerty-dvorak)
 - [Ishaan S](https://github.com/theg1239)
 - [Harshit Vootukuri](https://github.com/hvoot36)
