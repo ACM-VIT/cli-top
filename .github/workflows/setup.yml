@@ -289,7 +289,7 @@ jobs:
       - name: Create Version Directory
         run: |
           VERSION_DIR="${{ env.VERSION_DIR_PREFIX }}${{ steps.extract_version.outputs.version }}"
-          mkdir -p "${VERSION_DIR}"
+          mkdir -p "buildFiles/${VERSION_DIR}"
 
       - name: Download Linux Binary
         uses: actions/download-artifact@v3
@@ -364,11 +364,11 @@ jobs:
         run: |
           VERSION=${{ steps.extract_version.outputs.version }}
           VERSION_DIR="${{ env.VERSION_DIR_PREFIX }}${VERSION}"
-          mv linux/cli-top-linux_v${VERSION}.zip "${VERSION_DIR}/"
-          mv windows/cli-top-windows_v${VERSION}.zip "${VERSION_DIR}/"
-          mv windows/cli-top-windows-installer_v${VERSION}.zip "${VERSION_DIR}/"
-          mv macos/cli-top-macos_v${VERSION}.zip "${VERSION_DIR}/"
-          mv android/cli-top-android_v${VERSION}.zip "${VERSION_DIR}/"
+          mv linux/cli-top-linux_v${VERSION}.zip "buildFiles/${VERSION_DIR}/"
+          mv windows/cli-top-windows_v${VERSION}.zip "buildFiles/${VERSION_DIR}/"
+          mv windows/cli-top-windows-installer_v${VERSION}.zip "buildFiles/${VERSION_DIR}/"
+          mv macos/cli-top-macos_v${VERSION}.zip "buildFiles/${VERSION_DIR}/"
+          mv android/cli-top-android_v${VERSION}.zip "buildFiles/${VERSION_DIR}/"
 
       - name: Update latest.json
         run: |
@@ -408,3 +408,4 @@ jobs:
             --head theg1239:${{ steps.define_branch.outputs.branch }} \
             --title "Add binaries and update latest.json for version v${VERSION}" \
             --body "This PR adds the binaries (zipped), the Windows installer, and updates the latest.json file for version v${VERSION}."
+
