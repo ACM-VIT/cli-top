@@ -456,4 +456,4 @@ jobs:
             --base main \
             --head theg1239:${{ steps.define_branch.outputs.branch }} \
             --title "Add binaries and update latest.json for version v${VERSION}" \
-            --body "This PR adds the binaries (zipped), the Windows installer (uncompressed), and updates the latest.json file for version v${VERSION}. Also removes older CLI-TOP references from PATH during installation."
+            --body "This PR adds the binaries (zipped), the Windows installer (uncompressed), and updates the latest.json file for version v${VERSION}."
