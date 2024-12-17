@@ -17,13 +17,11 @@ func FetchReq(regNo string, cookies types.Cookies, url string, semID string, pay
 	var req *http.Request
 	var err error
 
-	// Create a deafult payload if not provided
 	if payload == "" {
 		payload = fmt.Sprintf("verifyMenu=true&authorizedID=%s&_csrf=%s&nocache=%d", regNo, cookies.CSRF, time.Now().UnixNano())
 	} else if payload == "UTC" {
-		payload = fmt.Sprintf("authorizedID=%s&_csrf=%s&semesterSubId=%s&x=%s", regNo, cookies.CSRF, semID, time.Now().UTC().Format(time.RFC1123)) //fmt.Println(payload)
+		payload = fmt.Sprintf("authorizedID=%s&_csrf=%s&semesterSubId=%s&x=%s", regNo, cookies.CSRF, semID, time.Now().UTC().Format(time.RFC1123))
 	}
-	//fmt.Println(payload)
 
 	// Create a new request with POST/GET method and payload
 	if method == "POST" {
@@ -37,12 +35,12 @@ func FetchReq(regNo string, cookies types.Cookies, url string, semID string, pay
 			fmt.Println(err)
 		}
 	} else {
-		fmt.Println("Invalid method")
+		return nil, fmt.Errorf("invalid method: %s", method)
 	}
 
 	// Set headers or cookies for specific features if needed
 	if header == "marks" {
-		req.Header.Set("content-type", "multipart/form-data; boundary=----WebKitFormBoundary9yjNZXu7BBjgQK7J")
+		req.Header.Set("Content-Type", "multipart/form-data; boundary=----WebKitFormBoundary9yjNZXu7BBjgQK7J")
 	} else {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}

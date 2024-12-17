@@ -2,25 +2,19 @@ package features
 
 import (
 	"bytes"
-	"fmt"
-
-	// "io"
-
-	// "net/http"
-	// "net/url"
-	"strings"
-	// "time"
 	"cli-top/debug"
-	"cli-top/types"
-
-	// "github.com/charmbracelet/glamour"
 	"cli-top/helpers"
-
+	"cli-top/types"
+	"fmt"
 	"github.com/PuerkitoBio/goquery"
-	// "golang.org/x/net/html"
+	"strings"
 )
 
 func PrintHostelInfo(regNo string, cookies types.Cookies, url string) {
+	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
+		fmt.Println("Please login using the cli-top login command.")
+		return
+	}
 	body, err := helpers.FetchReq(regNo, cookies, url, "", "", "POST", "")
 	if err != nil && debug.Debug {
 		fmt.Println("Error fetching HTML:", err)
@@ -33,19 +27,22 @@ func PrintHostelInfo(regNo string, cookies types.Cookies, url string) {
 		return
 	}
 
-	// fmt.Println("+-----------------------------+------------------------------------------------------+")
 	fmt.Println("Student Accommodation Info")
-	fmt.Println("+-----------------------------+--------------------------------------------------------------------+")
 
 	table := doc.Find("div.table-responsive table.table tbody tr")
 	lastFiveRows := table.Slice(-5, table.Length())
 
+	// Prepare nested list for PrintTable
+	nestedList := [][]string{{"Field", "Information"}}
 	lastFiveRows.Each(func(j int, rowSelection *goquery.Selection) {
 		header := rowSelection.Find("td").Eq(0).Text()
 		value := rowSelection.Find("td").Eq(1).Text()
-
-		fmt.Printf("| %-27s | %-66s |\n", strings.TrimSpace(header), strings.TrimSpace(value))
+		nestedList = append(nestedList, []string{
+			strings.TrimSpace(header),
+			strings.TrimSpace(value),
+		})
 	})
 
-	fmt.Println("+-----------------------------+--------------------------------------------------------------------+")
+	// Use PrintTable to display the information
+	helpers.PrintTable(nestedList, 0)
 }

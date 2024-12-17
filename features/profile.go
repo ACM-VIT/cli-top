@@ -1,51 +1,36 @@
-// features/profile.go
-
 package features
 
 import (
-	"bytes"
 	"cli-top/debug"
-	types "cli-top/types"
+	"cli-top/helpers"
+	"cli-top/types"
 	"fmt"
-	"net/http"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/charmbracelet/glamour"
 )
 
 func fetchStudentDetails(cookies types.Cookies, regNo string) (types.StudentDetails, error) {
-	client := &http.Client{}
+	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
+		return types.StudentDetails{}, fmt.Errorf("please login using the cli-top login command")
+	}
 	url := "https://vtop.vit.ac.in/vtop/studentsRecord/StudentProfileAllView"
-	data := strings.NewReader(fmt.Sprintf("verifyMenu=true&authorizedID=%s&_csrf=%s&nocache=@(new Date().getTime())", regNo, cookies.CSRF))
+	payload := fmt.Sprintf("verifyMenu=true&authorizedID=%s&_csrf=%s&nocache=%d", regNo, cookies.CSRF, time.Now().UnixNano())
 
-	req, err := http.NewRequest("POST", url, data)
-	if err != nil && debug.Debug {
+	body, err := helpers.FetchReq(regNo, cookies, url, "", payload, "POST", "")
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error fetching student details:", err)
+		}
 		return types.StudentDetails{}, err
 	}
 
-	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/118.0")
-	req.Header.Set("Accept", "*/*")
-	req.Header.Set("Accept-Language", "en-US,en;q=0.5")
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
-	req.Header.Set("X-Requested-With", "XMLHttpRequest")
-	req.Header.Set("Origin", "https://vtop.vit.ac.in")
-	req.Header.Set("Connection", "keep-alive")
-	req.Header.Set("Referer", "https://vtop.vit.ac.in/vtop/content?")
-	req.Header.Set("Cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", cookies.JSESSIONID, cookies.SERVERID))
-	req.Header.Set("Sec-Fetch-Dest", "empty")
-	req.Header.Set("Sec-Fetch-Mode", "cors")
-	req.Header.Set("Sec-Fetch-Site", "same-origin")
-	req.Header.Set("TE", "trailers")
-
-	resp, err := client.Do(req)
-	if err != nil && debug.Debug {
-		return types.StudentDetails{}, err
-	}
-	defer resp.Body.Close()
-
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
-	if err != nil && debug.Debug {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error parsing response body:", err)
+		}
 		return types.StudentDetails{}, err
 	}
 
@@ -67,32 +52,25 @@ func fetchStudentDetails(cookies types.Cookies, regNo string) (types.StudentDeta
 }
 
 func Profile(cookies types.Cookies, regNo string) {
-
 	studentDetails, err := fetchStudentDetails(cookies, regNo)
-	if err != nil && debug.Debug {
-		fmt.Println(err)
+	if err != nil {
+		if debug.Debug {
+			fmt.Printf("Error fetching profile: %v\n", err)
+		} else {
+			fmt.Println(err)
+			fmt.Println()
+			return
+		}
 	}
 
-	markdownTable := generateStudentDetailsMarkdownTable(studentDetails)
-
-	rendered, err := glamour.Render(markdownTable, "dark")
-	if err != nil && debug.Debug {
-		fmt.Println(err)
+	tableData := [][]string{
+		{"Field", "Information"},
+		{"Register Number", studentDetails.RegisterNumber},
+		{"Program & Branch", studentDetails.ProgramBranch},
+		{"VIT Email", studentDetails.VITEmail},
+		{"School Name", studentDetails.SchoolName},
 	}
-
-	fmt.Println(rendered)
-}
-
-func generateStudentDetailsMarkdownTable(details types.StudentDetails) string {
-	var buf bytes.Buffer
-
-	buf.WriteString("| Field            | Information                                                    |\n")
-	buf.WriteString("|------------------|----------------------------------------------------------------|\n")
-
-	buf.WriteString(fmt.Sprintf("| Register Number  | %-62s |\n", details.RegisterNumber))
-	buf.WriteString(fmt.Sprintf("| Program & Branch | %-62s |\n", details.ProgramBranch))
-	buf.WriteString(fmt.Sprintf("| VIT Email        | [%-62s]() \n", details.VITEmail))
-	buf.WriteString(fmt.Sprintf("| School Name      | %-62s |\n", details.SchoolName))
-
-	return buf.String()
+	fmt.Println()
+	helpers.PrintTable(tableData, 0)
+	fmt.Println()
 }

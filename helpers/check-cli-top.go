@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 )
 
 func CheckUpdate() {
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", "https://cli-top-website.vercel.app/latest.json", nil)
+	req, err := http.NewRequest("GET", "https://cli-top.acmvit.in/latest.json", nil)
+
 	if err != nil && debug.Debug {
 		fmt.Println(err)
 	}
@@ -34,13 +36,21 @@ func CheckUpdate() {
 
 func CheckKillSwitch() int {
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", "https://cli-top-website.vercel.app/latest.json", nil)
+	req, err := http.NewRequest("GET", "https://cli-top.acmvit.in/latest.json", nil)
+
 	if err != nil && debug.Debug {
 		fmt.Println(err)
 	}
 	resp, err := client.Do(req)
 	if err != nil && debug.Debug {
 		fmt.Println(err)
+	}
+	if resp == nil {
+		fmt.Println()
+		fmt.Println("Internet connection not available")
+		fmt.Println("Please reconnect and try again")
+		fmt.Println()
+		os.Exit(1)
 	}
 	defer resp.Body.Close()
 	bodyText, err := io.ReadAll(resp.Body)
