@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"unicode"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -461,6 +462,26 @@ func filetypeMatch(body []byte) (string, error) {
 		return "unknown", nil
 	}
 	return kind.Extension, nil
+}
+
+func SanitizeString(input string) string {
+	// Step 1: Trim leading and trailing whitespace
+	trimmed := strings.TrimSpace(input)
+
+	// Step 2: Replace multiple whitespace characters with a single space
+	// strings.Fields splits the string around one or more whitespace characters
+	fields := strings.Fields(trimmed)
+	singleSpaced := strings.Join(fields, " ")
+
+	// Step 3: Remove non-printable Unicode characters
+	var sanitizedBuilder strings.Builder
+	for _, r := range singleSpaced {
+		if unicode.IsPrint(r) {
+			sanitizedBuilder.WriteRune(r)
+		}
+	}
+
+	return sanitizedBuilder.String()
 }
 
 func ValidateCookies(cookies types.Cookies) bool {

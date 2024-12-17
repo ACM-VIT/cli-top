@@ -356,7 +356,7 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
 
 	// Add subcommands to root command
-	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd)
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd, facilityCmd)
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
@@ -371,6 +371,19 @@ var profileCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.Profile(cookies, regNo)
+	},
+}
+
+var facilityCmd = &cobra.Command{
+	Use:   "facility",
+	Short: "Register for Physical Education Facility",
+	Long: `Initiate the registration process for the Physical Education Facility.
+This command will send a POST request to the VTOP system to register the specified facility.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		// Read cookies and registration number from the configuration or file
+		cookies, regNo := readCookiesFromFile()
+		// Call the RegisterPhyFacility function from the features package
+		features.RegisterPhyFacility(regNo, cookies)
 	},
 }
 
