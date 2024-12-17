@@ -155,9 +155,13 @@ type Class struct {
 	EndTime string
 }
 
-
-
-//  Slot map[strint]map[string][]string
+type Facility struct {
+	ID             string 
+	Name           string 
+	Fees           string 
+	SeatsAvailable int    
+	MiscID         string 
+}
 
 type SubjectTime struct {
 	Slot   []string
