@@ -6,15 +6,16 @@ import (
 	"cli-top/helpers"
 	"cli-top/types"
 	"fmt"
-	"os"
-	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/olekukonko/tablewriter"
 )
 
 func GetReceipt(regNo string, cookies types.Cookies) {
+	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
+		fmt.Println("Please login using the cli-top login command.")
+		return
+	}
 	url := "https://vtop.vit.ac.in/vtop/finance/getStudentReceipts"
 
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, "", "", "POST", "")
@@ -29,29 +30,29 @@ func GetReceipt(regNo string, cookies types.Cookies) {
 		return
 	}
 
-	// Create table
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"SERIAL", "RECEIPT NUMBER", "DATE", "AMOUNT", "CAMPUS CODE"})
+	// Initialize the nested list for receipts
+	var receipts [][]string
+	// Add the header row
+	receipts = append(receipts, []string{"RECEIPT NUMBER", "AMOUNT", "DATE"})
 
-	// Skip the first row if it's not a header
+	// Iterate through the table rows and extract data
 	doc.Find("table.table-bordered tbody tr").Each(func(i int, rowSelection *goquery.Selection) {
 		if i == 0 && strings.TrimSpace(rowSelection.Find("th").First().Text()) != "SERIAL" {
 			return
 		}
 
 		// Extract data from each cell in the row
-		row := []string{strconv.Itoa(i)}
+		var row []string
 		rowSelection.Find("td").Each(func(j int, cellSelection *goquery.Selection) {
-			// Exclude the VIEW column
-			if j < 4 {
+			if j < 4 { // Exclude the "VIEW" column
 				cellText := strings.TrimSpace(cellSelection.Text())
 				row = append(row, cellText)
 			}
 		})
-		// Append the row to the table
-		table.Append(row)
+		// Append the row to the receipts list
+		receipts = append(receipts, row)
 	})
 
-	// Render the table
-	table.Render()
+	// Print the table using the helpers.PrintTable function
+	helpers.PrintTable(receipts, 1)
 }

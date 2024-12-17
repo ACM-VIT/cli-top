@@ -5,14 +5,16 @@ import (
 	"cli-top/helpers"
 	"cli-top/types"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/olekukonko/tablewriter"
 )
 
 func PrintCgpa(regNo string, cookies types.Cookies, url string) {
+	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
+		fmt.Println("Please login using the cli-top login command.")
+		return
+	}
 
 	// Fetch the CGPA data
 	body, err := helpers.FetchReq(regNo, cookies, url, "", "", "POST", "")
@@ -26,8 +28,6 @@ func PrintCgpa(regNo string, cookies types.Cookies, url string) {
 		fmt.Println("Error parsing HTML:", err)
 		return
 	}
-
-	fmt.Println("CGPA Details")
 
 	// Extract and print data from the specified HTML structure
 	table := doc.Find("div.table-responsive table.table tbody tr")
@@ -46,11 +46,9 @@ func PrintCgpa(regNo string, cookies types.Cookies, url string) {
 	fGrades := row.Find("td").Eq(9).Text()
 	nGrades := row.Find("td").Eq(10).Text()
 
-	// Create a table
-	tableData := [][]string{
-		{"Credits Registered", creditsRegistered},
-		{"Credits Earned", creditsEarned},
-		{"CGPA", fmt.Sprintf("\033[32m%s\033[0m", cgpa)}, // Highlight CGPA in green
+	// Create a nested list for grades
+	gradesTableData := [][]string{
+		{"Grade", "Count"},
 		{"S Grades", sGrades},
 		{"A Grades", aGrades},
 		{"B Grades", bGrades},
@@ -61,13 +59,14 @@ func PrintCgpa(regNo string, cookies types.Cookies, url string) {
 		{"N Grades", nGrades},
 	}
 
-	tableObj := tablewriter.NewWriter(log.Writer())
+	// Print the grades table
+	fmt.Println()
+	fmt.Printf("\nCredits Registered: %s\n", creditsRegistered)
+	fmt.Printf("Credits Earned: %s\n", creditsEarned)
+	fmt.Printf("CGPA: \033[32m%s\033[0m\n", cgpa) // Highlight CGPA in green
+	fmt.Println()
+	helpers.PrintTable(gradesTableData, 0)
+	fmt.Println()
 
-	// Append data to the table
-	for _, data := range tableData {
-		tableObj.Append(data)
-	}
-
-	// Render the table
-	tableObj.Render()
+	// Print the credits and CGPA information in line format
 }
