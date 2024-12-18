@@ -376,13 +376,9 @@ var profileCmd = &cobra.Command{
 
 var facilityCmd = &cobra.Command{
 	Use:   "facility",
-	Short: "Register for Physical Education Facility",
-	Long: `Initiate the registration process for the Physical Education Facility.
-This command will send a POST request to the VTOP system to register the specified facility.`,
+	Short: "Register for facilities",
 	Run: func(cmd *cobra.Command, args []string) {
-		// Read cookies and registration number from the configuration or file
 		cookies, regNo := readCookiesFromFile()
-		// Call the RegisterPhyFacility function from the features package
 		features.RegisterPhyFacility(regNo, cookies)
 	},
 }
