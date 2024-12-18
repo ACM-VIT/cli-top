@@ -161,9 +161,15 @@ type Facility struct {
 	Fees           string 
 	SeatsAvailable int    
 	MiscID         string 
+	Registered     bool
 }
 
 type SubjectTime struct {
 	Slot   []string
 	Venue  string
+}
+
+type Registration struct {
+    FacilityName  string
+    StatusMessage string
 }
