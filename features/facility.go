@@ -33,9 +33,36 @@ func RegisterPhyFacility(regNo string, cookies types.Cookies) {
 		return
 	}
 
-	displayFacilities(facilities)
+	registrations, err := ListRegistrations(regNo, cookies)
+	if err != nil {
+		fmt.Println("Error fetching registrations:", err)
+		registrations = []types.Registration{}
+	}
 
-	selectedFacility, err := promptFacilitySelection(facilities)
+	for _, reg := range registrations {
+		found := false
+		for idx, fac := range facilities {
+			if strings.EqualFold(strings.TrimSpace(fac.Name), strings.TrimSpace(reg.FacilityName)) {
+				facilities[idx].Registered = true
+				found = true
+				break
+			}
+		}
+		if !found {
+			facilities = append(facilities, types.Facility{
+				ID:             "",
+				Name:           reg.FacilityName,
+				Fees:           "",
+				SeatsAvailable: 0,
+				MiscID:         "",
+				Registered:     true,
+			})
+		}
+	}
+
+	displayFacilities(facilities, nil)
+
+	selectedFacility, err := promptFacilitySelection(facilities, nil)
 	if err != nil {
 		fmt.Println("Registration aborted:", err)
 		return
@@ -48,6 +75,24 @@ func RegisterPhyFacility(regNo string, cookies types.Cookies) {
 	}
 
 	fmt.Println("Registration completed successfully.")
+
+	updatedRegistrations, err := ListRegistrations(regNo, cookies)
+	if err != nil {
+		fmt.Println("Error fetching updated registrations:", err)
+		return
+	}
+
+	for _, reg := range updatedRegistrations {
+		for idx, fac := range facilities {
+			if strings.EqualFold(strings.TrimSpace(fac.Name), strings.TrimSpace(reg.FacilityName)) {
+				facilities[idx].Registered = true
+				break
+			}
+		}
+	}
+
+	fmt.Println("\nYour Current Registrations:")
+	displayFacilities(facilities, nil)
 }
 
 func fetchAvailableFacilities(regNo string, cookies types.Cookies) ([]types.Facility, error) {
@@ -83,11 +128,20 @@ func fetchAvailableFacilities(regNo string, cookies types.Cookies) ([]types.Faci
 
 	doc.Find("table.table-bordered.table-hover.table-stripped.dataTable tr").Each(func(i int, s *goquery.Selection) {
 		if i == 0 {
-			return
+			cells := s.Find("td")
+			if cells.Length() >= 1 {
+				firstCell := strings.ToLower(strings.TrimSpace(cells.Eq(0).Text()))
+				if firstCell == "facility name" || firstCell == "facility" {
+					return
+				}
+			}
 		}
 
 		cells := s.Find("td")
 		if cells.Length() < 4 {
+			if debug.Debug {
+				fmt.Printf("Skipping row %d: insufficient cells\n", i)
+			}
 			return
 		}
 
@@ -96,18 +150,30 @@ func fetchAvailableFacilities(regNo string, cookies types.Cookies) ([]types.Faci
 		seatsStr := strings.TrimSpace(cells.Eq(2).Text())
 		actionCell := cells.Eq(3)
 
-		fees := feesStr
-
 		seatsAvailable, err := strconv.Atoi(seatsStr)
 		if err != nil {
 			seatsAvailable = 0
 		}
 
-		actionHTML, _ := actionCell.Html()
-		matches := buttonRegex.FindStringSubmatch(actionHTML)
+		onclick, exists := actionCell.Find("button").Attr("onclick")
+		if !exists {
+			onclick = ""
+			if debug.Debug {
+				fmt.Printf("No onclick attribute found for facility: %s\n", name)
+			}
+		}
+
+		if debug.Debug {
+			fmt.Printf("Facility: %s, onclick attribute: %s\n", name, onclick)
+		}
+
+		matches := buttonRegex.FindStringSubmatch(onclick)
 		var miscID string
 		if len(matches) == 2 {
 			miscID = matches[1]
+			if debug.Debug {
+				fmt.Printf("Extracted miscID: %s for facility: %s\n", miscID, name)
+			}
 		} else {
 			miscID = ""
 			if debug.Debug {
@@ -116,11 +182,12 @@ func fetchAvailableFacilities(regNo string, cookies types.Cookies) ([]types.Faci
 		}
 
 		facility := types.Facility{
-			ID:             "1",    
+			ID:             "1",
 			Name:           name,
-			Fees:           fees,
+			Fees:           feesStr,
 			SeatsAvailable: seatsAvailable,
 			MiscID:         miscID,
+			Registered:     false,
 		}
 
 		facilities = append(facilities, facility)
@@ -129,31 +196,111 @@ func fetchAvailableFacilities(regNo string, cookies types.Cookies) ([]types.Faci
 	if debug.Debug {
 		fmt.Printf("Parsed %d facilities.\n", len(facilities))
 		for _, f := range facilities {
-			fmt.Printf("Facility: %s, Fees: %s, Seats Available: %d, MiscID: %s\n",
-				f.Name, f.Fees, f.SeatsAvailable, f.MiscID)
+			fmt.Printf("Facility: %s, Fees: %s, Seats Available: %d, MiscID: %s, Registered: %v\n",
+				f.Name, f.Fees, f.SeatsAvailable, f.MiscID, f.Registered)
 		}
 	}
 
 	return facilities, nil
 }
 
-func displayFacilities(facilities []types.Facility) {
+func ListRegistrations(regNo string, cookies types.Cookies) ([]types.Registration, error) {
+	url := "https://vtop.vit.ac.in/vtop/phyedu/facilityAvailable"
+
+	nocache := fmt.Sprintf("%d", time.Now().UnixMilli())
+
+	payload := fmt.Sprintf("verifyMenu=true&authorizedID=%s&_csrf=%s&nocache=%s",
+		regNo,
+		cookies.CSRF,
+		nocache,
+	)
+
+	body, err := helpers.FetchReq(regNo, cookies, url, "", payload, "POST", "application/x-www-form-urlencoded")
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error fetching registrations:", err)
+		}
+		return nil, err
+	}
+
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error parsing HTML response:", err)
+		}
+		return nil, err
+	}
+
+	var registrations []types.Registration
+
+	registrationsHeader := doc.Find("div.panel-heading.panel-head-custom").FilterFunction(func(i int, s *goquery.Selection) bool {
+		return strings.TrimSpace(s.Text()) == "My Registration(s)"
+	})
+
+	if registrationsHeader.Length() == 0 {
+		if debug.Debug {
+			fmt.Println("Registration section not found in the response.")
+		}
+		return registrations, nil
+	}
+
+	registrationsTable := registrationsHeader.NextAllFiltered("div.box-body").Find("table.dataTable").First()
+	if registrationsTable.Length() == 0 {
+		if debug.Debug {
+			fmt.Println("Registration table not found in the response.")
+		}
+		return registrations, nil
+	}
+
+	registrationsTable.Find("tr").Each(func(i int, s *goquery.Selection) {
+		cells := s.Find("td")
+		if cells.Length() < 2 {
+			return
+		}
+
+		facilityName := strings.TrimSpace(cells.Eq(0).Text())
+		statusMessage := strings.TrimSpace(cells.Eq(1).Text())
+
+		registration := types.Registration{
+			FacilityName:  facilityName,
+			StatusMessage: statusMessage,
+		}
+
+		registrations = append(registrations, registration)
+	})
+
+	if debug.Debug {
+		fmt.Printf("Parsed %d registrations.\n", len(registrations))
+		for _, reg := range registrations {
+			fmt.Printf("Registered Facility: %s, Status: %s\n", reg.FacilityName, reg.StatusMessage)
+		}
+	}
+
+	return registrations, nil
+}
+
+func displayFacilities(facilities []types.Facility, registrationsMap map[string]bool) {
 	nestedList := [][]string{
-		{"No.", "Facility Name", "Fees (Including GST)", "Seats Available"},
+		{"No.", "Facility Name", "Fees (Including GST)", "Status"},
 	}
 
 	for i, facility := range facilities {
-		var seatsStr string
-		if facility.MiscID != "" && facility.SeatsAvailable > 0 {
-			seatsStr = strconv.Itoa(facility.SeatsAvailable)
+		var statusStr string
+		if facility.Registered {
+			statusStr = Colorize("Registered", "green")
 		} else {
-			seatsStr = Colorize("Full", "red")
+			if facility.SeatsAvailable > 0 {
+				statusStr = strconv.Itoa(facility.SeatsAvailable)
+			} else {
+				statusStr = Colorize("Full", "red")
+			}
 		}
+
 		nestedList = append(nestedList, []string{
 			strconv.Itoa(i + 1),
 			facility.Name,
 			facility.Fees,
-			seatsStr,
+			statusStr,
 		})
 	}
 
@@ -162,7 +309,7 @@ func displayFacilities(facilities []types.Facility) {
 	fmt.Println()
 }
 
-func promptFacilitySelection(facilities []types.Facility) (types.Facility, error) {
+func promptFacilitySelection(facilities []types.Facility, registrationsMap map[string]bool) (types.Facility, error) {
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
@@ -187,8 +334,12 @@ func promptFacilitySelection(facilities []types.Facility) (types.Facility, error
 		}
 
 		selectedFacility := facilities[selection-1]
+		if selectedFacility.Registered {
+			fmt.Println("You are already registered for this facility.")
+			continue
+		}
 		if selectedFacility.MiscID == "" || selectedFacility.SeatsAvailable <= 0 {
-			fmt.Println("Selected facility is full. Please choose another facility.")
+			fmt.Println("Selected facility is full or cannot be registered. Please choose another facility.")
 			continue
 		}
 
@@ -228,8 +379,8 @@ func performRegistration(regNo string, cookies types.Cookies, facility types.Fac
 		cookies.CSRF,
 		regNo,
 		xTime,
-		facility.ID,     
-		facility.MiscID, 
+		facility.ID,
+		facility.MiscID,
 	)
 
 	body, err := helpers.FetchReq(regNo, cookies, url, "", payload, "POST", "application/x-www-form-urlencoded")
@@ -248,18 +399,47 @@ func performRegistration(regNo string, cookies types.Cookies, facility types.Fac
 		return err
 	}
 
-	confirmationMsg := doc.Find("div.alert").Text()
-	confirmationMsg = helpers.SanitizeString(confirmationMsg) 
+	registrationsHeader := doc.Find("div.panel-heading.panel-head-custom").FilterFunction(func(i int, s *goquery.Selection) bool {
+		return strings.TrimSpace(s.Text()) == "My Registration(s)"
+	})
 
-	if confirmationMsg == "" {
-		fmt.Println("No confirmation message found. Check if the request was successful through another method.")
-		return fmt.Errorf("no confirmation message found")
+	if registrationsHeader.Length() == 0 {
+		fmt.Println("Registration confirmation section not found in the response.")
+		return fmt.Errorf("registration confirmation section not found")
 	}
 
-	fmt.Println("Facility Registration Response:")
-	fmt.Println(confirmationMsg)
+	registrationsTable := registrationsHeader.NextAllFiltered("div.box-body").Find("table.dataTable").First()
+	if registrationsTable.Length() == 0 {
+		fmt.Println("Registration table not found in the response. Unable to verify registration.")
+		return fmt.Errorf("registration table not found")
+	}
 
-	return nil
+	registrationSuccess := false
+	confirmationMessage := ""
+
+	registrationsTable.Find("tr").Each(func(i int, s *goquery.Selection) {
+		cells := s.Find("td")
+		if cells.Length() < 2 {
+			return
+		}
+
+		facilityName := strings.TrimSpace(cells.Eq(0).Text())
+		statusMessage := strings.TrimSpace(cells.Eq(1).Text())
+
+		if facilityName == facility.Name {
+			registrationSuccess = true
+			confirmationMessage = helpers.SanitizeString(statusMessage)
+		}
+	})
+
+	if registrationSuccess {
+		fmt.Println("Facility Registration Response:")
+		fmt.Println(confirmationMessage)
+		return nil
+	} else {
+		fmt.Println("Registration might have failed. Confirmation message not found.")
+		return fmt.Errorf("registration confirmation not found for facility: %s", facility.Name)
+	}
 }
 
 func Colorize(text string, color string) string {
