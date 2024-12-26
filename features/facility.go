@@ -1,13 +1,13 @@
 package features
 
 import (
-	"bufio"
+	//"bufio"
 	"bytes"
 	"cli-top/debug"
 	"cli-top/helpers"
 	"cli-top/types"
 	"fmt"
-	"os"
+	//"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -62,6 +62,7 @@ func RegisterPhyFacility(regNo string, cookies types.Cookies) {
 
 	displayFacilities(facilities, nil)
 
+	/*
 	selectedFacility, err := promptFacilitySelection(facilities, nil)
 	if err != nil {
 		fmt.Println("Registration aborted:", err)
@@ -93,6 +94,7 @@ func RegisterPhyFacility(regNo string, cookies types.Cookies) {
 
 	fmt.Println("\nYour Current Registrations:")
 	displayFacilities(facilities, nil)
+	*/
 }
 
 func fetchAvailableFacilities(regNo string, cookies types.Cookies) ([]types.Facility, error) {
@@ -309,6 +311,7 @@ func displayFacilities(facilities []types.Facility, registrationsMap map[string]
 	fmt.Println()
 }
 
+/*
 func promptFacilitySelection(facilities []types.Facility, registrationsMap map[string]bool) (types.Facility, error) {
 	reader := bufio.NewReader(os.Stdin)
 
@@ -364,7 +367,9 @@ func promptFacilitySelection(facilities []types.Facility, registrationsMap map[s
 		}
 	}
 }
+*/
 
+/*
 func performRegistration(regNo string, cookies types.Cookies, facility types.Facility) error {
 	if facility.ID == "" || facility.MiscID == "" {
 		fmt.Println("Cannot proceed with registration due to missing facility identifiers.")
@@ -441,6 +446,7 @@ func performRegistration(regNo string, cookies types.Cookies, facility types.Fac
 		return fmt.Errorf("registration confirmation not found for facility: %s", facility.Name)
 	}
 }
+*/
 
 func Colorize(text string, color string) string {
 	colorCodes := map[string]string{
