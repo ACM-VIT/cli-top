@@ -148,7 +148,7 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 
 		event := types.ICSWithLocation{
 			Event: eventwithoutlocation,
-			Time:  fmt.Sprintf("%s - %s", startFormatted, endFormatted), // Include both start and en
+			Time:  fmt.Sprintf("%s - %s", startFormatted, endFormatted), // Include both start and end
 		}
 
 		fmt.Println(event)

@@ -181,7 +181,7 @@ func startfn() {
 		if debug.Debug {
 			fmt.Println("File exists:", filePath)
 		}
-
+fa
 		err := godotenv.Load("cli-top-config.env")
 		if err != nil && debug.Debug {
 			fmt.Println("Error loading .env file")
