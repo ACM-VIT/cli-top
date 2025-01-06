@@ -110,7 +110,7 @@ After installation, you can access various features of **cli-top** by running sp
 
 ## 🔧 Maintainers
 
-- [Garv Jain](https://github.com/garvjainpb)
+- [Garv Jain](https://github.com/notcoolgarv)
 - [Tanmay Paturu](https://github.com/Tintedfireglass)
 - [Shambhavi Paygude](https://github.com/shambhavipaygude)
 
