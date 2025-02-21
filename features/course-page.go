@@ -547,7 +547,7 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 func displayCourseMaterials(materials []types.CourseMaterial) {
 	showWebColumn := false
 	for _, material := range materials {
-		if material.WebLink != "" {
+		if strings.TrimSpace(material.WebLink) != "" {
 			showWebColumn = true
 			break
 		}
@@ -566,8 +566,8 @@ func displayCourseMaterials(materials []types.CourseMaterial) {
 		topic := helpers.TruncateWithEllipsis(material.Topic, 30)
 		if showWebColumn {
 			webCol := ""
-			if material.WebLink != "" {
-				webCol = "Open"
+			if strings.TrimSpace(material.WebLink) != "" {
+				webCol = helpers.MakeANSILink("Open", material.WebLink)
 			}
 			nestedList = append(nestedList, []string{
 				material.Date,
