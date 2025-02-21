@@ -567,7 +567,7 @@ func displayCourseMaterials(materials []types.CourseMaterial) {
 		if showWebColumn {
 			webCol := ""
 			if strings.TrimSpace(material.WebLink) != "" {
-				webCol = "Yes"
+				webCol = helpers.MakeANSILink("Open", material.WebLink)
 			}
 			nestedList = append(nestedList, []string{
 				material.Date,
