@@ -3,7 +3,7 @@ package login
 import (
 	"cli-top/debug"
 	"cli-top/helpers"
-	types "cli-top/types"
+	"cli-top/types"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -12,20 +12,21 @@ import (
 )
 
 func performLogin(userInfo types.LogIn, cookies types.Cookies, captcha string) types.Cookies {
-
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
+	tr := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 	client := &http.Client{
 		Transport: tr,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			// Returning an error prevents automatic redirection
+			// Prevent automatic redirection
 			return http.ErrUseLastResponse
-		}}
-	var data = strings.NewReader(fmt.Sprintf(`_csrf=%s&username=%s&password=%s&captchaStr=%s`, cookies.CSRF, userInfo.Username, userInfo.Password, captcha))
+		},
+	}
+	data := strings.NewReader(fmt.Sprintf(`_csrf=%s&username=%s&password=%s&captchaStr=%s`, cookies.CSRF, userInfo.Username, userInfo.Password, captcha))
 	req, err := http.NewRequest("POST", "https://vtop.vit.ac.in/vtop/login", data)
-	if err != nil && debug.Debug {
-		fmt.Println(err)
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error creating login request:", err)
+		}
+		return types.Cookies{}
 	}
 	req.Header.Set("Host", "vtop.vit.ac.in")
 	req.Header.Set("Content-Length", "96")
@@ -43,33 +44,49 @@ func performLogin(userInfo types.LogIn, cookies types.Cookies, captcha string) t
 	req.Header.Set("Sec-Fetch-User", "?1")
 	req.Header.Set("Sec-Fetch-Dest", "document")
 	req.Header.Set("Referer", "https://vtop.vit.ac.in/vtop/login")
-	// req.Header.Set("Accept-Encoding", "gzip, deflate, br")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("Priority", "u=0, i")
 	req.Header.Set("Cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", cookies.JSESSIONID, cookies.SERVERID))
+
 	resp, err := client.Do(req)
-	if err != nil && debug.Debug {
-		fmt.Println(err)
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error in performLogin:", err)
+		}
+		return types.Cookies{}
+	}
+	if resp == nil {
+		if debug.Debug {
+			fmt.Println("Nil response in performLogin")
+		}
+		return types.Cookies{}
 	}
 	defer resp.Body.Close()
 
+	// Check for common error messages from VTOP
 	if errorCheck(cookies) {
 		return types.Cookies{}
 	}
 
-	tokens := helpers.ExtractCookies(resp)
+	// Read (and discard) the body before extracting cookies if needed
+	_, err = io.ReadAll(resp.Body)
+	if err != nil && debug.Debug {
+		fmt.Println("Error reading login response body:", err)
+	}
 
+	tokens := helpers.ExtractCookies(resp)
 	return tokens
 }
 
 func errorCheck(cookies types.Cookies) bool {
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
+	tr := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 	client := &http.Client{Transport: tr}
 	req, err := http.NewRequest("GET", "https://vtop.vit.ac.in/vtop/login/error", nil)
-	if err != nil && debug.Debug {
-		fmt.Println(err)
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error creating error check request:", err)
+		}
+		return false
 	}
 	req.Header.Set("Host", "vtop.vit.ac.in")
 	req.Header.Set("Cache-Control", "max-age=0")
@@ -87,62 +104,70 @@ func errorCheck(cookies types.Cookies) bool {
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("Priority", "u=0, i")
 	req.Header.Set("Cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", cookies.JSESSIONID, cookies.SERVERID))
+
 	resp, err := client.Do(req)
-	if err != nil && debug.Debug {
-		fmt.Println(err)
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error in errorCheck:", err)
+		}
+		return false
 	}
 	defer resp.Body.Close()
-	bodyText, err := io.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil && debug.Debug {
-		fmt.Println(err)
+		fmt.Println("Error reading error response body:", err)
 	}
-
-	if strings.Contains(string(bodyText), "Invalid Captcha") {
-		fmt.Println("\nInvalid Captcha. The captcha solver can sometimes confuse between B and 8, please retry...")
+	bodyString := string(bodyBytes)
+	if strings.Contains(bodyString, "Invalid Captcha") {
+		fmt.Println("\nInvalid Captcha. The captcha solver can sometimes confuse characters; please retry...")
 		return true
 	}
-	if strings.Contains(string(bodyText), "Invalid LoginId/Password") {
-		fmt.Println("\nInvalid LoginId/Password. Please check your cli-top config and try again...")
+	if strings.Contains(bodyString, "Invalid LoginId/Password") ||
+		strings.Contains(bodyString, "Invalid Username/Password") {
+		fmt.Println("\nInvalid Username/Password. Please check your cli-top configuration and try again...")
 		return true
 	}
-
-	if strings.Contains(string(bodyText), "Invalid Username/Password") {
-		fmt.Println("\nInvalid Username/Password. Please check your cli-top config and try again...")
+	if strings.Contains(bodyString, "Maximum Fail Attempts") {
+		fmt.Println("\nMaximum number of fail attempts reached. Use Forgot Password on VTOP to reset your password.")
 		return true
 	}
-
-	if strings.Contains(string(bodyText), "Maximum Fail Attempts") {
-		fmt.Println("\nNumber Of Maximum Fail Attempts Reached. Use Forgot Password on VTOP to reset your password.")
-		return true
-	}
-
 	return false
 }
 
 func Login(regNo string, password string) types.Cookies {
 	vtopTokens, captcha := getLoginPage()
-	// fmt.Println(captcha)
-
+	if captcha == "" {
+		if debug.Debug {
+			fmt.Println("Failed to retrieve captcha; restarting login process.")
+		}
+		vtopTokens, captcha = getLoginPage()
+	}
 	userInfo := types.LogIn{
 		Username: regNo,
 		Password: password,
 	}
-
 	loginCreds := performLogin(userInfo, vtopTokens, captcha)
-	// fmt.Println(loginCreds)
+	// If login fails (e.g. empty session token), try one more time
+	if loginCreds.JSESSIONID == "" {
+		if debug.Debug {
+			fmt.Println("Login failed; restarting fresh login instance.")
+		}
+		vtopTokens, captcha = getLoginPage()
+		loginCreds = performLogin(userInfo, vtopTokens, captcha)
+	}
 	vtopTokens.JSESSIONID = loginCreds.JSESSIONID
-
 	return vtopTokens
 }
 
 func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
+	tr := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 	client := &http.Client{Transport: tr}
 	req, err := http.NewRequest("GET", "https://vtop.vit.ac.in/vtop/init/page", nil)
-	if err != nil && debug.Debug {
-		fmt.Println(err)
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error creating HomePage request:", err)
+		}
+		return vtopTokens, ""
 	}
 	req.Header.Set("Host", "vtop.vit.ac.in")
 	req.Header.Set("Cache-Control", "max-age=0")
@@ -157,37 +182,41 @@ func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
 	req.Header.Set("Sec-Ch-Ua-Mobile", "?0")
 	req.Header.Set("Sec-Ch-Ua-Platform", `"Linux"`)
 	req.Header.Set("Referer", "https://vtop.vit.ac.in/vtop/login")
-	// req.Header.Set("Accept-Encoding", "gzip, deflate, br")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("Priority", "u=0, i")
 	req.Header.Set("Cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", vtopTokens.JSESSIONID, vtopTokens.SERVERID))
+
 	resp, err := client.Do(req)
-	if err != nil && debug.Debug {
-		fmt.Println(err)
-	}
-	defer resp.Body.Close()
-
-	bodyText := helpers.ExtractBodyText(resp)
-
-	if strings.Contains(string(bodyText), "Session Timed Out") {
+	if err != nil {
 		if debug.Debug {
-			fmt.Println("Session Timed Out, login failed. Retrying...")
+			fmt.Println("Error in HomePage:", err)
 		}
 		return vtopTokens, ""
 	}
+	defer resp.Body.Close()
 
-	vtopTokens.CSRF = helpers.ExtractCSRF2(bodyText)
-
-	RegNo, err := helpers.ExtractRegNo(bodyText)
-	if err != nil && debug.Debug {
-		// Handle the error
-		fmt.Println("Error:", err)
-		// You might want to return or log the error, or take other appropriate actions
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error reading HomePage response body:", err)
+		}
+		return vtopTokens, ""
 	}
-
+	bodyString := string(bodyBytes)
+	if strings.Contains(bodyString, "Session Timed Out") {
+		if debug.Debug {
+			fmt.Println("Session timed out, login failed. Retrying fresh login instance...")
+		}
+		return vtopTokens, ""
+	}
+	// Extract new CSRF token from the buffered body string
+	vtopTokens.CSRF = helpers.ExtractCSRF2(bodyString)
+	RegNo, err := helpers.ExtractRegNo(bodyString)
+	if err != nil && debug.Debug {
+		fmt.Println("Error extracting RegNo:", err)
+	}
 	if debug.Debug {
 		fmt.Println("(Helper - ExtractRegNo):", RegNo)
 	}
-
 	return vtopTokens, RegNo
 }
