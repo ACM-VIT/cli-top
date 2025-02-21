@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+
 	"github.com/PuerkitoBio/goquery"
 	"github.com/schollz/progressbar/v3"
 )
@@ -456,20 +457,20 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 		return nil, err
 	}
 
+	// Process primary table with class "table-bordered table-hover"
 	doc.Find("table.table-bordered.table-hover tbody tr").Each(func(_ int, s *goquery.Selection) {
 		cells := s.Find("td")
-		if cells.Length() < 5 {
+		if cells.Length() < 9 {
 			return
 		}
 		date := strings.TrimSpace(cells.Eq(1).Text())
 		dayOrderSlot := strings.TrimSpace(cells.Eq(2).Text())
 		dayOrderSlot = helpers.ReplaceCrossWithPlus(dayOrderSlot)
-		topic := strings.TrimSpace(cells.Eq(3).Text())
+		topic := strings.TrimSpace(cells.Eq(7).Text())
 		if topic == "" {
 			topic = "Unnamed"
 		}
-		refMaterialsTd := cells.Eq(4)
-
+		refMaterialsTd := cells.Last()
 		var refMaterials []types.ReferenceMaterial
 		refMaterialsTd.Find("button[name='getDownloadSemPdf']").Each(func(_ int, btn *goquery.Selection) {
 			materialID, _ := btn.Attr("data-matid")
@@ -481,14 +482,22 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 				MaterialDate: materialDate,
 			})
 		})
-
-		if len(refMaterials) > 0 {
-			materials = append(materials, types.CourseMaterial{
+		webLink := ""
+		refMaterialsTd.Find("a[target='_blank']").Each(func(_ int, a *goquery.Selection) {
+			href, exists := a.Attr("href")
+			if exists && strings.HasPrefix(href, "http") {
+				webLink = href
+			}
+		})
+		if len(refMaterials) > 0 || webLink != "" {
+			material := types.CourseMaterial{
 				Date:               date,
 				DayOrderSlot:       dayOrderSlot,
 				Topic:              topic,
 				ReferenceMaterials: refMaterials,
-			})
+				WebLink:            webLink,
+			}
+			materials = append(materials, material)
 		}
 	})
 
@@ -496,7 +505,6 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 		if table.HasClass("table-bordered") && table.HasClass("table-hover") {
 			return
 		}
-
 		table.Find("tr").Each(func(_ int, row *goquery.Selection) {
 			cells := row.Find("td")
 			if cells.Length() < 2 {
@@ -515,10 +523,18 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 					MaterialDate: materialDate,
 				})
 			})
-			if len(refMaterials) > 0 {
+			webLink := ""
+			buttonsTd.Find("a[target='_blank']").Each(func(_ int, a *goquery.Selection) {
+				href, exists := a.Attr("href")
+				if exists && strings.HasPrefix(href, "http") {
+					webLink = href
+				}
+			})
+			if len(refMaterials) > 0 || webLink != "" {
 				material := types.CourseMaterial{
 					Topic:              category,
 					ReferenceMaterials: refMaterials,
+					WebLink:            webLink,
 				}
 				materials = append(materials, material)
 			}
@@ -529,15 +545,43 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 }
 
 func displayCourseMaterials(materials []types.CourseMaterial) {
-	nestedList := [][]string{{"DATE", "TOPIC", "REF MATERIALS"}}
+	showWebColumn := false
+	for _, material := range materials {
+		if strings.TrimSpace(material.WebLink) != "" {
+			showWebColumn = true
+			break
+		}
+	}
+
+	var header []string
+	if showWebColumn {
+		header = []string{"DATE", "TOPIC", "REF COUNT", "WEB MATERIAL"}
+	} else {
+		header = []string{"DATE", "TOPIC", "REF COUNT"}
+	}
+
+	nestedList := [][]string{header}
 	for _, material := range materials {
 		refCount := strconv.Itoa(len(material.ReferenceMaterials))
-		truncatedTopic := helpers.TruncateWithEllipsis(material.Topic, 30)
-		nestedList = append(nestedList, []string{
-			material.Date,
-			truncatedTopic,
-			refCount,
-		})
+		topic := helpers.TruncateWithEllipsis(material.Topic, 30)
+		if showWebColumn {
+			webCol := ""
+			if strings.TrimSpace(material.WebLink) != "" {
+				webCol = helpers.MakeANSILink("Open", material.WebLink)
+			}
+			nestedList = append(nestedList, []string{
+				material.Date,
+				topic,
+				refCount,
+				webCol,
+			})
+		} else {
+			nestedList = append(nestedList, []string{
+				material.Date,
+				topic,
+				refCount,
+			})
+		}
 	}
 	fmt.Println()
 	helpers.PrintTable(nestedList, 1)
@@ -703,6 +747,12 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 	indexNo := 1
 
 	for _, material := range selectedMaterials {
+		if material.WebLink != "" {
+			fmt.Printf("Web Material available for '%s'\n", material.Topic)
+			fmt.Printf("Link: %s\n", material.WebLink)
+			continue
+		}
+
 		topicName := helpers.SanitizeFilename(material.Topic)
 		refMaterialNo := 1
 
@@ -812,8 +862,8 @@ func isSuccessfulDownload(body []byte) bool {
 
 func clearSingleNewline() {
 	if runtime.GOOS == "windows" {
-        exec.Command("cmd", "/C", "cls").Run()
-    }
+		exec.Command("cmd", "/C", "cls").Run()
+	}
 }
 
 // func getOptimalConcurrency() int {
