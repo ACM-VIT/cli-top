@@ -1,4 +1,4 @@
 package debug
 
 var Debug bool = false
-var Version string = "2.5.2"
+var Version string = "2.6.0"
