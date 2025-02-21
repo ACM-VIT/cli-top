@@ -7,6 +7,7 @@ import (
 	"cli-top/helpers"
 	"cli-top/types"
 	"fmt"
+
 	//"os"
 	"regexp"
 	"strconv"
@@ -60,40 +61,40 @@ func RegisterPhyFacility(regNo string, cookies types.Cookies) {
 		}
 	}
 
-	displayFacilities(facilities, nil)
+	displayFacilities(facilities)
 
 	/*
-	selectedFacility, err := promptFacilitySelection(facilities, nil)
-	if err != nil {
-		fmt.Println("Registration aborted:", err)
-		return
-	}
+		selectedFacility, err := promptFacilitySelection(facilities, nil)
+		if err != nil {
+			fmt.Println("Registration aborted:", err)
+			return
+		}
 
-	err = performRegistration(regNo, cookies, selectedFacility)
-	if err != nil {
-		fmt.Println("Error during registration:", err)
-		return
-	}
+		err = performRegistration(regNo, cookies, selectedFacility)
+		if err != nil {
+			fmt.Println("Error during registration:", err)
+			return
+		}
 
-	fmt.Println("Registration completed successfully.")
+		fmt.Println("Registration completed successfully.")
 
-	updatedRegistrations, err := ListRegistrations(regNo, cookies)
-	if err != nil {
-		fmt.Println("Error fetching updated registrations:", err)
-		return
-	}
+		updatedRegistrations, err := ListRegistrations(regNo, cookies)
+		if err != nil {
+			fmt.Println("Error fetching updated registrations:", err)
+			return
+		}
 
-	for _, reg := range updatedRegistrations {
-		for idx, fac := range facilities {
-			if strings.EqualFold(strings.TrimSpace(fac.Name), strings.TrimSpace(reg.FacilityName)) {
-				facilities[idx].Registered = true
-				break
+		for _, reg := range updatedRegistrations {
+			for idx, fac := range facilities {
+				if strings.EqualFold(strings.TrimSpace(fac.Name), strings.TrimSpace(reg.FacilityName)) {
+					facilities[idx].Registered = true
+					break
+				}
 			}
 		}
-	}
 
-	fmt.Println("\nYour Current Registrations:")
-	displayFacilities(facilities, nil)
+		fmt.Println("\nYour Current Registrations:")
+		displayFacilities(facilities, nil)
 	*/
 }
 
@@ -281,7 +282,7 @@ func ListRegistrations(regNo string, cookies types.Cookies) ([]types.Registratio
 	return registrations, nil
 }
 
-func displayFacilities(facilities []types.Facility, registrationsMap map[string]bool) {
+func displayFacilities(facilities []types.Facility) {
 	nestedList := [][]string{
 		{"No.", "Facility Name", "Fees (Including GST)", "Status"},
 	}
