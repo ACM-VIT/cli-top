@@ -149,25 +149,9 @@ func trackCommand(command string) {
 	}
 }
 
-func promptAndLogin() {
-	var username, password string
-	fmt.Print("Enter VTOP Username: ")
-	fmt.Scanln(&username)
-	fmt.Print("Enter VTOP Password: ")
-	fmt.Scanln(&password)
-
-	viper.Set("VTOP_USERNAME", username)
-	viper.Set("PASSWORD", password)
-
-	if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
-		fmt.Println("Error writing config file:", err)
-	}
-
-	vtop_login()
-}
-
 func startfn() {
 	red := color.New(color.FgHiRed)
+	//blue := color.New(color.FgHiBlue)
 	pink := color.New(color.FgHiMagenta)
 
 	contentStr := logo()
@@ -181,11 +165,10 @@ func startfn() {
 			pink.Print(string(char))
 		}
 	}
-	red.Println("\nWelcome to CLI-TOP!\n")
-	red.Println("Use \"cli-top help\" or \"cli-top --list\" to show available commands")
-	red.Println("Use \"cli-top [command] --help\" for more information about a command.\n")
-
+	red.Println("\nWelcome to CLI-TOP!\n ")
+	red.Println("Use \"cli-top help\" or \"cli-top --list\" to show available commands\nUse \"cli-top [command] --help\" for more information about a command.\n ")
 	fileName := "cli-top-config.env"
+
 	currentDir, err := os.Getwd()
 	if err != nil && debug.Debug {
 		fmt.Println("Error getting current directory:", err)
@@ -193,6 +176,7 @@ func startfn() {
 	}
 
 	filePath := filepath.Join(currentDir, fileName)
+
 	if _, err := os.Stat(filePath); err == nil {
 		if debug.Debug {
 			fmt.Println("File exists:", filePath)
@@ -204,15 +188,13 @@ func startfn() {
 		if debug.Debug {
 			fmt.Println(os.Getenv("PASSWORD"))
 		}
+
 		if os.Getenv("VTOP_USERNAME") != "" && os.Getenv("PASSWORD") != "" {
 			vtop_login()
-		} else {
-			fmt.Println("Credentials not found in config file. Please enter your credentials:")
-			promptAndLogin()
 		}
 	} else if os.IsNotExist(err) {
-		fmt.Println("Configuration file not found. Please enter your credentials:")
-		promptAndLogin()
+		fmt.Println("File does not exist:", filePath)
+		fmt.Println("Please login using the \"login\" command")
 	} else {
 		fmt.Println("Error checking file existence:", err)
 	}
@@ -294,6 +276,7 @@ func readCookiesFromFile() (types.Cookies, string) {
 var rootCmd = &cobra.Command{
 	Use:   "cli-top",
 	Short: "A simple CLI tool for vtop",
+
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		// Exclude specific commands from tracking
 		if cmd.Name() != "login" && cmd.Name() != "logout" && cmd.Name() != "cli-top" {
@@ -301,6 +284,7 @@ var rootCmd = &cobra.Command{
 			go trackCommand(cmd.Name())
 		}
 	},
+
 	Run: func(cmd *cobra.Command, args []string) {
 		if debugFlag {
 			debug.Debug = true
@@ -510,6 +494,7 @@ var logoutCmd = &cobra.Command{
 		}
 
 		uuid := os.Getenv("UUID")
+
 		if uuid == "" {
 			fmt.Println("UUID not found; nothing to preserve.")
 			return
