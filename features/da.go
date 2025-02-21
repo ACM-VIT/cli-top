@@ -342,6 +342,7 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 				fmt.Println("Error saving file:", err)
 				return
 			}
+			fmt.Printf("File saved to: %s\n", filePath)
 
 			fmt.Println()
 			fmt.Printf("\033]8;;file://%s\a\033[34mClick Here\033[0m\033]8;;\a\n", filePath)
@@ -359,8 +360,22 @@ func openFile(filePath string) {
 		cmd = exec.Command("cmd", "/c", "start", "", filePath)
 	case "darwin":
 		cmd = exec.Command("open", filePath)
-	default: // linux and others
-		cmd = exec.Command("xdg-open", filePath)
+	default:
+		if os.Getenv("WSL_DISTRO_NAME") != "" {
+			if _, err := exec.LookPath("wslview"); err == nil {
+				cmd = exec.Command("wslview", filePath)
+			}
+		}
+		if cmd == nil {
+			if _, err := exec.LookPath("xdg-open"); err == nil {
+				cmd = exec.Command("xdg-open", filePath)
+			} else if _, err := exec.LookPath("gio"); err == nil {
+				cmd = exec.Command("gio", "open", filePath)
+			} else {
+				fmt.Println("No supported command found to open the file automatically. Please open it manually:", filePath)
+				return
+			}
+		}
 	}
 	if err := cmd.Start(); err != nil {
 		fmt.Printf("Error opening file: %v\n", err)
