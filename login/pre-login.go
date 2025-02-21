@@ -3,7 +3,7 @@ package login
 import (
 	"cli-top/debug"
 	"cli-top/helpers"
-	"cli-top/types"
+	types "cli-top/types"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -17,11 +17,8 @@ func getSessionServer() types.Cookies {
 	}
 	client := &http.Client{Transport: tr}
 	req, err := http.NewRequest("GET", "https://vtop.vit.ac.in/", nil)
-	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error creating new request:", err)
-		}
-		return types.Cookies{}
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 	req.Header.Set("Host", "vtop.vit.ac.in")
 	req.Header.Set("Sec-Ch-Ua", `"Chromium";v="119", "Not?A_Brand";v="24"`)
@@ -34,57 +31,33 @@ func getSessionServer() types.Cookies {
 	req.Header.Set("Sec-Fetch-Mode", "navigate")
 	req.Header.Set("Sec-Fetch-User", "?1")
 	req.Header.Set("Sec-Fetch-Dest", "document")
+	// req.Header.Set("Accept-Encoding", "gzip, deflate, br")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("Priority", "u=0, i")
-
 	resp, err := client.Do(req)
-	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error in getSessionServer:", err)
-		}
-		return types.Cookies{}
-	}
-	if resp == nil {
-		if debug.Debug {
-			fmt.Println("Received nil response in getSessionServer")
-		}
-		return types.Cookies{}
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error reading response body:", err)
-		}
-		return types.Cookies{}
-	}
-	bodyString := string(bodyBytes)
-
 	vtopCookies := helpers.ExtractCookies(resp)
-	// Use the buffered response body for CSRF extraction
-	vtopCookies.CSRF = helpers.ExtractCSRF(bodyString)
+	vtopCookies.CSRF = helpers.ExtractCSRF(helpers.ExtractBodyText(resp))
+
 	return vtopCookies
 }
 
 func getLoginPage() (types.Cookies, string) {
-	cookies := getSessionServer()
-	if cookies.CSRF == "" {
-		if debug.Debug {
-			fmt.Println("Empty CSRF token; attempting fresh session retrieval.")
-		}
-		cookies = getSessionServer()
-	}
 
-	tr := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
+	cookies := getSessionServer()
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
 	client := &http.Client{Transport: tr}
-	data := strings.NewReader(fmt.Sprintf(`_csrf=%s&flag=VTOP`, cookies.CSRF))
+	var data = strings.NewReader(fmt.Sprintf(`_csrf=%s&flag=VTOP`, cookies.CSRF))
 	req, err := http.NewRequest("POST", "https://vtop.vit.ac.in/vtop/prelogin/setup", data)
-	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error creating pre-login request:", err)
-		}
-		return cookies, ""
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 	req.Header.Set("Host", "vtop.vit.ac.in")
 	req.Header.Set("Content-Length", "52")
@@ -102,40 +75,33 @@ func getLoginPage() (types.Cookies, string) {
 	req.Header.Set("Sec-Fetch-User", "?1")
 	req.Header.Set("Sec-Fetch-Dest", "document")
 	req.Header.Set("Referer", "https://vtop.vit.ac.in/vtop/open/page")
+	// req.Header.Set("Accept-Encoding", "gzip, deflate, br")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("Priority", "u=0, i")
 	req.Header.Set("Cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", cookies.JSESSIONID, cookies.SERVERID))
-
 	resp, err := client.Do(req)
-	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error in getLoginPage:", err)
-		}
-		return cookies, ""
-	}
-	if resp == nil {
-		if debug.Debug {
-			fmt.Println("Nil response in getLoginPage")
-		}
-		return cookies, ""
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error reading pre-login response body:", err)
-		}
-		return cookies, ""
+	bodyText, err := io.ReadAll(resp.Body)
+	if err != nil && debug.Debug {
+		fmt.Println(err)
 	}
-	bodyString := string(bodyBytes)
-	captchaImage := helpers.ExtractImage(bodyString)
+	// fmt.Printf("%s\n", bodyText)
+
+	stringBody := string(bodyText)
+	captchaImage := helpers.ExtractImage(stringBody)
 	if captchaImage == "nocaptcha" {
+		// Vtop does not always send a captcha image, so try again
 		return getLoginPage()
 	}
+	// fmt.Println("getLoginPage() - Captcha:", captchaImage)
+
 	captcha := helpers.SolveCaptcha(captchaImage)
 	if strings.Contains(captcha, "disabled") {
-		fmt.Println("Captcha auto-solver has been disabled.\nPlease manually solve the captcha and enter the answer:")
+		fmt.Println("Captcha auto-solver has been disabled. \nPlease manually solve the captcha and answer here:")
 		fmt.Scanln(&captcha)
 	}
 
