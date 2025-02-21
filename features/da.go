@@ -5,9 +5,12 @@ import (
 	"cli-top/helpers"
 	"cli-top/types"
 	"fmt"
+	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -78,11 +81,16 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		subjDAs = append(subjDAs, singleSubAllDa)
 		subjectIDs = append(subjectIDs, detail.ID)
 
+		var nextDueDate string = "N/A"
 		for _, da := range singleSubAllDa.DAs {
+			if (da.Last_upload == "N/A" || strings.EqualFold(da.Last_upload, "File Not Uploaded")) && da.DueDate.After(today) {
+				if nextDueDate == "N/A" || da.DueDate.Before(parseDate(nextDueDate)) {
+					nextDueDate = da.DueDate.Format("02-Jan-2006")
+				}
+			}
 			if da.DueDate.After(today) || da.DueDate.Equal(today) {
 				qpNormalized := strings.TrimSpace(strings.ToLower(da.QP))
 				lastUploadNormalized := strings.TrimSpace(strings.ToLower(da.Last_upload))
-
 				if (qpNormalized == "yes" && (lastUploadNormalized == "n/a" || lastUploadNormalized == "file not uploaded")) ||
 					(qpNormalized == "no" && lastUploadNormalized == "n/a") {
 					allUpcomingDAs = append(allUpcomingDAs, da)
@@ -115,6 +123,7 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		subjectsTable = append(subjectsTable, []string{
 			detail.Name,
 			fmt.Sprintf("%d/%d", completedDAs, totalDAs),
+			nextDueDate,
 		})
 	}
 
@@ -164,7 +173,7 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 	}
 
 	if len(subjectsTable) > 0 {
-		header := []string{"Subjects", "STATUS"}
+		header := []string{"Subjects", "STATUS", "Next Pending DA"}
 		subjectsTable = append([][]string{header}, subjectsTable...)
 
 		if icsGenerated {
@@ -200,13 +209,12 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 							daysLeft = "N/A"
 						} else {
 							daysLeft = strconv.Itoa(singleDA.DaysLeft)
-							// Color coding based on days left
 							if singleDA.DaysLeft < 3 {
-								status = "\033[31mPending  \033[0m" // Red
+								status = "\033[31mPending\033[0m" // Red
 							} else if singleDA.DaysLeft < 7 {
-								status = "\033[33mPending  \033[0m" // Yellow
+								status = "\033[33mPending\033[0m" // Yellow
 							} else {
-								status = "\033[34mPending  \033[0m" // Blue
+								status = "\033[34mPending\033[0m" // Blue
 							}
 						}
 					}
@@ -255,39 +263,65 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 				return
 			}
 
-			var downloadLink string
+			var selectedCode, selectedClassID string
 			for _, everyDA := range subjDAs {
 				if everyDA.Subject.ID == selectedSubjectID {
 					for _, singleDA := range everyDA.DAs {
 						truncatedTitle := helpers.TruncateWithEllipses(singleDA.Title, maxTitleWidth)
 						if truncatedTitle == selectedDA[0] {
-							downloadLink = singleDA.DownloadLink
+							if strings.Contains(singleDA.DownloadLink, "examinations/doDownloadQuestion/") {
+								u := strings.TrimPrefix(singleDA.DownloadLink, "examinations/doDownloadQuestion/?")
+								params := strings.Split(u, "&")
+								for _, param := range params {
+									kv := strings.SplitN(param, "=", 2)
+									if len(kv) == 2 {
+										if kv[0] == "code" {
+											selectedCode = kv[1]
+										} else if kv[0] == "classIdNumber" {
+											selectedClassID = kv[1]
+										}
+									}
+								}
+							}
 							break
 						}
 					}
 				}
-				if downloadLink != "" {
+				if selectedCode != "" && selectedClassID != "" {
 					break
 				}
 			}
 
-			if downloadLink == "" {
+			if selectedCode == "" || selectedClassID == "" {
 				fmt.Println("Download link not found for the selected DA.")
 				return
 			}
 
-			currentTime := time.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT")
-			currentTime = strings.ReplaceAll(currentTime, "UTC", "GMT")
-			cur := strings.ReplaceAll(currentTime, " ", "%20")
-			url := "https://vtop.vit.ac.in/vtop/" + downloadLink + "?authorizedID=" + regNo + "&_csrf=" + cookies.CSRF + "&x=" + cur
+			baseURL := "https://vtop.vit.ac.in/vtop/examinations/doDownloadQuestion/"
+			cleanCSRF := strings.Trim(os.Getenv("CSRF"), "\"")
+			payloadMap := map[string]string{
+				"_csrf":         cleanCSRF,
+				"authorizedID":  regNo,
+				"code":          selectedCode,
+				"classIdNumber": selectedClassID,
+				"x":             fmt.Sprintf("%d", time.Now().Unix()),
+			}
+			formData := helpers.FormatBodyDataClient(payloadMap)
 
-			body, err := helpers.FetchReq(regNo, cookies, url, "", "", "GET", "")
+			client := &http.Client{Timeout: 30 * time.Second}
+			body, headers, err := helpers.FetchReqClient(client, regNo, cookies, baseURL, "", formData, "POST", "application/x-www-form-urlencoded")
 			if err != nil {
 				if debug.Debug {
 					fmt.Println("Error fetching DA download:", err)
 				}
 				fmt.Println("Failed to download the selected DA.")
 				return
+			}
+
+			defaultName := "downloadedFile.pdf"
+			ext := helpers.GetFileExtension(defaultName, body, headers)
+			if debug.Debug {
+				fmt.Printf("Determined file extension: %s\n", ext)
 			}
 
 			var selectedSubjectName string
@@ -297,32 +331,63 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 					break
 				}
 			}
-			selectedSubjectName = strings.ReplaceAll(selectedSubjectName, "/", "_")
-			selectedSubjectName = strings.ReplaceAll(selectedSubjectName, "\\", "_")
+			selectedSubjectName = helpers.SanitizeFilename(selectedSubjectName)
 
-			// Append the subject name to the file name
-			fileName := fmt.Sprintf("%s_%s.pdf", selectedSubjectName, selectedDA[0])
+			fileName := fmt.Sprintf("%s_%s%s", selectedSubjectName, selectedDA[0], ext)
 			downloadsDir := helpers.GetDownloadsDir()
 			filePath := filepath.Join(downloadsDir, fileName)
 
-			file, err := os.Create(filePath)
+			err = helpers.SaveFile(body, filePath)
 			if err != nil {
-				fmt.Println("Error creating file:", err)
+				fmt.Println("Error saving file:", err)
 				return
 			}
-			defer file.Close()
-
-			_, err = file.Write(body)
-			if err != nil {
-				fmt.Println("Error writing to file:", err)
-				return
-			}
+			fmt.Printf("File saved to: %s\n", filePath)
 
 			fmt.Println()
 			fmt.Printf("\033]8;;file://%s\a\033[34mClick Here\033[0m\033]8;;\a\n", filePath)
 			fmt.Println()
+
+			openFile(filePath)
 		}
 	}
+}
+
+func openFile(filePath string) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("cmd", "/c", "start", "", filePath)
+	case "darwin":
+		cmd = exec.Command("open", filePath)
+	default:
+		if os.Getenv("WSL_DISTRO_NAME") != "" {
+			if _, err := exec.LookPath("wslview"); err == nil {
+				cmd = exec.Command("wslview", filePath)
+			}
+		}
+		if cmd == nil {
+			if _, err := exec.LookPath("xdg-open"); err == nil {
+				cmd = exec.Command("xdg-open", filePath)
+			} else if _, err := exec.LookPath("gio"); err == nil {
+				cmd = exec.Command("gio", "open", filePath)
+			} else {
+				fmt.Println("No supported command found to open the file automatically. Please open it manually:", filePath)
+				return
+			}
+		}
+	}
+	if err := cmd.Start(); err != nil {
+		fmt.Printf("Error opening file: %v\n", err)
+	}
+}
+
+func parseDate(dateStr string) time.Time {
+	t, err := time.Parse("02-Jan-2006", dateStr)
+	if err != nil {
+		return time.Time{}
+	}
+	return t
 }
 
 func getAllSubs(regNo string, cookies types.Cookies, semID string) []types.DAsubject {
@@ -453,6 +518,16 @@ func pendingDAs(doc *goquery.Document, subject types.DAsubject) (types.LatestDA,
 						matches := re.FindStringSubmatch(href)
 						if len(matches) > 1 {
 							downloadLinkQP = matches[1]
+						}
+					}
+				} else {
+					btn := td.Eq(5).Find("button")
+					if btn.Length() > 0 {
+						qp = "Yes"
+						codeAttr, existsCode := btn.Attr("data-code")
+						classAttr, existsClass := btn.Attr("data-classid")
+						if existsCode && existsClass {
+							downloadLinkQP = fmt.Sprintf("examinations/doDownloadQuestion/?code=%s&classIdNumber=%s", codeAttr, classAttr)
 						}
 					}
 				}

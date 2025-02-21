@@ -181,7 +181,6 @@ func startfn() {
 		if debug.Debug {
 			fmt.Println("File exists:", filePath)
 		}
-
 		err := godotenv.Load("cli-top-config.env")
 		if err != nil && debug.Debug {
 			fmt.Println("Error loading .env file")
@@ -358,7 +357,7 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
 
 	// Add subcommands to root command
-	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd)
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd, facilityCmd)
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
@@ -373,6 +372,15 @@ var profileCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.Profile(cookies, regNo)
+	},
+}
+
+var facilityCmd = &cobra.Command{
+	Use:   "facility",
+	Short: "Register for facilities",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.RegisterPhyFacility(regNo, cookies)
 	},
 }
 
