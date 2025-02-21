@@ -5,12 +5,18 @@ name: Build CLI-TOP Binary
 
 on:
   push:
-    branches: ["main", "release"]
+    branches:
+      - main
+      - release
   pull_request:
-    branches: ["main", "release"]
+    types: [closed]
+    branches:
+      - main
+      - release
 
 jobs:
   build-linux:
+    if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,6 +43,7 @@ jobs:
           path: ./build/linux/cli-top
 
   build-windows:
+    if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -226,6 +233,7 @@ jobs:
           path: ./Output/cli-top-installer-${{ steps.extract_version.outputs.version }}.exe
 
   build-mac:
+    if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -253,6 +261,7 @@ jobs:
           path: ./build/macos/cli-top
 
   build-android:
+    if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
