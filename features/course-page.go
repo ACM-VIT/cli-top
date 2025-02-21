@@ -567,7 +567,7 @@ func displayCourseMaterials(materials []types.CourseMaterial) {
 		if showWebColumn {
 			webCol := ""
 			if strings.TrimSpace(material.WebLink) != "" {
-				webCol = helpers.MakeANSILink("Open", material.WebLink)
+				webCol = "Yes"
 			}
 			nestedList = append(nestedList, []string{
 				material.Date,
@@ -748,9 +748,11 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 
 	for _, material := range selectedMaterials {
 		if material.WebLink != "" {
-			fmt.Printf("Web Material available for '%s': %s\n", material.Topic, material.WebLink)
+			fmt.Printf("Web Material available for '%s'\n", material.Topic)
+			fmt.Printf("Link: %s\n", material.WebLink)
 			continue
 		}
+
 		topicName := helpers.SanitizeFilename(material.Topic)
 		refMaterialNo := 1
 
