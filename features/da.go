@@ -85,7 +85,14 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		for _, da := range singleSubAllDa.DAs {
 			if (da.Last_upload == "N/A" || strings.EqualFold(da.Last_upload, "File Not Uploaded")) && da.DueDate.After(today) {
 				if nextDueDate == "N/A" || da.DueDate.Before(parseDate(nextDueDate)) {
-					nextDueDate = da.DueDate.Format("02-Jan-2006")
+					days := int(da.DueDate.Sub(today).Hours() / 24)
+					if days < 3 {
+						nextDueDate = "\033[31m" + da.DueDate.Format("02-Jan-2006") + "\033[0m" // Red for < 3 days
+				} else if days < 7 {
+						nextDueDate = "\033[33m" + da.DueDate.Format("02-Jan-2006") + "\033[0m" // Yellow for < 7 days
+				} else {
+						nextDueDate = da.DueDate.Format("02-Jan-2006")
+				}
 				}
 			}
 			if da.DueDate.After(today) || da.DueDate.Equal(today) {
