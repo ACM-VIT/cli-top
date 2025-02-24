@@ -141,3 +141,49 @@ func UploadICSFile(filePath string, serverURL string) (string, error) {
 
 	return uploadResponse.URL, nil
 }
+func VenueAdd(events []types.ICSWithLocation, filePath string, calName string) error {
+	if len(events) == 0 {
+		return nil
+	}
+
+	file, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to create ICS file: %v", err)
+	}
+	defer file.Close()
+
+	icsHeaders := []string{
+		"BEGIN:VCALENDAR",
+		"VERSION:2.0",
+		"PRODID:-//CLI-TOP//EN",
+		fmt.Sprintf("X-WR-CALNAME:%s", EscapeString(calName)),
+	}
+	_, err = file.WriteString(strings.Join(icsHeaders, "\r\n") + "\r\n")
+	if err != nil {
+		return fmt.Errorf("failed to write ICS headers: %v", err)
+	}
+
+	for _, event := range events {
+		vevent := []string{
+			"BEGIN:VEVENT",
+			fmt.Sprintf("DTSTART;%s", event.Event.DtStart),
+			fmt.Sprintf("DTEND;%s", event.Event.DtEnd),
+			fmt.Sprintf("SUMMARY:%s", EscapeString(event.Event.Summary)),
+			fmt.Sprintf("DESCRIPTION:%s", EscapeString(event.Event.Description)),
+			fmt.Sprintf("DTSTAMP:%s", time.Now().UTC().Format("20060102T150405Z")), 
+			"END:VEVENT",
+		}
+
+		_, err = file.WriteString(strings.Join(vevent, "\r\n") + "\r\n")
+		if err != nil {
+			return fmt.Errorf("failed to write VEVENT: %v", err)
+		}
+	}
+
+	_, err = file.WriteString("END:VCALENDAR\r\n")
+	if err != nil {
+		return fmt.Errorf("failed to write ICS footer: %v", err)
+	}
+
+	return nil
+}
