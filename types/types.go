@@ -59,6 +59,7 @@ type CourseMaterial struct {
 	DayOrderSlot       string
 	Topic              string
 	ReferenceMaterials []ReferenceMaterial
+	WebLink            string
 }
 
 type ReferenceMaterial struct {
@@ -96,7 +97,7 @@ type ExamEvent struct {
 type DAsubject struct {
 	Name string
 	Code string
-	ID   string	
+	ID   string
 }
 
 type DAEvent struct {
@@ -110,8 +111,8 @@ type DAEvent struct {
 }
 
 type SubjectDAs struct {
-    Subject     DAsubject
-    DAs         []DAEvent
+	Subject DAsubject
+	DAs     []DAEvent
 }
 
 type NightSlipRequest struct {
@@ -127,14 +128,53 @@ type NightSlipRequest struct {
 
 type LatestDA struct {
 	Subject DAsubject
-	DA     DAEvent
+	DA      DAEvent
 }
 
 type ICSEvent struct {
-	UID          string `json:"UID"`
-	DtStamp      string `json:"DTSTAMP"`
-	DtStart      string `json:"DTSTART"`
-	DtEnd        string `json:"DTEND"`
-	Summary      string `json:"SUMMARY"`
-	Description  string `json:"DESCRIPTION"`    
+	UID         string `json:"UID"`
+	DtStamp     string `json:"DTSTAMP"`
+	DtStart     string `json:"DTSTART"`
+	DtEnd       string `json:"DTEND"`
+	Summary     string `json:"SUMMARY"`
+	Description string `json:"DESCRIPTION"`
+}
+
+type CourseDetail struct {
+	CourseCode  string
+	CourseTitle string
+	CourseType  string
+	Faculty     string
+	Slot        string
+}
+
+type ICSWithLocation struct {
+	Event ICSEvent `json:"EVENT"`
+	Time  string   `json:"TIME"`
+}
+type Class struct {
+	Subject   string
+	Slot      string
+	Venue     string
+	StartTime string
+	EndTime   string
+}
+
+type Facility struct {
+	ID             string
+	Name           string
+	Fees           string
+	SeatsAvailable int
+	MiscID         string
+	Registered     bool
+}
+
+type SubjectTime struct {
+	Slot  []string
+	Venue string
+}
+
+type Registration struct {
+	FacilityName  string
+	StatusMessage string
 }
