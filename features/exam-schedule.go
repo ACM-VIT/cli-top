@@ -37,7 +37,9 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 	}
 
 	var semID string
-	var examSchedule []types.ExamEvent
+	var fatExams []types.ExamEvent
+	var cat1Exams []types.ExamEvent
+	var cat2Exams []types.ExamEvent
 
 	for i := len(allSems) - 1; i >= 0; i-- {
 		semID = allSems[i].SemID
@@ -61,7 +63,7 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 			continue
 		}
 
-		examSchedule, err = parseExamSchedule(doc)
+		fatExams, cat1Exams, cat2Exams, err = parseExamScheduleByType(doc)
 		if err != nil {
 			if debug.Debug {
 				fmt.Printf("Error parsing exam schedule for Semester %s: %v\n", allSems[i].SemName, err)
@@ -69,7 +71,7 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 			continue
 		}
 
-		if len(examSchedule) > 0 {
+		if len(fatExams) > 0 || len(cat1Exams) > 0 || len(cat2Exams) > 0 {
 			if debug.Debug {
 				fmt.Printf("Selected Semester: %s (%s)\n", allSems[i].SemName, semID)
 			}
@@ -81,108 +83,63 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 		}
 	}
 
-	if len(examSchedule) == 0 {
-		fmt.Println("No exams scheduled in this Semester. Printing previous one")
-	}
-
-	sortExamsByDateAsc(examSchedule)
-
-	upcomingExams := []types.ExamEvent{}
-	for _, exam := range examSchedule {
-		if exam.DaysLeft >= 0 {
-			upcomingExams = append(upcomingExams, exam)
-		}
-	}
-
-	if len(upcomingExams) == 0 {
-		fmt.Println("No upcoming exams scheduled!")
+	if len(fatExams) == 0 && len(cat1Exams) == 0 && len(cat2Exams) == 0 {
+		fmt.Println("No exams scheduled in this Semester.")
 		return
 	}
 
-	displayExamScheduleTable(upcomingExams)
+	// Sort exams and filter for upcoming exams
+	fatExams = filterAndSortUpcomingExams(fatExams)
+	cat1Exams = filterAndSortUpcomingExams(cat1Exams)
+	cat2Exams = filterAndSortUpcomingExams(cat2Exams)
 
-	var icsEvents []types.ICSWithLocation
-	for _, exam := range upcomingExams {
+	// Display the three tables
 
-		timeRange := strings.Split(exam.ExamTime, " - ")
-		if len(timeRange) != 2 {
-			fmt.Println("Invalid time range format")
-			continue
-		}
+	if len(cat1Exams) > 0 {
+		fmt.Println("\nCAT1 EXAMS\n")
+		displayExamScheduleTable(cat1Exams)
+	} 
 
-		inputTimeLayout := "3:04 PM"
-		outputTimeLayout := "20060102T150405"
+	if len(cat2Exams) > 0 {
+		fmt.Println("\nCAT2 EXAMS\n")
+		displayExamScheduleTable(cat2Exams)
+	} 
 
-		startTime, err1 := time.Parse(inputTimeLayout, timeRange[0])
-		endTime, err2 := time.Parse(inputTimeLayout, timeRange[1])
+	if len(fatExams) > 0 {
+		fmt.Println("\nFAT EXAMS\n")
+		displayExamScheduleTable(fatExams)
+	} 
 
-		if err1 != nil || err2 != nil {
-			fmt.Println("Error parsing time range:", err1, err2)
-			continue
-		}
 
-		examDate := exam.ExamDate
-		location := examDate.Location()
+	
 
-		startDateTime := time.Date(
-			examDate.Year(), examDate.Month(), examDate.Day(),
-			startTime.Hour(), startTime.Minute(), startTime.Second(), 0, location,
-		)
-		endDateTime := time.Date(
-			examDate.Year(), examDate.Month(), examDate.Day(),
-			endTime.Hour(), endTime.Minute(), endTime.Second(), 0, location,
-		)
-
-		startFormatted := fmt.Sprintf("TZID=Asia/Kolkata:%s", startDateTime.Format(outputTimeLayout))
-		endFormatted := fmt.Sprintf("TZID=Asia/Kolkata:%s", endDateTime.Format(outputTimeLayout))
-
-		eventwithoutlocation := types.ICSEvent{
-			UID:     helpers.GenerateUID("Exam"),
-			DtStamp: time.Now().UTC().Format(outputTimeLayout + "Z"), // DtStamp in UTC
-			DtStart: startFormatted,
-			DtEnd:   endFormatted,
-			Summary: fmt.Sprintf("Exam: %s - %s", exam.Slot, exam.CourseTitle),
-			Description: fmt.Sprintf("Exam for %s (%s) scheduled on %s at %s. Seat Number: %s.",
-				exam.CourseTitle, exam.CourseCode, exam.ExamDate.Format("02-Jan-2006"), exam.Venue, exam.SeatNo),
-		}
-
-		event := types.ICSWithLocation{
-			Event: eventwithoutlocation,
-			Time:  fmt.Sprintf("%s - %s", startFormatted, endFormatted), // Include both start and end
-		}
-
-		fmt.Println(event)
-
-		icsEvents = append(icsEvents, event)
-	}
-
-	icsFileName := "Exam_Schedule.ics"
-	icsFilePath := filepath.Join(helpers.GetDownloadsDir(), icsFileName)
-
-	err = helpers.VenueAdd(icsEvents, icsFilePath, "CLI-TOP Exams")
-	if err != nil {
-		fmt.Println("Error generating ICS file:", err)
-	} else {
-		serverURL := "https://cli-calendar.acmvit.in"
-		uploadedFileURL, err := helpers.UploadICSFile(icsFilePath, serverURL)
-		if err != nil {
-			fmt.Println("Error uploading ICS file:", err)
-			fmt.Println("Please import the 'Exam_Schedule.ics' file manually from your Downloads folder.")
-		} else {
-			fmt.Println()
-			fmt.Println("ICS file generated and saved successfully.")
-			helpers.GenerateCalendarImportLinks(uploadedFileURL, "Exams")
-		}
+	// Generate ICS file with all upcoming exams
+	allUpcomingExams := append(append(fatExams, cat1Exams...), cat2Exams...)
+	if len(allUpcomingExams) > 0 {
+		generateICSFile(allUpcomingExams)
 	}
 }
 
-func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
-	var exams []types.ExamEvent
+func parseExamScheduleByType(doc *goquery.Document) ([]types.ExamEvent, []types.ExamEvent, []types.ExamEvent, error) {
+	var fatExams []types.ExamEvent
+	var cat1Exams []types.ExamEvent
+	var cat2Exams []types.ExamEvent
 
 	now := time.Now()
 	todayDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 
+	currentExamType := ""
 	doc.Find("table.customTable tbody tr").Each(func(i int, s *goquery.Selection) {
+		// Check for section headers
+		if s.Find("td.panelHead-secondary").Length() > 0 {
+			headerText := strings.TrimSpace(s.Find("td.panelHead-secondary").Text())
+			if debug.Debug {
+				fmt.Printf("Found exam section header: %s\n", headerText)
+			}
+			currentExamType = headerText
+			return
+		}
+
 		cells := s.Find("td")
 		if cells.Length() >= 13 {
 			serialNo := strings.TrimSpace(cells.Eq(0).Text())
@@ -231,28 +188,134 @@ func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
 				SeatNo:      seatNo,
 				DaysLeft:    daysLeft,
 			}
-			exams = append(exams, examEvent)
+
+			// Categorize based on the current exam type header
+			switch strings.ToUpper(currentExamType) {
+			case "FAT":
+				fatExams = append(fatExams, examEvent)
+			case "CAT1":
+				cat1Exams = append(cat1Exams, examEvent)
+			case "CAT2":
+				cat2Exams = append(cat2Exams, examEvent)
+			}
 		} else if debug.Debug {
 			fmt.Printf("Unexpected number of cells (%d) in row %d. Expected at least 13.\n", cells.Length(), i+1)
 		}
 	})
 
-	if debug.Debug && len(exams) == 0 {
-		fmt.Println("Parsed exams:", len(exams))
+	if debug.Debug {
+		fmt.Printf("Parsed exams: FAT=%d, CAT1=%d, CAT2=%d\n", len(fatExams), len(cat1Exams), len(cat2Exams))
 	}
 
-	return exams, nil
+	return fatExams, cat1Exams, cat2Exams, nil
 }
 
-func sortExamsByDateAsc(exams []types.ExamEvent) {
-	sort.Slice(exams, func(i, j int) bool {
-		return exams[i].ExamDate.Before(exams[j].ExamDate)
+// Filter exams to only include upcoming ones and sort them by date
+func filterAndSortUpcomingExams(exams []types.ExamEvent) []types.ExamEvent {
+	var upcomingExams []types.ExamEvent
+
+	// Filter for upcoming exams (date >= today)
+	now := time.Now()
+	todayDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+	for _, exam := range exams {
+		if !exam.ExamDate.Before(todayDate) {
+			upcomingExams = append(upcomingExams, exam)
+		}
+	}
+
+	// Sort by date
+	sort.Slice(upcomingExams, func(i, j int) bool {
+		return upcomingExams[i].ExamDate.Before(upcomingExams[j].ExamDate)
 	})
+
+	return upcomingExams
+}
+
+func generateICSFile(exams []types.ExamEvent) {
+	var icsEvents []types.ICSWithLocation
+	for _, exam := range exams {
+		timeRange := strings.Split(exam.ExamTime, " - ")
+		if len(timeRange) != 2 {
+			fmt.Println("Invalid time range format")
+			continue
+		}
+
+		inputTimeLayout := "3:04 PM"
+		outputTimeLayout := "20060102T150405"
+
+		startTime, err1 := time.Parse(inputTimeLayout, timeRange[0])
+		endTime, err2 := time.Parse(inputTimeLayout, timeRange[1])
+
+		if err1 != nil || err2 != nil {
+			fmt.Println("Error parsing time range:", err1, err2)
+			continue
+		}
+
+		examDate := exam.ExamDate
+		location := examDate.Location()
+
+		startDateTime := time.Date(
+			examDate.Year(), examDate.Month(), examDate.Day(),
+			startTime.Hour(), startTime.Minute(), startTime.Second(), 0, location,
+		)
+		endDateTime := time.Date(
+			examDate.Year(), examDate.Month(), examDate.Day(),
+			endTime.Hour(), endTime.Minute(), endTime.Second(), 0, location,
+		)
+
+		startFormatted := fmt.Sprintf("TZID=Asia/Kolkata:%s", startDateTime.Format(outputTimeLayout))
+		endFormatted := fmt.Sprintf("TZID=Asia/Kolkata:%s", endDateTime.Format(outputTimeLayout))
+
+		// Determine exam type for the summary
+		examType := "Exam"
+		if strings.Contains(exam.CourseTitle, "CAT1") {
+			examType = "CAT1"
+		} else if strings.Contains(exam.CourseTitle, "CAT2") {
+			examType = "CAT2"
+		} else {
+			examType = "FAT"
+		}
+
+		eventwithoutlocation := types.ICSEvent{
+			UID:     helpers.GenerateUID("Exam"),
+			DtStamp: time.Now().UTC().Format(outputTimeLayout + "Z"),
+			DtStart: startFormatted,
+			DtEnd:   endFormatted,
+			Summary: fmt.Sprintf("%s: %s - %s", examType, exam.Slot, exam.CourseTitle),
+			Description: fmt.Sprintf("Exam for %s (%s) scheduled on %s at %s. Seat Number: %s.",
+				exam.CourseTitle, exam.CourseCode, exam.ExamDate.Format("02-Jan-2006"), exam.Venue, exam.SeatNo),
+		}
+
+		event := types.ICSWithLocation{
+			Event: eventwithoutlocation,
+			Time:  fmt.Sprintf("%s - %s", startFormatted, endFormatted),
+		}
+
+		icsEvents = append(icsEvents, event)
+	}
+
+	icsFileName := "Exam_Schedule.ics"
+	icsFilePath := filepath.Join(helpers.GetDownloadsDir(), icsFileName)
+
+	err := helpers.VenueAdd(icsEvents, icsFilePath, "CLI-TOP Exams")
+	if err != nil {
+		fmt.Println("Error generating ICS file:", err)
+	} else {
+		serverURL := "https://cli-calendar.acmvit.in"
+		uploadedFileURL, err := helpers.UploadICSFile(icsFilePath, serverURL)
+		if err != nil {
+			fmt.Println("Error uploading ICS file:", err)
+			fmt.Println("Please import the 'Exam_Schedule.ics' file manually from your Downloads folder.")
+		} else {
+			fmt.Println()
+			fmt.Println("ICS file generated and saved successfully.")
+			helpers.GenerateCalendarImportLinks(uploadedFileURL, "Exams")
+		}
+	}
 }
 
 func displayExamScheduleTable(exams []types.ExamEvent) {
-	fmt.Println()
-
 	var tableData [][]string
 	tableData = append(tableData, []string{
 		"Code", "Course Title", "Slot", "Exam Date", "Exam Time", "Venue", "Seat", "Seat No.", "Days Left",
