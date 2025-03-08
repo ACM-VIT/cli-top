@@ -32,6 +32,8 @@ var facultyFlag string
 var classGrpFlag int
 var fuzzyIndexFlag int
 var courseNameFlag string
+var daysFlag int
+var allFlag bool
 
 type TrackingData struct {
 	UUID      string `json:"uuid"`
@@ -349,6 +351,8 @@ func Execute() {
 	coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
 	coursePageCmd.PersistentFlags().StringVarP(&facultyFlag, "faculty", "f", "", "Specify the faculty")
 	coursePageCmd.PersistentFlags().IntVarP(&fuzzyIndexFlag, "fuzzy-index", "i", 0, "Specify the fuzzy index")
+	eventsCmd.PersistentFlags().IntVarP(&daysFlag, "days", "n", -1, "Specify the day for which you want to search for event")
+	eventsCmd.PersistentFlags().BoolVarP(&allFlag, "show all", "a", false, "Show unavailable and online events also")
 	//daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
 
 	// Define global flags
@@ -357,7 +361,7 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
 
 	// Add subcommands to root command
-	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd, facilityCmd, updateCmd)
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd, facilityCmd, updateCmd,eventsCmd)
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
@@ -566,5 +570,14 @@ var updateCmd = &cobra.Command{
 	Short: "Perform updates",
 	Run: func(cmd *cobra.Command, args []string) {
 		features.Update()
+	},
+}
+
+var eventsCmd = &cobra.Command{
+	Use:  "events",
+	Short: "Show upcoming and registered events",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.Events(regNo,cookies,"https://vtop.vit.ac.in/vtop/event/swf/loadEventRegistration",daysFlag,allFlag)
 	},
 }
