@@ -457,88 +457,201 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 		return nil, err
 	}
 
-	// Process primary table with class "table-bordered table-hover"
-	doc.Find("table.table-bordered.table-hover tbody tr").Each(func(_ int, s *goquery.Selection) {
-		cells := s.Find("td")
-		if cells.Length() < 9 {
-			return
-		}
-		date := strings.TrimSpace(cells.Eq(1).Text())
-		dayOrderSlot := strings.TrimSpace(cells.Eq(2).Text())
-		dayOrderSlot = helpers.ReplaceCrossWithPlus(dayOrderSlot)
-		topic := strings.TrimSpace(cells.Eq(7).Text())
-		if topic == "" {
-			topic = "Unnamed"
-		}
-		refMaterialsTd := cells.Last()
-		var refMaterials []types.ReferenceMaterial
-		refMaterialsTd.Find("button[name='getDownloadSemPdf']").Each(func(_ int, btn *goquery.Selection) {
-			materialID, _ := btn.Attr("data-matid")
-			materialDate, _ := btn.Attr("data-mdate")
-			name := strings.TrimSpace(btn.Find("span").Text())
-			refMaterials = append(refMaterials, types.ReferenceMaterial{
-				Name:         name,
-				MaterialID:   materialID,
-				MaterialDate: materialDate,
-			})
-		})
-		webLink := ""
-		refMaterialsTd.Find("a[target='_blank']").Each(func(_ int, a *goquery.Selection) {
-			href, exists := a.Attr("href")
-			if exists && strings.HasPrefix(href, "http") {
-				webLink = href
-			}
-		})
-		if len(refMaterials) > 0 || webLink != "" {
-			material := types.CourseMaterial{
-				Date:               date,
-				DayOrderSlot:       dayOrderSlot,
-				Topic:              topic,
-				ReferenceMaterials: refMaterials,
-				WebLink:            webLink,
-			}
-			materials = append(materials, material)
-		}
-	})
-
-	doc.Find("table").Each(func(_ int, table *goquery.Selection) {
-		if table.HasClass("table-bordered") && table.HasClass("table-hover") {
-			return
-		}
-		table.Find("tr").Each(func(_ int, row *goquery.Selection) {
-			cells := row.Find("td")
-			if cells.Length() < 2 {
-				return
-			}
-			category := strings.TrimSpace(cells.Eq(0).Text())
-			buttonsTd := cells.Eq(1)
-			var refMaterials []types.ReferenceMaterial
-			buttonsTd.Find("button[name='getDownloadSemPdf']").Each(func(_ int, btn *goquery.Selection) {
-				materialID, _ := btn.Attr("data-matid")
-				materialDate, _ := btn.Attr("data-mdate")
-				name := strings.TrimSpace(btn.Find("span").Text())
-				refMaterials = append(refMaterials, types.ReferenceMaterial{
-					Name:         name,
-					MaterialID:   materialID,
-					MaterialDate: materialDate,
+	doc.Find("table").Each(func(i int, table *goquery.Selection) {
+		multiHeader := false
+		headerRows := table.Find("thead tr")
+		if headerRows.Length() > 0 {
+			headerRows.Each(func(i int, row *goquery.Selection) {
+				row.Find("th, td").Each(func(j int, cell *goquery.Selection) {
+					if colspan, exists := cell.Attr("colspan"); exists {
+						if c, err := strconv.Atoi(colspan); err == nil && c > 1 {
+							multiHeader = true
+						}
+					}
 				})
 			})
-			webLink := ""
-			buttonsTd.Find("a[target='_blank']").Each(func(_ int, a *goquery.Selection) {
-				href, exists := a.Attr("href")
-				if exists && strings.HasPrefix(href, "http") {
-					webLink = href
+		}
+
+		if multiHeader && headerRows.Length() > 1 {
+			topicGroupStart := -1
+			topicColSpan := 0
+			firstHeaderRow := headerRows.First()
+			firstHeaderRow.Find("th, td").Each(func(j int, cell *goquery.Selection) {
+				text := strings.ToLower(strings.TrimSpace(cell.Text()))
+				if strings.Contains(text, "topic") {
+					topicGroupStart = j
+					if colspan, exists := cell.Attr("colspan"); exists {
+						if c, err := strconv.Atoi(colspan); err == nil {
+							topicColSpan = c
+						}
+					}
 				}
 			})
-			if len(refMaterials) > 0 || webLink != "" {
-				material := types.CourseMaterial{
-					Topic:              category,
-					ReferenceMaterials: refMaterials,
-					WebLink:            webLink,
-				}
-				materials = append(materials, material)
+			if topicGroupStart == -1 {
+				return
 			}
-		})
+			if topicColSpan == 0 {
+				topicColSpan = 1
+			}
+			secondHeaderRow := headerRows.Eq(1)
+			mNoIndex, topicContentIndex := -1, -1
+			secondHeaderRow.Find("th, td").Each(func(j int, cell *goquery.Selection) {
+				cellText := strings.ToLower(strings.TrimSpace(cell.Text()))
+				if mNoIndex == -1 && strings.Contains(cellText, "m.no") {
+					mNoIndex = j
+				}
+				if topicContentIndex == -1 && strings.Contains(cellText, "topic content") {
+					topicContentIndex = j
+				}
+			})
+			if mNoIndex == -1 {
+				mNoIndex = 0
+			}
+			if topicContentIndex == -1 {
+				if topicColSpan > 4 {
+					topicContentIndex = 4
+				} else {
+					topicContentIndex = topicColSpan - 1
+				}
+			}
+			table.Find("tbody tr").Each(func(i int, row *goquery.Selection) {
+				cells := row.Find("td")
+				if cells.Length() < (3 + topicColSpan + 1) {
+					return
+				}
+				dateVal := strings.TrimSpace(cells.Eq(1).Text())
+				dayOrderSlotVal := strings.TrimSpace(cells.Eq(2).Text())
+				dayOrderSlotVal = helpers.ReplaceCrossWithPlus(dayOrderSlotVal)
+				mNoCell := cells.Eq(topicGroupStart + mNoIndex)
+				topicContentCell := cells.Eq(topicGroupStart + topicContentIndex)
+				topicVal := strings.TrimSpace(mNoCell.Text()) + " - " + strings.TrimSpace(topicContentCell.Text())
+				if topicVal == "" {
+					topicVal = "Unnamed"
+				}
+				refCell := cells.Eq(cells.Length() - 1)
+				var refMaterials []types.ReferenceMaterial
+				refCell.Find("button[name='getDownloadSemPdf']").Each(func(k int, btn *goquery.Selection) {
+					materialID, _ := btn.Attr("data-matid")
+					materialDate, _ := btn.Attr("data-mdate")
+					name := strings.TrimSpace(btn.Find("span").Text())
+					refMaterials = append(refMaterials, types.ReferenceMaterial{
+						Name:         name,
+						MaterialID:   materialID,
+						MaterialDate: materialDate,
+					})
+				})
+				webLink := ""
+				refCell.Find("a[target='_blank']").Each(func(k int, a *goquery.Selection) {
+					href, exists := a.Attr("href")
+					if exists && strings.HasPrefix(href, "http") {
+						webLink = href
+					}
+				})
+				if len(refMaterials) > 0 || webLink != "" {
+					material := types.CourseMaterial{
+						Date:               dateVal,
+						DayOrderSlot:       dayOrderSlotVal,
+						Topic:              topicVal,
+						ReferenceMaterials: refMaterials,
+						WebLink:            webLink,
+					}
+					materials = append(materials, material)
+				}
+			})
+		} else {
+			var headerCells []*goquery.Selection
+			if table.Find("thead").Length() > 0 {
+				table.Find("thead tr").First().Find("th, td").Each(func(j int, cell *goquery.Selection) {
+					headerCells = append(headerCells, cell)
+				})
+			} else {
+				table.Find("tr").First().Find("th, td").Each(func(j int, cell *goquery.Selection) {
+					headerCells = append(headerCells, cell)
+				})
+			}
+			if len(headerCells) == 0 {
+				return
+			}
+
+			dateIndex, dayOrderSlotIndex, topicIndex, refMaterialIndex := -1, -1, -1, -1
+			for j, cell := range headerCells {
+				text := strings.ToLower(strings.TrimSpace(cell.Text()))
+				if dateIndex == -1 && strings.Contains(text, "date") {
+					dateIndex = j
+				}
+				if dayOrderSlotIndex == -1 && (strings.Contains(text, "day") || strings.Contains(text, "slot")) {
+					dayOrderSlotIndex = j
+				}
+				if topicIndex == -1 && strings.Contains(text, "topic") {
+					topicIndex = j
+				}
+				if refMaterialIndex == -1 && (strings.Contains(text, "reference") || strings.Contains(text, "material")) {
+					refMaterialIndex = j
+				}
+			}
+
+			if dateIndex == -1 && dayOrderSlotIndex == -1 && topicIndex == -1 && refMaterialIndex == -1 {
+				return
+			}
+
+			table.Find("tr").Each(func(i int, row *goquery.Selection) {
+				if i == 0 {
+					return
+				}
+				cells := row.Find("td")
+				if cells.Length() < 1 {
+					return
+				}
+
+				dateVal := ""
+				if dateIndex >= 0 && cells.Length() > dateIndex {
+					dateVal = strings.TrimSpace(cells.Eq(dateIndex).Text())
+				}
+				dayOrderSlotVal := ""
+				if dayOrderSlotIndex >= 0 && cells.Length() > dayOrderSlotIndex {
+					dayOrderSlotVal = strings.TrimSpace(cells.Eq(dayOrderSlotIndex).Text())
+					dayOrderSlotVal = helpers.ReplaceCrossWithPlus(dayOrderSlotVal)
+				}
+				topicVal := ""
+				if topicIndex >= 0 && cells.Length() > topicIndex {
+					topicVal = strings.TrimSpace(cells.Eq(topicIndex).Text())
+					if topicVal == "" {
+						topicVal = "Unnamed"
+					}
+				}
+				if refMaterialIndex >= 0 && cells.Length() > refMaterialIndex {
+					refCell := cells.Eq(refMaterialIndex)
+					var refMaterials []types.ReferenceMaterial
+					refCell.Find("button[name='getDownloadSemPdf']").Each(func(k int, btn *goquery.Selection) {
+						materialID, _ := btn.Attr("data-matid")
+						materialDate, _ := btn.Attr("data-mdate")
+						name := strings.TrimSpace(btn.Find("span").Text())
+						refMaterials = append(refMaterials, types.ReferenceMaterial{
+							Name:         name,
+							MaterialID:   materialID,
+							MaterialDate: materialDate,
+						})
+					})
+					webLink := ""
+					refCell.Find("a[target='_blank']").Each(func(k int, a *goquery.Selection) {
+						href, exists := a.Attr("href")
+						if exists && strings.HasPrefix(href, "http") {
+							webLink = href
+						}
+					})
+					if len(refMaterials) > 0 || webLink != "" {
+						material := types.CourseMaterial{
+							Date:               dateVal,
+							DayOrderSlot:       dayOrderSlotVal,
+							Topic:              topicVal,
+							ReferenceMaterials: refMaterials,
+							WebLink:            webLink,
+						}
+						materials = append(materials, material)
+					}
+				}
+			})
+		}
 	})
 
 	return materials, nil
@@ -560,10 +673,11 @@ func displayCourseMaterials(materials []types.CourseMaterial) {
 		header = []string{"DATE", "TOPIC", "REF COUNT"}
 	}
 
+	// Increase topic column width from 30 to 50
 	nestedList := [][]string{header}
 	for _, material := range materials {
 		refCount := strconv.Itoa(len(material.ReferenceMaterials))
-		topic := helpers.TruncateWithEllipsis(material.Topic, 30)
+		topic := helpers.TruncateWithEllipsis(material.Topic, 50)
 		if showWebColumn {
 			webCol := ""
 			if strings.TrimSpace(material.WebLink) != "" {
