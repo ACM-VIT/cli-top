@@ -178,3 +178,8 @@ type Registration struct {
 	FacilityName  string
 	StatusMessage string
 }
+
+type VersionInfo struct {
+	Version    string `json:"version"`
+	KillSwitch int    `json:"killSwitch"`
+}
