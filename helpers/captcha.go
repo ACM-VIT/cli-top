@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"cli-top/debug"
+	types "cli-top/types"
 	"encoding/base64"
 	"fmt"
 	"image"
@@ -127,14 +128,10 @@ func flattenFloat32(arr [][]float32) []float32 {
 }
 
 func argmax(slice []float32) int {
-	type kv struct {
-		Key   int
-		Value float32
-	}
 	var maxValue float32
-	kvs := make([]kv, len(slice))
+	kvs := make([]types.Kv, len(slice))
 	for i, v := range slice {
-		kvs[i] = kv{i, v}
+		kvs[i] = types.Kv{Key: i, Value: v}
 		if i == 0 || v > maxValue {
 			maxValue = v
 		}

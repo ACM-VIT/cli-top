@@ -131,7 +131,7 @@ func Update() {
 		return
 	}
 
-	var versionInfo VersionInfo
+	var versionInfo types.VersionInfo
 	if err := json.Unmarshal(body, &versionInfo); err != nil {
 		fmt.Println("Error parsing version info:", err)
 		return
