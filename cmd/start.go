@@ -357,7 +357,7 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
 
 	// Add subcommands to root command
-	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd, facilityCmd, updateCmd)
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd, facilityCmd, )
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
@@ -561,10 +561,10 @@ var daDetailsCmd = &cobra.Command{
 	},
 }
 
-var updateCmd = &cobra.Command{
-	Use:  "update",
-	Short: "Perform updates",
-	Run: func(cmd *cobra.Command, args []string) {
-		features.Update()
-	},
-}
+// var updateCmd = &cobra.Command{
+// 	Use:  "update",
+// 	Short: "Perform updates",
+// 	Run: func(cmd *cobra.Command, args []string) {
+// 		features.Update()
+// 	},
+// }
