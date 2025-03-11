@@ -4,7 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"cli-top/debug"
-	"cli-top/types"
+	types "cli-top/types"
 	"fmt"
 	"github.com/h2non/filetype"
 	"io"
@@ -56,9 +56,6 @@ func RemoveEmptyStrings(data []string) []string {
 	return cleanedData
 }
 
-type UploadResponse struct {
-	URL string `json:"url"`
-}
 
 func GenerateCalendarImportLinks(icsURL string, calendarName string) {
 	fmt.Println("Import into your calendar using the links below:")
