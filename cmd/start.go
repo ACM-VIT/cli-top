@@ -6,7 +6,7 @@ import (
 	"cli-top/features"
 	"cli-top/helpers"
 	"cli-top/login"
-	"cli-top/types"
+	types "cli-top/types"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -33,11 +33,7 @@ var classGrpFlag int
 var fuzzyIndexFlag int
 var courseNameFlag string
 
-type TrackingData struct {
-	UUID      string `json:"uuid"`
-	Command   string `json:"command"`
-	Timestamp string `json:"timestamp"`
-}
+
 
 func getOrCreateUUID() string {
 	registeredUUID := viper.GetString("UUID")
@@ -79,7 +75,7 @@ func trackCommand(command string) {
 		return
 	}
 
-	data := TrackingData{
+	data := types.TrackingData{
 		UUID:      userUUID,
 		Command:   command,
 		Timestamp: time.Now().Format(time.RFC3339),
