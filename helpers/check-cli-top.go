@@ -1,6 +1,8 @@
 package helpers
 
 import (
+	types "cli-top/types"
+
 	"archive/zip"
 	"bufio"
 	"cli-top/debug"
@@ -16,10 +18,6 @@ import (
 )
 
 // Version info structure to match the JSON response
-type VersionInfo struct {
-	Version    string `json:"version"`
-	KillSwitch int    `json:"killSwitch"`
-}
 
 func CheckUpdate() {
 	client := &http.Client{}
@@ -47,7 +45,7 @@ func CheckUpdate() {
 	}
 
 	// Parse the response as JSON
-	var versionInfo VersionInfo
+	var versionInfo types.VersionInfo
 	if err := json.Unmarshal(bodyText, &versionInfo); err != nil {
 		if debug.Debug {
 			fmt.Println("Error parsing version info:", err)
