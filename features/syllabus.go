@@ -34,39 +34,11 @@ func sanitizeFilename(filename string) string {
 	return re.ReplaceAllString(filename, "_")
 }
 
-func DownloadSyllabus(courseCode, courseName, csrfToken, authorizedID, sessionCookie, outputDir string) (string, error) {
+func DownloadSyllabus(courseCode, courseName string, cookies types.Cookies, authorizedID, outputDir string) (string, error) {
 	downloadURL := "https://vtop.vit.ac.in/vtop/courseSyllabusDownload1"
-	payload := fmt.Sprintf("_csrf=%s&_csrf=%s&authorizedID=%s&courseCode=%s", csrfToken, csrfToken, authorizedID, courseCode)
-	req, err := http.NewRequest("POST", downloadURL, strings.NewReader(payload))
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
-	req.Header.Set("accept-language", "en-US,en;q=0.9")
-	req.Header.Set("cache-control", "no-cache")
-	req.Header.Set("content-type", "application/x-www-form-urlencoded")
-	req.Header.Set("origin", "https://vtop.vit.ac.in")
-	req.Header.Set("pragma", "no-cache")
-	req.Header.Set("priority", "u=0, i")
-	req.Header.Set("referer", "https://vtop.vit.ac.in/vtop/content")
-	req.Header.Set("sec-ch-ua", `"Chromium";v="134", "Not:A-Brand";v="24", "Brave";v="134"`)
-	req.Header.Set("sec-ch-ua-mobile", "?0")
-	req.Header.Set("sec-ch-ua-platform", `"Windows"`)
-	req.Header.Set("sec-fetch-dest", "document")
-	req.Header.Set("sec-fetch-mode", "navigate")
-	req.Header.Set("sec-fetch-site", "same-origin")
-	req.Header.Set("sec-fetch-user", "?1")
-	req.Header.Set("sec-gpc", "1")
-	req.Header.Set("upgrade-insecure-requests", "1")
-	req.Header.Set("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36")
-	req.Header.Set("cookie", sessionCookie)
-	client := &http.Client{Timeout: time.Minute * 2}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("failed to perform request: %w", err)
-	}
-	defer resp.Body.Close()
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	payload := fmt.Sprintf("_csrf=%s&_csrf=%s&authorizedID=%s&courseCode=%s", cookies.CSRF, cookies.CSRF, authorizedID, courseCode)
+
+	bodyBytes,err := helpers.FetchReq("",cookies,downloadURL,"",payload,"POST","")
 	if err != nil {
 		return "", fmt.Errorf("failed to read response: %w", err)
 	}
@@ -251,8 +223,7 @@ func ExecuteSyllabusDownload(regNo string, cookies types.Cookies) {
 	selectedCourse := courses[selectedCourseIndex-1]
 	//fmt.Printf("You selected course: %s (%s)\n", selectedCourse.Title, selectedCourse.Code)
 	outputDir := filepath.Join(helpers.GetDownloadsDir(), "Syllabus Downloads")
-	cookieStr := fmt.Sprintf("JSESSIONID=%s; SERVERID=%s;", cookies.JSESSIONID, cookies.SERVERID)
-	downloadedPath, err := DownloadSyllabus(selectedCourse.Code, selectedCourse.Title, cookies.CSRF, regNo, cookieStr, outputDir)
+	downloadedPath, err := DownloadSyllabus(selectedCourse.Code, selectedCourse.Title, cookies, regNo, outputDir)
 	if err != nil {
 		helpers.HandleError("downloading syllabus", err)
 		return
