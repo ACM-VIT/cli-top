@@ -33,8 +33,6 @@ var classGrpFlag int
 var fuzzyIndexFlag int
 var courseNameFlag string
 
-
-
 func getOrCreateUUID() string {
 	registeredUUID := viper.GetString("UUID")
 	if registeredUUID != "" {
@@ -353,7 +351,7 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
 
 	// Add subcommands to root command
-	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd, facilityCmd, )
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd, facilityCmd, syllabusCmd)
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
@@ -377,6 +375,15 @@ var facilityCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.RegisterPhyFacility(regNo, cookies)
+	},
+}
+
+var syllabusCmd = &cobra.Command{
+	Use:   "syllabus",
+	Short: "Download syllabus for a selected course",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.ExecuteSyllabusDownload(regNo, cookies)
 	},
 }
 
