@@ -272,11 +272,58 @@ var rootCmd = &cobra.Command{
 	Short: "A simple CLI tool for vtop",
 
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		// Exclude specific commands from tracking
 		if cmd.Name() != "login" && cmd.Name() != "logout" && cmd.Name() != "cli-top" {
-			// Launch trackCommand in a separate goroutine
 			go trackCommand(cmd.Name())
 		}
+
+		// if cmd.Name() != "login" && cmd.Name() != "logout" && cmd.Name() != "cli-top" {
+		// 	go func() {
+		// 		userUUID := viper.GetString("UUID")
+		// 		if userUUID == "" {
+		// 			return
+		// 		}
+
+		// 		data := types.VersionTrackingData{
+		// 			UUID:      userUUID,
+		// 			Command:   cmd.Name(),
+		// 			Version:   debug.Version,
+		// 			Timestamp: time.Now().Format(time.RFC3339),
+		// 		}
+
+		// 		jsonData, err := json.Marshal(data)
+		// 		if err != nil {
+		// 			if debug.Debug {
+		// 				log.Println("Error marshaling version tracking data:", err)
+		// 			}
+		// 			return
+		// 		}
+
+		// 		serverURL := "https://cli-calendar.acmvit.in/version-track"
+
+		// 		req, err := http.NewRequest("POST", serverURL, bytes.NewBuffer(jsonData))
+		// 		if err != nil {
+		// 			if debug.Debug {
+		// 				log.Println("Error creating version tracking request:", err)
+		// 			}
+		// 			return
+		// 		}
+
+		// 		req.Header.Set("Content-Type", "application/json")
+		// 		req.Header.Set("x-api-key", userUUID)
+
+		// 		client := &http.Client{Timeout: 10 * time.Second}
+		// 		resp, err := client.Do(req)
+		// 		if err != nil {
+		// 			if debug.Debug {
+		// 				log.Println("Error sending version tracking data:", err)
+		// 			}
+		// 			return
+		// 		}
+		// 		defer resp.Body.Close()
+
+		// 		io.Copy(io.Discard, resp.Body)
+		// 	}()
+		// }
 	},
 
 	Run: func(cmd *cobra.Command, args []string) {
@@ -330,6 +377,13 @@ func Execute() {
 	userUUID := getOrCreateUUID()
 	if debug.Debug {
 		fmt.Println("User UUID:", userUUID)
+	}
+
+	if !updateFlag && os.Args[len(os.Args)-1] != "-u" && os.Args[len(os.Args)-1] != "--update" {
+		shouldNotify, latestVersion := helpers.ShouldShowUpdateNotification()
+		if shouldNotify {
+			helpers.ShowUpdateNotification(latestVersion)
+		}
 	}
 
 	// Define flags for subcommands
