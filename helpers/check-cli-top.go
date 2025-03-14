@@ -15,6 +15,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
+
+	"github.com/spf13/viper"
 )
 
 // Version info structure to match the JSON response
@@ -330,4 +333,69 @@ func checkWritePermission(path string) error {
 	}
 
 	return nil
+}
+
+func CheckUpdateSilently() (bool, string, error) {
+	client := &http.Client{Timeout: 5 * time.Second}
+	req, err := http.NewRequest("GET", "https://cli-top.acmvit.in/latest.json", nil)
+	if err != nil {
+		return false, "", err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return false, "", err
+	}
+	if resp == nil {
+		return false, "", fmt.Errorf("failed to connect to update server")
+	}
+	defer resp.Body.Close()
+
+	bodyText, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return false, "", err
+	}
+
+	var versionInfo types.VersionInfo
+	if err := json.Unmarshal(bodyText, &versionInfo); err != nil {
+		return false, "", err
+	}
+
+	if versionInfo.Version != debug.Version {
+		return true, versionInfo.Version, nil
+	}
+
+	return false, versionInfo.Version, nil
+}
+
+func ShouldShowUpdateNotification() (bool, string) {
+	lastNotifiedVersion := viper.GetString("LAST_UPDATE_NOTIFIED_VERSION")
+	currentVersion := debug.Version
+
+	if lastNotifiedVersion == currentVersion {
+		return false, ""
+	}
+
+	updateAvailable, latestVersion, err := CheckUpdateSilently()
+	if err != nil || !updateAvailable {
+		return false, ""
+	}
+
+	viper.Set("LAST_UPDATE_NOTIFIED_VERSION", currentVersion)
+	if err := viper.WriteConfig(); err != nil && debug.Debug {
+		fmt.Println("Error updating last notified version in config:", err)
+	}
+
+	return true, latestVersion
+}
+
+func ShowUpdateNotification(latestVersion string) {
+	fmt.Printf("\n")
+	fmt.Printf("┌─────────────────────────────────────────────────────────┐\n")
+	fmt.Printf("│ A new version of cli-top is available!                  │\n")
+	fmt.Printf("│ Current version: %-10s   Latest version: %-10s│\n", debug.Version, latestVersion)
+	fmt.Printf("│                                                         │\n")
+	fmt.Printf("│ Update with: cli-top -u                                 │\n")
+	fmt.Printf("└─────────────────────────────────────────────────────────┘\n")
+	fmt.Printf("\n")
 }
