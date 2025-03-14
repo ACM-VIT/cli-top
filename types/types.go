@@ -178,3 +178,34 @@ type Registration struct {
 	FacilityName  string
 	StatusMessage string
 }
+
+type VersionInfo struct {
+	Version    string `json:"version"`
+	KillSwitch int    `json:"killSwitch"`
+}
+
+type TrackingData struct {
+	UUID      string `json:"uuid"`
+	Command   string `json:"command"`
+	Timestamp string `json:"timestamp"`
+}
+
+// type VersionTrackingData struct {
+// 	UUID      string `json:"uuid"`
+// 	Command   string `json:"command"`
+// 	Version   string `json:"version"`
+// 	Timestamp string `json:"timestamp"`
+// }
+
+type RegisterData struct {
+	UUID string `json:"uuid"`
+}
+
+type Kv struct {
+	Key   int
+	Value float32
+}
+
+type UploadResponse struct {
+	URL string `json:"url"`
+}
