@@ -6,7 +6,7 @@ import (
 	"cli-top/features"
 	"cli-top/helpers"
 	"cli-top/login"
-	"cli-top/types"
+	types "cli-top/types"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -32,12 +32,6 @@ var facultyFlag string
 var classGrpFlag int
 var fuzzyIndexFlag int
 var courseNameFlag string
-
-type TrackingData struct {
-	UUID      string `json:"uuid"`
-	Command   string `json:"command"`
-	Timestamp string `json:"timestamp"`
-}
 
 func getOrCreateUUID() string {
 	registeredUUID := viper.GetString("UUID")
@@ -79,7 +73,7 @@ func trackCommand(command string) {
 		return
 	}
 
-	data := TrackingData{
+	data := types.TrackingData{
 		UUID:      userUUID,
 		Command:   command,
 		Timestamp: time.Now().Format(time.RFC3339),
@@ -278,11 +272,58 @@ var rootCmd = &cobra.Command{
 	Short: "A simple CLI tool for vtop",
 
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		// Exclude specific commands from tracking
 		if cmd.Name() != "login" && cmd.Name() != "logout" && cmd.Name() != "cli-top" {
-			// Launch trackCommand in a separate goroutine
 			go trackCommand(cmd.Name())
 		}
+
+		// if cmd.Name() != "login" && cmd.Name() != "logout" && cmd.Name() != "cli-top" {
+		// 	go func() {
+		// 		userUUID := viper.GetString("UUID")
+		// 		if userUUID == "" {
+		// 			return
+		// 		}
+
+		// 		data := types.VersionTrackingData{
+		// 			UUID:      userUUID,
+		// 			Command:   cmd.Name(),
+		// 			Version:   debug.Version,
+		// 			Timestamp: time.Now().Format(time.RFC3339),
+		// 		}
+
+		// 		jsonData, err := json.Marshal(data)
+		// 		if err != nil {
+		// 			if debug.Debug {
+		// 				log.Println("Error marshaling version tracking data:", err)
+		// 			}
+		// 			return
+		// 		}
+
+		// 		serverURL := "https://cli-calendar.acmvit.in/version-track"
+
+		// 		req, err := http.NewRequest("POST", serverURL, bytes.NewBuffer(jsonData))
+		// 		if err != nil {
+		// 			if debug.Debug {
+		// 				log.Println("Error creating version tracking request:", err)
+		// 			}
+		// 			return
+		// 		}
+
+		// 		req.Header.Set("Content-Type", "application/json")
+		// 		req.Header.Set("x-api-key", userUUID)
+
+		// 		client := &http.Client{Timeout: 10 * time.Second}
+		// 		resp, err := client.Do(req)
+		// 		if err != nil {
+		// 			if debug.Debug {
+		// 				log.Println("Error sending version tracking data:", err)
+		// 			}
+		// 			return
+		// 		}
+		// 		defer resp.Body.Close()
+
+		// 		io.Copy(io.Discard, resp.Body)
+		// 	}()
+		// }
 	},
 
 	Run: func(cmd *cobra.Command, args []string) {
@@ -338,6 +379,13 @@ func Execute() {
 		fmt.Println("User UUID:", userUUID)
 	}
 
+	if !updateFlag && os.Args[len(os.Args)-1] != "-u" && os.Args[len(os.Args)-1] != "--update" {
+		shouldNotify, latestVersion := helpers.ShouldShowUpdateNotification()
+		if shouldNotify {
+			helpers.ShowUpdateNotification(latestVersion)
+		}
+	}
+
 	// Define flags for subcommands
 	marksCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	gradesCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
@@ -349,7 +397,6 @@ func Execute() {
 	coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
 	coursePageCmd.PersistentFlags().StringVarP(&facultyFlag, "faculty", "f", "", "Specify the faculty")
 	coursePageCmd.PersistentFlags().IntVarP(&fuzzyIndexFlag, "fuzzy-index", "i", 0, "Specify the fuzzy index")
-	//daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
 
 	// Define global flags
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
@@ -357,7 +404,7 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
 
 	// Add subcommands to root command
-	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd, facilityCmd)
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd, facilityCmd, syllabusCmd)
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
@@ -381,6 +428,15 @@ var facilityCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.RegisterPhyFacility(regNo, cookies)
+	},
+}
+
+var syllabusCmd = &cobra.Command{
+	Use:   "syllabus",
+	Short: "Download syllabus for a selected course",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.ExecuteSyllabusDownload(regNo, cookies)
 	},
 }
 

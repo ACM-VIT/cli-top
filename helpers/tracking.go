@@ -8,17 +8,15 @@ import (
 	"time"
 
 	"cli-top/debug"
+	types "cli-top/types"
 	"github.com/spf13/viper"
 )
 
-type RegisterData struct {
-	UUID string `json:"uuid"`
-}
 
 const maxRetries = 3
 
 func RegisterUUID(uuid string) error {
-	data := RegisterData{UUID: uuid}
+	data := types.RegisterData{UUID: uuid}
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		if debug.Debug {
