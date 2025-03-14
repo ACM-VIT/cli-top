@@ -41,6 +41,7 @@
 - **Student Profile**: View personal details
 - **Hostel Info**: Check hostel details 
 - **CGPA View**: Track your cumulative GPA over semesters
+- **Syllabus**: Easily download syllabus files
 - **Logout**: Securely logout from the CLI
 
 
@@ -113,6 +114,9 @@ After installation, you can access various features of **cli-top** by running sp
 - [Garv Jain](https://github.com/notcoolgarv)
 - [Tanmay Paturu](https://github.com/Tintedfireglass)
 - [Shambhavi Paygude](https://github.com/shambhavipaygude)
+- [Harshit Vootukuri](https://github.com/hvoot36)
+- [Adheesh Garg](https://github.com/qwerty-dvorak)
+- [Ishaan S](https://github.com/theg1239)
 
 
 ## 🤝 Contributors
@@ -121,9 +125,6 @@ After installation, you can access various features of **cli-top** by running sp
 - [Kaustav Patro](https://github.com/icky-kp)
 - [Amritsai](https://github.com/gekyxme)
 - [Pritam Satpathy](https://github.com/ps2181)
-- [Adheesh Garg](https://github.com/qwerty-dvorak)
-- [Ishaan S](https://github.com/theg1239)
-- [Harshit Vootukuri](https://github.com/hvoot36)
 - [Kaustubh Kanodia](https://github.com/Quasar-025)
 - [Rohit Sakamuri](https://github.com/rohitphaniramsakamuri)
 - [Mahendra Choudhary](https://github.com/mahendra785)
