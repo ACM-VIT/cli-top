@@ -7,6 +7,7 @@ import (
 	"cli-top/helpers"
 	"cli-top/types"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -855,22 +856,29 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 	)
 
 	concurrency := 2
-	if getOptimizedConcurrency() > 2 {
-		concurrency = getOptimizedConcurrency() / 2
-	}
 
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, concurrency)
 	var mu sync.Mutex
 	indexNo := 1
 
-	var failedDownloads []struct {
+	type FailedDownload struct {
 		IndexNo       int
 		TopicName     string
 		RefMaterialNo int
 		RefMat        types.ReferenceMaterial
+		Topic         string
+		Error         string
 	}
+	var failedDownloads []FailedDownload
 	var failedMu sync.Mutex
+
+	type DownloadKey struct {
+		MaterialID   string
+		MaterialDate string
+	}
+	successfulDownloads := make(map[DownloadKey]bool)
+	var successMu sync.Mutex
 
 	for _, material := range selectedMaterials {
 		if material.WebLink != "" {
@@ -889,10 +897,24 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 			currentTopicName := topicName
 			currentRefMaterialNo := refMaterialNo
 			currentRefMat := refMat
+			currentTopic := material.Topic
 
-			go func(indexNo int, topicName string, refMaterialNo int, refMat types.ReferenceMaterial) {
+			go func(indexNo int, topicName string, refMaterialNo int, refMat types.ReferenceMaterial, topic string) {
 				defer wg.Done()
 				defer func() { <-sem }()
+
+				key := DownloadKey{MaterialID: refMat.MaterialID, MaterialDate: refMat.MaterialDate}
+				successMu.Lock()
+				alreadyDownloaded := successfulDownloads[key]
+				successMu.Unlock()
+
+				if alreadyDownloaded {
+					mu.Lock()
+					bar.Add(1)
+					mu.Unlock()
+					return
+				}
+
 				downloadURL := "https://vtop.vit.ac.in/vtop/downloadPdf"
 				payloadMap := map[string]string{
 					"_csrf":        cookies.CSRF,
@@ -909,15 +931,31 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 				var headers http.Header
 				retries := 5
 				var downloadErr error
+				var lastError string
 
 				for attempt := 1; attempt <= retries; attempt++ {
-					body, headers, downloadErr = helpers.FetchReqClient(httpClient, regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
+					attemptClient := &http.Client{
+						Timeout: time.Minute * 2,
+						Transport: &http.Transport{
+							MaxIdleConns:        10,
+							MaxIdleConnsPerHost: 5,
+							IdleConnTimeout:     30 * time.Second,
+							DisableKeepAlives:   true,
+						},
+					}
+
+					body, headers, downloadErr = helpers.FetchReqClient(attemptClient, regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
 					if downloadErr == nil && len(body) > 0 {
 						if isSuccessfulDownload(body) {
 							break
 						} else {
 							downloadErr = fmt.Errorf("invalid file content")
+							lastError = "Invalid file content"
 						}
+					} else if downloadErr != nil {
+						lastError = downloadErr.Error()
+					} else {
+						lastError = "Empty response"
 					}
 
 					if debug.Debug {
@@ -925,7 +963,8 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 					}
 
 					backoffTime := time.Duration(attempt*attempt) * 500 * time.Millisecond
-					time.Sleep(backoffTime)
+					jitter := time.Duration(rand.Intn(1000)) * time.Millisecond
+					time.Sleep(backoffTime + jitter)
 				}
 
 				if downloadErr != nil || !isSuccessfulDownload(body) {
@@ -934,16 +973,13 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 					}
 
 					failedMu.Lock()
-					failedDownloads = append(failedDownloads, struct {
-						IndexNo       int
-						TopicName     string
-						RefMaterialNo int
-						RefMat        types.ReferenceMaterial
-					}{
+					failedDownloads = append(failedDownloads, FailedDownload{
 						IndexNo:       indexNo,
 						TopicName:     topicName,
 						RefMaterialNo: refMaterialNo,
 						RefMat:        refMat,
+						Topic:         topic,
+						Error:         lastError,
 					})
 					failedMu.Unlock()
 
@@ -967,30 +1003,33 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 					}
 
 					failedMu.Lock()
-					failedDownloads = append(failedDownloads, struct {
-						IndexNo       int
-						TopicName     string
-						RefMaterialNo int
-						RefMat        types.ReferenceMaterial
-					}{
+					failedDownloads = append(failedDownloads, FailedDownload{
 						IndexNo:       indexNo,
 						TopicName:     topicName,
 						RefMaterialNo: refMaterialNo,
 						RefMat:        refMat,
+						Topic:         topic,
+						Error:         err.Error(),
 					})
 					failedMu.Unlock()
+				} else {
+					successMu.Lock()
+					successfulDownloads[key] = true
+					successMu.Unlock()
 				}
 
 				mu.Lock()
 				bar.Add(1)
 				mu.Unlock()
-			}(currentIndexNo, currentTopicName, currentRefMaterialNo, currentRefMat)
+			}(currentIndexNo, currentTopicName, currentRefMaterialNo, currentRefMat, currentTopic)
 			refMaterialNo++
 		}
 		indexNo++
 	}
 
 	wg.Wait()
+
+	var permanentlyFailedDownloads []FailedDownload
 
 	if len(failedDownloads) > 0 {
 		fmt.Printf("\nRetrying %d failed downloads...\n", len(failedDownloads))
@@ -1002,7 +1041,13 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 			progressbar.OptionClearOnFinish(),
 		)
 
-		for _, fd := range failedDownloads {
+		for i, fd := range failedDownloads {
+			key := DownloadKey{MaterialID: fd.RefMat.MaterialID, MaterialDate: fd.RefMat.MaterialDate}
+			if successfulDownloads[key] {
+				retryBar.Add(1)
+				continue
+			}
+
 			downloadURL := "https://vtop.vit.ac.in/vtop/downloadPdf"
 			payloadMap := map[string]string{
 				"_csrf":        cookies.CSRF,
@@ -1018,19 +1063,24 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 			var body []byte
 			var headers http.Header
 			var downloadErr error
+			var lastError string
 
 			retryClient := &http.Client{
 				Timeout: time.Minute * 5,
 				Transport: &http.Transport{
-					MaxIdleConns:        10,
-					MaxIdleConnsPerHost: 10,
+					MaxIdleConns:        5,
+					MaxIdleConnsPerHost: 2,
 					IdleConnTimeout:     90 * time.Second,
+					DisableKeepAlives:   true,
 				},
 			}
 
-			for attempt := 1; attempt <= 3; attempt++ {
+			success := false
+
+			for attempt := 1; attempt <= 5; attempt++ {
 				if attempt > 1 {
-					time.Sleep(time.Duration(attempt) * 2 * time.Second)
+					sleepTime := time.Duration(attempt*3) * time.Second
+					time.Sleep(sleepTime)
 				}
 
 				body, headers, downloadErr = helpers.FetchReqClient(retryClient, regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
@@ -1044,18 +1094,95 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 
 					err = helpers.SaveFile(body, filePath)
 					if err == nil {
+						success = true
+						successfulDownloads[key] = true
 						break
+					} else {
+						lastError = err.Error()
+					}
+				} else if downloadErr != nil {
+					lastError = downloadErr.Error()
+				} else {
+					lastError = "Invalid or empty file content"
+				}
+
+				if attempt == 5 {
+					time.Sleep(5 * time.Second)
+
+					freshClient := &http.Client{
+						Timeout: time.Minute * 10,
+						Transport: &http.Transport{
+							DisableKeepAlives: true,
+						},
+					}
+
+					randomParam := fmt.Sprintf("&nocache=%d", time.Now().UnixNano())
+					body, headers, downloadErr = helpers.FetchReqClient(freshClient, regNo, cookies, downloadURL+randomParam, "", formData, "POST", "application/x-www-form-urlencoded")
+
+					if downloadErr == nil && len(body) > 0 && isSuccessfulDownload(body) {
+						ext := helpers.GetFileExtension(fd.RefMat.Name, body, headers)
+						if ext == "" {
+							ext = ".bin"
+						}
+						filename := fmt.Sprintf("%d_%s_%d%s", fd.IndexNo, fd.TopicName, fd.RefMaterialNo, ext)
+						filePath := filepath.Join(fullDirPath, filename)
+
+						err = helpers.SaveFile(body, filePath)
+						if err == nil {
+							success = true
+							successfulDownloads[key] = true
+						} else {
+							lastError = err.Error()
+						}
 					}
 				}
 			}
 
+			if !success {
+				permanentlyFailedDownloads = append(permanentlyFailedDownloads, FailedDownload{
+					IndexNo:       fd.IndexNo,
+					TopicName:     fd.TopicName,
+					RefMaterialNo: fd.RefMaterialNo,
+					RefMat:        fd.RefMat,
+					Topic:         fd.Topic,
+					Error:         lastError,
+				})
+			}
+
 			retryBar.Add(1)
+
+			if i < len(failedDownloads)-1 {
+				time.Sleep(1 * time.Second)
+			}
 		}
 		retryBar.Finish()
 	}
 
 	bar.Finish()
-	fmt.Println("\nSelected course materials downloaded successfully.")
+
+	totalFiles := totalRefMaterials
+	successfulFiles := totalFiles - len(permanentlyFailedDownloads)
+
+	fmt.Printf("\n\nDownload Summary:\n")
+	fmt.Printf("Total files: %d\n", totalFiles)
+	fmt.Printf("Successfully downloaded: %d\n", successfulFiles)
+
+	if len(permanentlyFailedDownloads) > 0 {
+		fmt.Printf("Failed to download: %d\n\n", len(permanentlyFailedDownloads))
+		fmt.Println("The following files could not be downloaded:")
+
+		for i, fd := range permanentlyFailedDownloads {
+			fmt.Printf("%d. Topic: %s\n", i+1, fd.Topic)
+			fmt.Printf("   File: %s\n", fd.RefMat.Name)
+			fmt.Printf("   Error: %s\n", fd.Error)
+			fmt.Println()
+		}
+
+		fmt.Println("\nYou can try downloading these files individually later.")
+	} else {
+		fmt.Println("All files were downloaded successfully!")
+	}
+
 	openFolder(fullDirPath)
 	return nil
 }
