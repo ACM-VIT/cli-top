@@ -92,6 +92,7 @@ type ExamEvent struct {
 	Seat        string
 	SeatNo      string
 	DaysLeft    int
+	Category    string 
 }
 
 type DAsubject struct {
