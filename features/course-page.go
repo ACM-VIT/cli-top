@@ -19,6 +19,8 @@ import (
 	"sync"
 	"time"
 
+	"archive/zip"
+
 	"github.com/PuerkitoBio/goquery"
 	"github.com/schollz/progressbar/v3"
 )
@@ -888,6 +890,10 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 		}
 
 		topicName := helpers.SanitizeFilename(material.Topic)
+		// Ensure the topic name isn't too long to avoid path length issues
+		if len(topicName) > 50 {
+			topicName = topicName[:50]
+		}
 		refMaterialNo := 1
 
 		for _, refMat := range material.ReferenceMaterials {
@@ -914,6 +920,10 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 					mu.Unlock()
 					return
 				}
+
+				isPotentialPptx := strings.Contains(strings.ToLower(refMat.Name), "ppt") ||
+					strings.Contains(strings.ToLower(refMat.Name), "presentation") ||
+					strings.Contains(strings.ToLower(refMat.Name), "slide")
 
 				downloadURL := "https://vtop.vit.ac.in/vtop/downloadPdf"
 				payloadMap := map[string]string{
@@ -944,9 +954,15 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 						},
 					}
 
+					if isPotentialPptx {
+						attemptClient.Timeout = time.Minute * 5
+					}
+
 					body, headers, downloadErr = helpers.FetchReqClient(attemptClient, regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
 					if downloadErr == nil && len(body) > 0 {
-						if isSuccessfulDownload(body) {
+						if isPotentialPptx && len(body) > 4096 {
+							break
+						} else if isSuccessfulDownload(body) {
 							break
 						} else {
 							downloadErr = fmt.Errorf("invalid file content")
@@ -994,7 +1010,21 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 					ext = ".bin"
 				}
 				filename := fmt.Sprintf("%d_%s_%d%s", indexNo, topicName, refMaterialNo, ext)
+				filename = helpers.SanitizeFilename(filename)
 				filePath := filepath.Join(fullDirPath, filename)
+
+				if len(filePath) > 250 {
+					ext := filepath.Ext(filename)
+					baseFilename := filename[:len(filename)-len(ext)]
+					excessLength := len(filePath) - 250
+					if excessLength >= len(baseFilename) {
+						baseFilename = fmt.Sprintf("file_%d_%d", indexNo, refMaterialNo)
+					} else {
+						baseFilename = baseFilename[:len(baseFilename)-excessLength-1]
+					}
+					filename = baseFilename + ext
+					filePath = filepath.Join(fullDirPath, filename)
+				}
 
 				err = helpers.SaveFile(body, filePath)
 				if err != nil {
@@ -1042,11 +1072,16 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 		)
 
 		for i, fd := range failedDownloads {
+			// Check if this file has already been successfully downloaded in a previous retry
 			key := DownloadKey{MaterialID: fd.RefMat.MaterialID, MaterialDate: fd.RefMat.MaterialDate}
 			if successfulDownloads[key] {
 				retryBar.Add(1)
 				continue
 			}
+
+			isPotentialPptx := strings.Contains(strings.ToLower(fd.RefMat.Name), "ppt") ||
+				strings.Contains(strings.ToLower(fd.RefMat.Name), "presentation") ||
+				strings.Contains(strings.ToLower(fd.RefMat.Name), "slide")
 
 			downloadURL := "https://vtop.vit.ac.in/vtop/downloadPdf"
 			payloadMap := map[string]string{
@@ -1075,6 +1110,10 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 				},
 			}
 
+			if isPotentialPptx {
+				retryClient.Timeout = time.Minute * 10
+			}
+
 			success := false
 
 			for attempt := 1; attempt <= 5; attempt++ {
@@ -1084,21 +1123,70 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 				}
 
 				body, headers, downloadErr = helpers.FetchReqClient(retryClient, regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
-				if downloadErr == nil && len(body) > 0 && isSuccessfulDownload(body) {
-					ext := helpers.GetFileExtension(fd.RefMat.Name, body, headers)
-					if ext == "" {
-						ext = ".bin"
-					}
-					filename := fmt.Sprintf("%d_%s_%d%s", fd.IndexNo, fd.TopicName, fd.RefMaterialNo, ext)
-					filePath := filepath.Join(fullDirPath, filename)
 
-					err = helpers.SaveFile(body, filePath)
-					if err == nil {
-						success = true
-						successfulDownloads[key] = true
-						break
+				if downloadErr == nil && len(body) > 0 {
+					if isPotentialPptx && len(body) > 4096 {
+						ext := helpers.GetFileExtension(fd.RefMat.Name, body, headers)
+						if ext == "" {
+							ext = ".pptx"
+						}
+						filename := fmt.Sprintf("%d_%s_%d%s", fd.IndexNo, fd.TopicName, fd.RefMaterialNo, ext)
+						filename = helpers.SanitizeFilename(filename)
+						filePath := filepath.Join(fullDirPath, filename)
+
+						if len(filePath) > 250 {
+							ext := filepath.Ext(filename)
+							baseFilename := filename[:len(filename)-len(ext)]
+							excessLength := len(filePath) - 250
+							if excessLength >= len(baseFilename) {
+								baseFilename = fmt.Sprintf("file_%d_%d", fd.IndexNo, fd.RefMaterialNo)
+							} else {
+								baseFilename = baseFilename[:len(baseFilename)-excessLength-1]
+							}
+							filename = baseFilename + ext
+							filePath = filepath.Join(fullDirPath, filename)
+						}
+
+						err = helpers.SaveFile(body, filePath)
+						if err == nil {
+							success = true
+							successfulDownloads[key] = true
+							break
+						} else {
+							lastError = err.Error()
+						}
+					} else if isSuccessfulDownload(body) {
+						ext := helpers.GetFileExtension(fd.RefMat.Name, body, headers)
+						if ext == "" {
+							ext = ".bin"
+						}
+						filename := fmt.Sprintf("%d_%s_%d%s", fd.IndexNo, fd.TopicName, fd.RefMaterialNo, ext)
+						filename = helpers.SanitizeFilename(filename)
+						filePath := filepath.Join(fullDirPath, filename)
+
+						if len(filePath) > 250 {
+							ext := filepath.Ext(filename)
+							baseFilename := filename[:len(filename)-len(ext)]
+							excessLength := len(filePath) - 250
+							if excessLength >= len(baseFilename) {
+								baseFilename = fmt.Sprintf("file_%d_%d", fd.IndexNo, fd.RefMaterialNo)
+							} else {
+								baseFilename = baseFilename[:len(baseFilename)-excessLength-1]
+							}
+							filename = baseFilename + ext
+							filePath = filepath.Join(fullDirPath, filename)
+						}
+
+						err = helpers.SaveFile(body, filePath)
+						if err == nil {
+							success = true
+							successfulDownloads[key] = true
+							break
+						} else {
+							lastError = err.Error()
+						}
 					} else {
-						lastError = err.Error()
+						lastError = "Invalid file content"
 					}
 				} else if downloadErr != nil {
 					lastError = downloadErr.Error()
@@ -1109,8 +1197,15 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 				if attempt == 5 {
 					time.Sleep(5 * time.Second)
 
+					var timeout time.Duration
+					if isPotentialPptx {
+						timeout = time.Minute * 15
+					} else {
+						timeout = time.Minute * 10
+					}
+
 					freshClient := &http.Client{
-						Timeout: time.Minute * 10,
+						Timeout: timeout,
 						Transport: &http.Transport{
 							DisableKeepAlives: true,
 						},
@@ -1119,20 +1214,65 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 					randomParam := fmt.Sprintf("&nocache=%d", time.Now().UnixNano())
 					body, headers, downloadErr = helpers.FetchReqClient(freshClient, regNo, cookies, downloadURL+randomParam, "", formData, "POST", "application/x-www-form-urlencoded")
 
-					if downloadErr == nil && len(body) > 0 && isSuccessfulDownload(body) {
-						ext := helpers.GetFileExtension(fd.RefMat.Name, body, headers)
-						if ext == "" {
-							ext = ".bin"
-						}
-						filename := fmt.Sprintf("%d_%s_%d%s", fd.IndexNo, fd.TopicName, fd.RefMaterialNo, ext)
-						filePath := filepath.Join(fullDirPath, filename)
+					if downloadErr == nil && len(body) > 0 {
+						if isPotentialPptx && len(body) > 4096 {
+							ext := helpers.GetFileExtension(fd.RefMat.Name, body, headers)
+							if ext == "" {
+								ext = ".pptx"
+							}
+							filename := fmt.Sprintf("%d_%s_%d%s", fd.IndexNo, fd.TopicName, fd.RefMaterialNo, ext)
+							filename = helpers.SanitizeFilename(filename)
+							filePath := filepath.Join(fullDirPath, filename)
 
-						err = helpers.SaveFile(body, filePath)
-						if err == nil {
-							success = true
-							successfulDownloads[key] = true
-						} else {
-							lastError = err.Error()
+							if len(filePath) > 250 {
+								ext := filepath.Ext(filename)
+								baseFilename := filename[:len(filename)-len(ext)]
+								excessLength := len(filePath) - 250
+								if excessLength >= len(baseFilename) {
+									baseFilename = fmt.Sprintf("file_%d_%d", fd.IndexNo, fd.RefMaterialNo)
+								} else {
+									baseFilename = baseFilename[:len(baseFilename)-excessLength-1]
+								}
+								filename = baseFilename + ext
+								filePath = filepath.Join(fullDirPath, filename)
+							}
+
+							err = helpers.SaveFile(body, filePath)
+							if err == nil {
+								success = true
+								successfulDownloads[key] = true
+							} else {
+								lastError = err.Error()
+							}
+						} else if isSuccessfulDownload(body) {
+							ext := helpers.GetFileExtension(fd.RefMat.Name, body, headers)
+							if ext == "" {
+								ext = ".bin"
+							}
+							filename := fmt.Sprintf("%d_%s_%d%s", fd.IndexNo, fd.TopicName, fd.RefMaterialNo, ext)
+							filename = helpers.SanitizeFilename(filename)
+							filePath := filepath.Join(fullDirPath, filename)
+
+							if len(filePath) > 250 {
+								ext := filepath.Ext(filename)
+								baseFilename := filename[:len(filename)-len(ext)]
+								excessLength := len(filePath) - 250
+								if excessLength >= len(baseFilename) {
+									baseFilename = fmt.Sprintf("file_%d_%d", fd.IndexNo, fd.RefMaterialNo)
+								} else {
+									baseFilename = baseFilename[:len(baseFilename)-excessLength-1]
+								}
+								filename = baseFilename + ext
+								filePath = filepath.Join(fullDirPath, filename)
+							}
+
+							err = helpers.SaveFile(body, filePath)
+							if err == nil {
+								success = true
+								successfulDownloads[key] = true
+							} else {
+								lastError = err.Error()
+							}
 						}
 					}
 				}
@@ -1194,9 +1334,28 @@ func isSuccessfulDownload(body []byte) bool {
 
 	signature := string(body[:4])
 	switch signature {
-	case "%PDF":
+	case "%PDF": // PDF
 		return true
-	case "PK\x03\x04":
+	case "PK\x03\x04": // ZIP-based formats (DOCX, XLSX, PPTX, etc.)
+		if len(body) > 30 {
+			readerAt := bytes.NewReader(body)
+			size := int64(len(body))
+			zipReader, err := zip.NewReader(readerAt, size)
+			if err == nil {
+				for _, f := range zipReader.File {
+					if strings.HasPrefix(f.Name, "ppt/") ||
+						strings.HasPrefix(f.Name, "word/") ||
+						strings.HasPrefix(f.Name, "xl/") {
+						return true
+					}
+				}
+				return true
+			}
+
+			if len(body) > 4096 {
+				return true
+			}
+		}
 		return true
 	case "\xD0\xCF\x11\xE0":
 		return true
@@ -1208,6 +1367,9 @@ func isSuccessfulDownload(body []byte) bool {
 				return true
 			}
 			if body[0] == 0x89 && body[1] == 0x50 && body[2] == 0x4E && body[3] == 0x47 {
+				return true
+			}
+			if len(body) > 30 && bytes.Contains(body[:30], []byte("PK")) {
 				return true
 			}
 		}
