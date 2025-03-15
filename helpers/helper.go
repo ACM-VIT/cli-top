@@ -6,17 +6,18 @@ import (
 	"cli-top/debug"
 	types "cli-top/types"
 	"fmt"
-	"github.com/h2non/filetype"
 	"io"
 	"mime"
 	"net/http"
 	"net/url"
 	"os"
-	"unicode"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+
+	"github.com/h2non/filetype"
 
 	"github.com/PuerkitoBio/goquery"
 	//"golang.org/x/net/html"
@@ -55,7 +56,6 @@ func RemoveEmptyStrings(data []string) []string {
 	}
 	return cleanedData
 }
-
 
 func GenerateCalendarImportLinks(icsURL string, calendarName string) {
 	fmt.Println("Import into your calendar using the links below:")
@@ -186,9 +186,9 @@ func SanitizeFilename(name string) string {
 	replacer := strings.NewReplacer(
 		"/", "_",
 		"\\", "_",
-		":", "",
+		":", "_",
 		"*", "_",
-		"?", "",
+		"?", "_",
 		"\"", "_",
 		"<", "_",
 		">", "_",
@@ -199,8 +199,31 @@ func SanitizeFilename(name string) string {
 		"\u2019", "'",
 		"\u201C", "\"",
 		"\u201D", "\"",
+		"\n", " ",
+		"\r", " ",
+		"\t", " ",
 	)
-	return replacer.Replace(name)
+	sanitized := replacer.Replace(name)
+
+	var result strings.Builder
+	for _, r := range sanitized {
+		if r < 32 || r == 127 {
+			continue
+		}
+		result.WriteRune(r)
+	}
+
+	trimmed := strings.TrimRight(result.String(), " .")
+
+	if trimmed == "" {
+		return "unnamed"
+	}
+
+	if len(trimmed) > 200 {
+		trimmed = trimmed[:200]
+	}
+
+	return trimmed
 }
 
 func SaveFile(data []byte, filePath string) error {
