@@ -282,9 +282,9 @@ func FetchReqClient(client *http.Client, regNo string, cookies types.Cookies, ur
 	return body, resp.Header, nil
 }
 
-func buildCookieHeader(cookies types.Cookies) string {
-	return fmt.Sprintf("JSESSIONID=%s; SERVERID=%s;", cookies.JSESSIONID, cookies.SERVERID)
-}
+// func buildCookieHeader(cookies types.Cookies) string {
+// 	return fmt.Sprintf("JSESSIONID=%s; SERVERID=%s;", cookies.JSESSIONID, cookies.SERVERID)
+// }
 
 func GetFileExtension(filename string, body []byte, headers http.Header) string {
 	ext := filepath.Ext(filename)
@@ -412,21 +412,21 @@ func GetFileExtension(filename string, body []byte, headers http.Header) string 
 	return ".bin"
 }
 
-func urlQueryEscape(s string) string {
-	return strings.ReplaceAll(url.QueryEscape(s), "+", "%20")
-}
+// func urlQueryEscape(s string) string {
+// 	return strings.ReplaceAll(url.QueryEscape(s), "+", "%20")
+// }
 
-func mimeParseMediaType(v string) (mediatype string, params map[string]string, err error) {
-	return mime.ParseMediaType(v)
-}
+// func mimeParseMediaType(v string) (mediatype string, params map[string]string, err error) {
+// 	return mime.ParseMediaType(v)
+// }
 
-func isOLECompoundDocument(body []byte) bool {
-	return len(body) >= 8 && bytes.Equal(body[:8], []byte{0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1})
-}
+// func isOLECompoundDocument(body []byte) bool {
+// 	return len(body) >= 8 && bytes.Equal(body[:8], []byte{0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1})
+// }
 
-func bytesContains(body []byte, substr string) bool {
-	return bytes.Contains(body, []byte(substr))
-}
+// func bytesContains(body []byte, substr string) bool {
+// 	return bytes.Contains(body, []byte(substr))
+// }
 
 func isOOXML(body []byte) bool {
 	readerAt := bytes.NewReader(body)
@@ -576,3 +576,11 @@ func OpenFolder(path string) {
 		fmt.Printf("Error opening folder: %v\n", err)
 	}
 }
+func ParseFloat(s string) float64 {
+    f, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
+    if err != nil {
+        return 0
+    }
+    return f
+}
+
