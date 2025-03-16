@@ -65,6 +65,10 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag
 
 	selectedSemester, err := helpers.SelectSemester(regNo, cookies, semesterFlag)
 	if err != nil {
+		if err.Error() == "selection canceled by user" {
+			fmt.Println("Selection canceled")
+			return
+		}
 		if debug.Debug {
 			fmt.Println(err)
 		}
@@ -100,8 +104,13 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag
 		return
 	}
 
-	selectedFaculty, err := selectFaculty(faculties, facultyFlag, fuzzyFlag)
+	selectedFaculty, err := selectFaculty(faculties, facultyFlag)
 	if err != nil {
+		// Check if this is a selection canceled error or a real error
+		if err.Error() == "selection canceled by user" {
+			fmt.Println("Selection canceled")
+			return
+		}
 		fmt.Println("Error selecting faculty:", err)
 		return
 	}
@@ -177,12 +186,16 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string, 
 		nestedList = append(nestedList, []string{course.Name})
 	}
 
-	selectedIndex := helpers.TableSelector("Course", nestedList, courseFlag)
-	if selectedIndex == -1 || selectedIndex < 1 || selectedIndex > len(courses) {
+	result := helpers.TableSelector("Course", nestedList, strconv.Itoa(courseFlag))
+	if result.ExitRequest {
+		return types.Course{}, fmt.Errorf("selection canceled by user")
+	}
+
+	if !result.Selected || result.Index < 1 || result.Index > len(courses) {
 		return types.Course{}, fmt.Errorf("invalid course selection")
 	}
 
-	selectedCourse := courses[selectedIndex-1]
+	selectedCourse := courses[result.Index-1]
 	return selectedCourse, nil
 }
 
@@ -346,84 +359,32 @@ func fetchFaculties(client *http.Client, regNo string, cookies types.Cookies, se
 	return faculties, nil
 }
 
-func selectFaculty(faculties []types.Faculty, facultyFlag string, fuzzyFlag int) (types.Faculty, error) {
-	for {
-		nestedList := [][]string{{"NAME", "SLOT"}}
-		for _, faculty := range faculties {
-			cleanName := removeNumberPrefix(faculty.Name)
-			nestedList = append(nestedList, []string{
-				strings.TrimSpace(cleanName),
-				faculty.Slot,
-			})
-		}
-
-		if runtime.GOOS == "windows" {
-			clearSingleNewline()
-		}
-
-		if facultyFlag == "" {
-			helpers.PrintTable(nestedList, 1)
-			fmt.Println()
-			fmt.Print("Enter the name or number of the faculty to download materials from: ")
-			reader := bufio.NewReader(os.Stdin)
-			input, err := reader.ReadString('\n')
-			if err != nil {
-				fmt.Println("Error reading input:", err)
-				return types.Faculty{}, err
-			}
-			facultyFlag = strings.TrimSpace(input)
-			if facultyFlag == "exit" {
-				return types.Faculty{}, fmt.Errorf("selection canceled by user")
-			}
-			if num, err := strconv.Atoi(facultyFlag); err == nil {
-				if num >= 1 && num <= len(faculties) {
-					fmt.Printf("\n    \033[1;44m Your selected faculty: %s \033[0m\n\n", nestedList[num][0])
-					return faculties[num-1], nil
-				} else {
-					fmt.Printf("Invalid number. Please enter a number between 1 and %d.\n\n", len(faculties))
-					continue
-				}
-			}
-		}
-		fmt.Printf("%s \n", facultyFlag)
-		selectedIndices := helpers.NewFuzzySearch(nestedList, facultyFlag)
-		if len(selectedIndices) == 0 {
-			fmt.Println("No matching faculty found for your query. Please try again.")
-			facultyFlag = ""
-			continue
-		} else if len(selectedIndices) == 1 {
-			if selectedIndices[0] < 1 || selectedIndices[0] > len(faculties) {
-				fmt.Println("Selected index is out of range. Please try again.")
-				continue
-			}
-			fmt.Printf("\n    \033[1;44m Your selected faculty: %s \033[0m\n\n", nestedList[selectedIndices[0]][0])
-			return faculties[selectedIndices[0]-1], nil
-		} else {
-			facultyWithMultipleSlotList := [][]string{{"NAME", "SLOT"}}
-			reducedFacultyList := []types.Faculty{}
-			for _, index := range selectedIndices {
-				if index < 1 || index > len(nestedList)-1 {
-					continue
-				}
-				facultyWithMultipleSlotList = append(facultyWithMultipleSlotList, nestedList[index])
-				reducedFacultyList = append(reducedFacultyList, faculties[index-1])
-			}
-			if len(reducedFacultyList) == 0 {
-				fmt.Println("No valid faculties found in the selected indices.")
-				continue
-			}
-			if fuzzyFlag == 0 {
-				fmt.Println("\nMultiple matches found. Please select an index from the results below:")
-				fuzzyFlag = helpers.TableSelector("Faculty index", facultyWithMultipleSlotList, 0)
-			} else {
-				if fuzzyFlag < 1 || fuzzyFlag > len(reducedFacultyList) {
-					fmt.Println("Invalid selection. Please enter a valid index number.")
-					continue
-				}
-			}
-			return reducedFacultyList[fuzzyFlag-1], nil
-		}
+func selectFaculty(faculties []types.Faculty, facultyFlag string) (types.Faculty, error) {
+	nestedList := [][]string{{"NAME", "SLOT"}}
+	for _, faculty := range faculties {
+		cleanName := removeNumberPrefix(faculty.Name)
+		nestedList = append(nestedList, []string{
+			strings.TrimSpace(cleanName),
+			faculty.Slot,
+		})
 	}
+
+	if runtime.GOOS == "windows" {
+		clearSingleNewline()
+	}
+
+	// Use helper for complete faculty selection process
+	result := helpers.TableSelectorFuzzy("Faculty", nestedList, facultyFlag, helpers.NewFuzzySearch)
+
+	if result.ExitRequest {
+		return types.Faculty{}, fmt.Errorf("selection canceled by user")
+	}
+
+	if !result.Selected || result.Index <= 0 || result.Index > len(faculties) {
+		return types.Faculty{}, fmt.Errorf("invalid faculty selection")
+	}
+
+	return faculties[result.Index-1], nil
 }
 
 func removeNumberPrefix(facultyName string) string {
