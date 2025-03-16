@@ -156,23 +156,28 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 			icsEvents = append(icsEvents, event)
 		}
 
-		downloadsDir := helpers.GetDownloadsDir()
-		icsFileName := "All_DA_Deadlines.ics"
-		icsFilePath = filepath.Join(downloadsDir, icsFileName)
-
-		err := helpers.GenerateICSFileDateOnly(icsEvents, icsFilePath, "CLI-TOP DA")
+		// Create the Other Downloads/ICS File directory for DA deadlines
+		icsDir, err := helpers.GetOrCreateDownloadDir(filepath.Join("Other Downloads", "ICS File"))
 		if err != nil {
-			fmt.Println("Error generating ICS file:", err)
+			fmt.Println("Error creating ICS file directory:", err)
 		} else {
-			serverURL := "https://cli-calendar.acmvit.in"
-			uploadedFileURL, err = helpers.UploadICSFile(icsFilePath, serverURL)
+			icsFileName := "All_DA_Deadlines.ics"
+			icsFilePath = filepath.Join(icsDir, icsFileName)
+
+			err := helpers.GenerateICSFileDateOnly(icsEvents, icsFilePath, "CLI-TOP DA")
 			if err != nil {
-				fmt.Println("Error uploading ICS file:", err)
-				fmt.Println("Please import the 'All_DA_Deadlines.ics' file manually from your Downloads folder.")
+				fmt.Println("Error generating ICS file:", err)
 			} else {
-				icsGenerated = true
-				if debug.Debug {
-					fmt.Println("ICS file uploaded successfully. URL:", uploadedFileURL)
+				serverURL := "https://cli-calendar.acmvit.in"
+				uploadedFileURL, err = helpers.UploadICSFile(icsFilePath, serverURL)
+				if err != nil {
+					fmt.Println("Error uploading ICS file:", err)
+					fmt.Println("Please import the 'All_DA_Deadlines.ics' file manually from your Downloads folder.")
+				} else {
+					icsGenerated = true
+					if debug.Debug {
+						fmt.Println("ICS file uploaded successfully. URL:", uploadedFileURL)
+					}
 				}
 			}
 		}
@@ -343,9 +348,45 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 			}
 			selectedSubjectName = helpers.SanitizeFilename(selectedSubjectName)
 
-			fileName := fmt.Sprintf("%s_%s%s", selectedSubjectName, selectedDA[0], ext)
-			downloadsDir := helpers.GetDownloadsDir()
-			filePath := filepath.Join(downloadsDir, fileName)
+			// Extract course code (usually the first part before space or hyphen)
+			var courseCode, courseName string
+			parts := strings.SplitN(selectedSubjectName, " ", 2)
+			if len(parts) >= 2 {
+				courseCode = parts[0]
+				courseName = strings.Join(parts[1:], " ")
+			} else {
+				// If no space, try to find a hyphen
+				parts = strings.SplitN(selectedSubjectName, "-", 2)
+				if len(parts) >= 2 {
+					courseCode = parts[0]
+					courseName = strings.Join(parts[1:], "-")
+				} else {
+					courseCode = selectedSubjectName
+					courseName = selectedSubjectName
+				}
+			}
+
+			// Folder structure: DA/CourseName_CourseCode/
+			fileName := fmt.Sprintf("%s%s", selectedDA[0], ext)
+
+			// Create the DA directory structure
+			daDir, err := helpers.GetOrCreateDownloadDir("DA")
+			if err != nil {
+				fmt.Println("Error creating DA download directory:", err)
+				return
+			}
+
+			courseFolderName := fmt.Sprintf("%s_%s", courseName, courseCode)
+			courseFolderName = helpers.SanitizeFilename(courseFolderName)
+			courseDir := filepath.Join(daDir, courseFolderName)
+
+			// Create the course directory
+			if err := os.MkdirAll(courseDir, os.ModePerm); err != nil {
+				fmt.Println("Error creating course directory:", err)
+				return
+			}
+
+			filePath := filepath.Join(courseDir, fileName)
 
 			err = helpers.SaveFile(body, filePath)
 			if err != nil {
