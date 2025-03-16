@@ -11,7 +11,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -518,5 +520,59 @@ func HandleError(context string, err error) {
 		fmt.Printf("Error %s: %v\n", context, err)
 	} else {
 		fmt.Println("An error occurred. Please try again.")
+	}
+}
+
+// GetOrCreateDownloadDir creates and returns the path to a subdirectory in the CLI-TOP Downloads directory
+func GetOrCreateDownloadDir(subDir string) (string, error) {
+	baseDir := filepath.Join(GetDownloadsDir(), "CLI-TOP Downloads")
+
+	// Create the base CLI-TOP Downloads directory if it doesn't exist
+	if err := os.MkdirAll(baseDir, os.ModePerm); err != nil {
+		return "", fmt.Errorf("failed to create base directory: %w", err)
+	}
+
+	// If no subdirectory specified, return the base directory
+	if subDir == "" {
+		return baseDir, nil
+	}
+
+	// Create the specified subdirectory
+	fullPath := filepath.Join(baseDir, subDir)
+	if err := os.MkdirAll(fullPath, os.ModePerm); err != nil {
+		return "", fmt.Errorf("failed to create subdirectory %s: %w", subDir, err)
+	}
+
+	return fullPath, nil
+}
+
+// OpenFolder opens the folder containing the specified path using the system's default file manager
+func OpenFolder(path string) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("explorer", path)
+	case "darwin":
+		cmd = exec.Command("open", path)
+	default:
+		if os.Getenv("WSL_DISTRO_NAME") != "" {
+			if _, err := exec.LookPath("wslview"); err == nil {
+				cmd = exec.Command("wslview", path)
+			}
+		}
+		if cmd == nil {
+			if _, err := exec.LookPath("xdg-open"); err == nil {
+				cmd = exec.Command("xdg-open", path)
+			} else if _, err := exec.LookPath("gio"); err == nil {
+				cmd = exec.Command("gio", "open", path)
+			} else {
+				fmt.Println("Please open the folder manually:", path)
+				return
+			}
+		}
+	}
+
+	if err := cmd.Start(); err != nil {
+		fmt.Printf("Error opening folder: %v\n", err)
 	}
 }

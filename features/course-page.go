@@ -27,33 +27,9 @@ import (
 
 var httpClient *http.Client
 
-func openFolder(path string) {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "windows":
-		cmd = exec.Command("explorer", path)
-	case "darwin": // macOS
-		cmd = exec.Command("open", path)
-	case "linux":
-		cmd = exec.Command("xdg-open", path)
-	default:
-		fmt.Println("Unsupported platform. Open the folder manually:", path)
-		return
-	}
-	err := cmd.Start()
-	if err != nil {
-		fmt.Println("Error opening folder:", err)
-	}
-}
-
 func init() {
 	httpClient = &http.Client{
-		Timeout: time.Minute * 2,
-		Transport: &http.Transport{
-			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 100,
-			IdleConnTimeout:     90 * time.Second,
-		},
+		Timeout: time.Duration(60) * time.Second,
 	}
 }
 
@@ -142,9 +118,11 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag
 
 	err = downloadMaterialsIndividually(regNo, cookies, selectedCourse, selectedFaculty, materials, selectedMaterials)
 	if err != nil {
-		fmt.Println("Error downloading materials:", err)
+		fmt.Printf("Error downloading materials: %v\n", err)
 		return
 	}
+
+	fmt.Println("\nDownload complete!")
 }
 
 func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string, courseFlag int) (types.Course, error) {
@@ -458,7 +436,7 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 				topicColSpan = 1
 			}
 			secondHeaderRow := headerRows.Eq(1)
-			mNoIndex, topicContentIndex := -1, -1
+			mNoIndex, topicContentIndex, tNoIndex, moduleTitleIndex := -1, -1, -1, -1
 			secondHeaderRow.Find("th, td").Each(func(j int, cell *goquery.Selection) {
 				cellText := strings.ToLower(strings.TrimSpace(cell.Text()))
 				if mNoIndex == -1 && strings.Contains(cellText, "m.no") {
@@ -466,6 +444,12 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 				}
 				if topicContentIndex == -1 && strings.Contains(cellText, "topic content") {
 					topicContentIndex = j
+				}
+				if tNoIndex == -1 && strings.Contains(cellText, "t.no") {
+					tNoIndex = j
+				}
+				if moduleTitleIndex == -1 && strings.Contains(cellText, "module title") {
+					moduleTitleIndex = j
 				}
 			})
 			if mNoIndex == -1 {
@@ -478,20 +462,51 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 					topicContentIndex = topicColSpan - 1
 				}
 			}
+			if tNoIndex == -1 {
+				tNoIndex = 3
+			}
 			table.Find("tbody tr").Each(func(i int, row *goquery.Selection) {
 				cells := row.Find("td")
 				if cells.Length() < (3 + topicColSpan + 1) {
 					return
 				}
+
+				index, _ := strconv.Atoi(strings.TrimSpace(cells.Eq(0).Text()))
 				dateVal := strings.TrimSpace(cells.Eq(1).Text())
 				dayOrderSlotVal := strings.TrimSpace(cells.Eq(2).Text())
 				dayOrderSlotVal = helpers.ReplaceCrossWithPlus(dayOrderSlotVal)
-				mNoCell := cells.Eq(topicGroupStart + mNoIndex)
-				topicContentCell := cells.Eq(topicGroupStart + topicContentIndex)
-				topicVal := strings.TrimSpace(mNoCell.Text()) + " - " + strings.TrimSpace(topicContentCell.Text())
+
+				// Extract module number and topic number
+				moduleNumberVal := ""
+				if topicGroupStart+mNoIndex < cells.Length() {
+					moduleNumberVal = strings.TrimSpace(cells.Eq(topicGroupStart + mNoIndex).Text())
+				}
+
+				topicNumberVal := ""
+				if topicGroupStart+tNoIndex < cells.Length() {
+					topicNumberVal = strings.TrimSpace(cells.Eq(topicGroupStart + tNoIndex).Text())
+				}
+
+				// Get the topic content value
+				topicContentVal := ""
+				if topicGroupStart+topicContentIndex < cells.Length() {
+					topicContentVal = strings.TrimSpace(cells.Eq(topicGroupStart + topicContentIndex).Text())
+				}
+
+				topicVal := ""
+				if topicContentVal != "" {
+					// Use the topic content instead of module title
+					topicVal = fmt.Sprintf("%s - %s - %s", moduleNumberVal, topicNumberVal, topicContentVal)
+				} else {
+					mNoCell := cells.Eq(topicGroupStart + mNoIndex)
+					topicContentCell := cells.Eq(topicGroupStart + topicContentIndex)
+					topicVal = strings.TrimSpace(mNoCell.Text()) + " - " + strings.TrimSpace(topicContentCell.Text())
+				}
+
 				if topicVal == "" {
 					topicVal = "Unnamed"
 				}
+
 				refCell := cells.Eq(cells.Length() - 1)
 				var refMaterials []types.ReferenceMaterial
 				refCell.Find("button[name='getDownloadSemPdf']").Each(func(k int, btn *goquery.Selection) {
@@ -513,11 +528,14 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 				})
 				if len(refMaterials) > 0 || webLink != "" {
 					material := types.CourseMaterial{
+						Index:              index,
 						Date:               dateVal,
 						DayOrderSlot:       dayOrderSlotVal,
 						Topic:              topicVal,
 						ReferenceMaterials: refMaterials,
 						WebLink:            webLink,
+						MNo:                moduleNumberVal,
+						TNo:                topicNumberVal,
 					}
 					materials = append(materials, material)
 				}
@@ -537,9 +555,12 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 				return
 			}
 
-			dateIndex, dayOrderSlotIndex, topicIndex, refMaterialIndex := -1, -1, -1, -1
+			sNoIndex, dateIndex, dayOrderSlotIndex, topicIndex, refMaterialIndex, moduleNumberIndex, topicNumberIndex := -1, -1, -1, -1, -1, -1, -1
 			for j, cell := range headerCells {
 				text := strings.ToLower(strings.TrimSpace(cell.Text()))
+				if sNoIndex == -1 && strings.Contains(text, "Sl.No.") {
+					sNoIndex = j
+				}
 				if dateIndex == -1 && strings.Contains(text, "date") {
 					dateIndex = j
 				}
@@ -552,9 +573,15 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 				if refMaterialIndex == -1 && (strings.Contains(text, "reference") || strings.Contains(text, "material")) {
 					refMaterialIndex = j
 				}
+				if moduleNumberIndex == -1 && strings.Contains(text, "m.no") {
+					moduleNumberIndex = j
+				}
+				if topicNumberIndex == -1 && strings.Contains(text, "t.no") {
+					topicNumberIndex = j
+				}
 			}
 
-			if dateIndex == -1 && dayOrderSlotIndex == -1 && topicIndex == -1 && refMaterialIndex == -1 {
+			if sNoIndex == -1 && dateIndex == -1 && dayOrderSlotIndex == -1 && topicIndex == -1 && refMaterialIndex == -1 {
 				return
 			}
 
@@ -567,6 +594,14 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 					return
 				}
 
+				slNo := 1
+				var err error
+				if sNoIndex >= 0 && cells.Length() > sNoIndex {
+					slNo, err = strconv.Atoi(strings.TrimSpace(cells.Eq(sNoIndex).Text()))
+					if err != nil {
+						slNo = 1
+					}
+				}
 				dateVal := ""
 				if dateIndex >= 0 && cells.Length() > dateIndex {
 					dateVal = strings.TrimSpace(cells.Eq(dateIndex).Text())
@@ -576,9 +611,27 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 					dayOrderSlotVal = strings.TrimSpace(cells.Eq(dayOrderSlotIndex).Text())
 					dayOrderSlotVal = helpers.ReplaceCrossWithPlus(dayOrderSlotVal)
 				}
+
+				// Extract module number and topic number
+				moduleNumberVal := ""
+				if moduleNumberIndex >= 0 && cells.Length() > moduleNumberIndex {
+					moduleNumberVal = strings.TrimSpace(cells.Eq(moduleNumberIndex).Text())
+				}
+
+				topicNumberVal := ""
+				if topicNumberIndex >= 0 && cells.Length() > topicNumberIndex {
+					topicNumberVal = strings.TrimSpace(cells.Eq(topicNumberIndex).Text())
+				}
+
 				topicVal := ""
 				if topicIndex >= 0 && cells.Length() > topicIndex {
-					topicVal = strings.TrimSpace(cells.Eq(topicIndex).Text())
+					topicContentVal := strings.TrimSpace(cells.Eq(topicIndex).Text())
+					if moduleNumberVal != "" && topicNumberVal != "" {
+						// Format with module and topic numbers
+						topicVal = fmt.Sprintf("%s - %s - %s", moduleNumberVal, topicNumberVal, topicContentVal)
+					} else {
+						topicVal = topicContentVal
+					}
 					if topicVal == "" {
 						topicVal = "Unnamed"
 					}
@@ -605,11 +658,14 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 					})
 					if len(refMaterials) > 0 || webLink != "" {
 						material := types.CourseMaterial{
+							Index:              slNo,
 							Date:               dateVal,
 							DayOrderSlot:       dayOrderSlotVal,
 							Topic:              topicVal,
 							ReferenceMaterials: refMaterials,
 							WebLink:            webLink,
+							MNo:                moduleNumberVal,
+							TNo:                topicNumberVal,
 						}
 						materials = append(materials, material)
 					}
@@ -617,6 +673,8 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 			})
 		}
 	})
+
+	fmt.Println("Materials:", materials)
 
 	return materials, nil
 }
@@ -667,6 +725,7 @@ func displayCourseMaterials(materials []types.CourseMaterial) {
 
 func selectCourseMaterials(materials []types.CourseMaterial) ([]types.CourseMaterial, error) {
 	for {
+		fmt.Println()
 		fmt.Print("Enter the index numbers of the topics to download (e.g., 1,2-5,8,5,3), or 0 for bulk download: ")
 
 		reader := bufio.NewReader(os.Stdin)
@@ -742,19 +801,22 @@ func parseIndices(input string, max int) ([]int, []string) {
 }
 
 func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selectedCourse types.Course, selectedFaculty types.Faculty, allMaterials []types.CourseMaterial, selectedMaterials []types.CourseMaterial) error {
-	homeDir, err := os.UserHomeDir()
+	// Create the Course Page directory
+	coursePageDir, err := helpers.GetOrCreateDownloadDir("Course Page")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create course page directory: %w", err)
 	}
-
-	downloadsDir := filepath.Join(homeDir, "Downloads", "Course Page Downloads")
 
 	courseParts := helpers.SplitCourseNameFull(selectedCourse.Name)
 	var courseFolderName string
 	if len(courseParts) >= 3 {
-		courseFolderName = fmt.Sprintf("%s_%s_%s", courseParts[0], courseParts[1], courseParts[2])
+		// Extract the course code from the course name (typically the first part)
+		courseCode := courseParts[0]
+		// Extract the course name parts (typically everything after the first part)
+		courseName := strings.Join(courseParts[1:], "_")
+		courseFolderName = fmt.Sprintf("%s_%s", courseName, courseCode)
 	} else if len(courseParts) == 2 {
-		courseFolderName = fmt.Sprintf("%s_%s", courseParts[0], courseParts[1])
+		courseFolderName = fmt.Sprintf("%s_%s", courseParts[1], courseParts[0])
 	} else if len(courseParts) == 1 {
 		courseFolderName = courseParts[0]
 	} else {
@@ -785,7 +847,9 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 	}
 	facultyFolderName = helpers.SanitizeFilename(facultyFolderName)
 
-	fullDirPath := filepath.Join(downloadsDir, courseFolderName, facultyFolderName)
+	fullDirPath := filepath.Join(coursePageDir, courseFolderName, facultyFolderName)
+
+	fmt.Println("fullDirPath", fullDirPath)
 
 	err = os.MkdirAll(fullDirPath, os.ModePerm)
 	if err != nil {
@@ -823,7 +887,6 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, concurrency)
 	var mu sync.Mutex
-	indexNo := 1
 
 	type FailedDownload struct {
 		IndexNo       int
@@ -832,6 +895,8 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 		RefMat        types.ReferenceMaterial
 		Topic         string
 		Error         string
+		MNo           string
+		TNo           string
 	}
 	var failedDownloads []FailedDownload
 	var failedMu sync.Mutex
@@ -860,13 +925,15 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 		for _, refMat := range material.ReferenceMaterials {
 			wg.Add(1)
 			sem <- struct{}{}
-			currentIndexNo := indexNo
+			currentIndexNo := material.Index
 			currentTopicName := topicName
 			currentRefMaterialNo := refMaterialNo
 			currentRefMat := refMat
 			currentTopic := material.Topic
+			currentMNo := material.MNo
+			currentTNo := material.TNo
 
-			go func(indexNo int, topicName string, refMaterialNo int, refMat types.ReferenceMaterial, topic string) {
+			go func(indexNo int, topicName string, refMaterialNo int, refMat types.ReferenceMaterial, topic, mNo, tNo string) {
 				defer wg.Done()
 				defer func() { <-sem }()
 
@@ -921,9 +988,7 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 
 					body, headers, downloadErr = helpers.FetchReqClient(attemptClient, regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
 					if downloadErr == nil && len(body) > 0 {
-						if isPotentialPptx && len(body) > 4096 {
-							break
-						} else if isSuccessfulDownload(body) {
+						if (isPotentialPptx && len(body) > 4096) || isSuccessfulDownload(body) {
 							break
 						} else {
 							downloadErr = fmt.Errorf("invalid file content")
@@ -957,6 +1022,8 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 						RefMat:        refMat,
 						Topic:         topic,
 						Error:         lastError,
+						MNo:           mNo,
+						TNo:           tNo,
 					})
 					failedMu.Unlock()
 
@@ -968,29 +1035,19 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 
 				ext := helpers.GetFileExtension(refMat.Name, body, headers)
 				if ext == "" {
-					ext = ".bin"
-				}
-				filename := fmt.Sprintf("%d_%s_%d%s", indexNo, topicName, refMaterialNo, ext)
-				filename = helpers.SanitizeFilename(filename)
-				filePath := filepath.Join(fullDirPath, filename)
-
-				if len(filePath) > 250 {
-					ext := filepath.Ext(filename)
-					baseFilename := filename[:len(filename)-len(ext)]
-					excessLength := len(filePath) - 250
-					if excessLength >= len(baseFilename) {
-						baseFilename = fmt.Sprintf("file_%d_%d", indexNo, refMaterialNo)
+					if isPotentialPptx {
+						ext = ".pptx"
 					} else {
-						baseFilename = baseFilename[:len(baseFilename)-excessLength-1]
+						ext = ".bin"
 					}
-					filename = baseFilename + ext
-					filePath = filepath.Join(fullDirPath, filename)
 				}
+
+				filePath := generateFilePath(fullDirPath, indexNo, mNo, tNo, topicName, refMaterialNo, ext)
 
 				err = helpers.SaveFile(body, filePath)
 				if err != nil {
 					if debug.Debug {
-						fmt.Printf("Error saving file %s: %v\n", filename, err)
+						fmt.Printf("Error saving file: %v\n", err)
 					}
 
 					failedMu.Lock()
@@ -1001,6 +1058,8 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 						RefMat:        refMat,
 						Topic:         topic,
 						Error:         err.Error(),
+						MNo:           mNo,
+						TNo:           tNo,
 					})
 					failedMu.Unlock()
 				} else {
@@ -1012,10 +1071,9 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 				mu.Lock()
 				bar.Add(1)
 				mu.Unlock()
-			}(currentIndexNo, currentTopicName, currentRefMaterialNo, currentRefMat, currentTopic)
+			}(currentIndexNo, currentTopicName, currentRefMaterialNo, currentRefMat, currentTopic, currentMNo, currentTNo)
 			refMaterialNo++
 		}
-		indexNo++
 	}
 
 	wg.Wait()
@@ -1086,57 +1144,17 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 				body, headers, downloadErr = helpers.FetchReqClient(retryClient, regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
 
 				if downloadErr == nil && len(body) > 0 {
-					if isPotentialPptx && len(body) > 4096 {
+					if (isPotentialPptx && len(body) > 4096) || isSuccessfulDownload(body) {
 						ext := helpers.GetFileExtension(fd.RefMat.Name, body, headers)
 						if ext == "" {
-							ext = ".pptx"
-						}
-						filename := fmt.Sprintf("%d_%s_%d%s", fd.IndexNo, fd.TopicName, fd.RefMaterialNo, ext)
-						filename = helpers.SanitizeFilename(filename)
-						filePath := filepath.Join(fullDirPath, filename)
-
-						if len(filePath) > 250 {
-							ext := filepath.Ext(filename)
-							baseFilename := filename[:len(filename)-len(ext)]
-							excessLength := len(filePath) - 250
-							if excessLength >= len(baseFilename) {
-								baseFilename = fmt.Sprintf("file_%d_%d", fd.IndexNo, fd.RefMaterialNo)
+							if isPotentialPptx {
+								ext = ".pptx"
 							} else {
-								baseFilename = baseFilename[:len(baseFilename)-excessLength-1]
+								ext = ".bin"
 							}
-							filename = baseFilename + ext
-							filePath = filepath.Join(fullDirPath, filename)
 						}
 
-						err = helpers.SaveFile(body, filePath)
-						if err == nil {
-							success = true
-							successfulDownloads[key] = true
-							break
-						} else {
-							lastError = err.Error()
-						}
-					} else if isSuccessfulDownload(body) {
-						ext := helpers.GetFileExtension(fd.RefMat.Name, body, headers)
-						if ext == "" {
-							ext = ".bin"
-						}
-						filename := fmt.Sprintf("%d_%s_%d%s", fd.IndexNo, fd.TopicName, fd.RefMaterialNo, ext)
-						filename = helpers.SanitizeFilename(filename)
-						filePath := filepath.Join(fullDirPath, filename)
-
-						if len(filePath) > 250 {
-							ext := filepath.Ext(filename)
-							baseFilename := filename[:len(filename)-len(ext)]
-							excessLength := len(filePath) - 250
-							if excessLength >= len(baseFilename) {
-								baseFilename = fmt.Sprintf("file_%d_%d", fd.IndexNo, fd.RefMaterialNo)
-							} else {
-								baseFilename = baseFilename[:len(baseFilename)-excessLength-1]
-							}
-							filename = baseFilename + ext
-							filePath = filepath.Join(fullDirPath, filename)
-						}
+						filePath := generateFilePath(fullDirPath, fd.IndexNo, fd.MNo, fd.TNo, fd.TopicName, fd.RefMaterialNo, ext)
 
 						err = helpers.SaveFile(body, filePath)
 						if err == nil {
@@ -1176,27 +1194,17 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 					body, headers, downloadErr = helpers.FetchReqClient(freshClient, regNo, cookies, downloadURL+randomParam, "", formData, "POST", "application/x-www-form-urlencoded")
 
 					if downloadErr == nil && len(body) > 0 {
-						if isPotentialPptx && len(body) > 4096 {
+						if (isPotentialPptx && len(body) > 4096) || isSuccessfulDownload(body) {
 							ext := helpers.GetFileExtension(fd.RefMat.Name, body, headers)
 							if ext == "" {
-								ext = ".pptx"
-							}
-							filename := fmt.Sprintf("%d_%s_%d%s", fd.IndexNo, fd.TopicName, fd.RefMaterialNo, ext)
-							filename = helpers.SanitizeFilename(filename)
-							filePath := filepath.Join(fullDirPath, filename)
-
-							if len(filePath) > 250 {
-								ext := filepath.Ext(filename)
-								baseFilename := filename[:len(filename)-len(ext)]
-								excessLength := len(filePath) - 250
-								if excessLength >= len(baseFilename) {
-									baseFilename = fmt.Sprintf("file_%d_%d", fd.IndexNo, fd.RefMaterialNo)
+								if isPotentialPptx {
+									ext = ".pptx"
 								} else {
-									baseFilename = baseFilename[:len(baseFilename)-excessLength-1]
+									ext = ".bin"
 								}
-								filename = baseFilename + ext
-								filePath = filepath.Join(fullDirPath, filename)
 							}
+
+							filePath := generateFilePath(fullDirPath, fd.IndexNo, fd.MNo, fd.TNo, fd.TopicName, fd.RefMaterialNo, ext)
 
 							err = helpers.SaveFile(body, filePath)
 							if err == nil {
@@ -1205,35 +1213,8 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 							} else {
 								lastError = err.Error()
 							}
-						} else if isSuccessfulDownload(body) {
-							ext := helpers.GetFileExtension(fd.RefMat.Name, body, headers)
-							if ext == "" {
-								ext = ".bin"
-							}
-							filename := fmt.Sprintf("%d_%s_%d%s", fd.IndexNo, fd.TopicName, fd.RefMaterialNo, ext)
-							filename = helpers.SanitizeFilename(filename)
-							filePath := filepath.Join(fullDirPath, filename)
-
-							if len(filePath) > 250 {
-								ext := filepath.Ext(filename)
-								baseFilename := filename[:len(filename)-len(ext)]
-								excessLength := len(filePath) - 250
-								if excessLength >= len(baseFilename) {
-									baseFilename = fmt.Sprintf("file_%d_%d", fd.IndexNo, fd.RefMaterialNo)
-								} else {
-									baseFilename = baseFilename[:len(baseFilename)-excessLength-1]
-								}
-								filename = baseFilename + ext
-								filePath = filepath.Join(fullDirPath, filename)
-							}
-
-							err = helpers.SaveFile(body, filePath)
-							if err == nil {
-								success = true
-								successfulDownloads[key] = true
-							} else {
-								lastError = err.Error()
-							}
+						} else {
+							lastError = "Invalid file content"
 						}
 					}
 				}
@@ -1247,6 +1228,8 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 					RefMat:        fd.RefMat,
 					Topic:         fd.Topic,
 					Error:         lastError,
+					MNo:           fd.MNo,
+					TNo:           fd.TNo,
 				})
 			}
 
@@ -1284,8 +1267,43 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 		fmt.Println("All files were downloaded successfully!")
 	}
 
-	openFolder(fullDirPath)
+	fmt.Printf("Files have been saved to: %s\n", fullDirPath)
+	helpers.OpenFolder(fullDirPath)
 	return nil
+}
+
+// generateFilePath creates a file path based on material data
+func generateFilePath(dirPath string, indexNo int, moduleNo, topicNo, topicName string, refMatNo int, ext string) string {
+	var filename string
+
+	// If we have module and topic numbers, use them for a more descriptive filename
+	if moduleNo != "" && topicNo != "" {
+		// Extract topic content without module and topic numbers if possible
+		topicContent := extractTopicContent(topicName)
+		filename = fmt.Sprintf("M%s_T%s_%s_%d%s", moduleNo, topicNo, helpers.SanitizeFilename(topicContent), refMatNo, ext)
+	} else {
+		// Fall back to index-based naming
+		filename = fmt.Sprintf("%d_%s_%d%s", indexNo, topicName, refMatNo, ext)
+	}
+
+	filename = helpers.SanitizeFilename(filename)
+	filePath := filepath.Join(dirPath, filename)
+
+	// Handle long path names
+	if len(filePath) > 250 {
+		ext := filepath.Ext(filename)
+		baseFilename := filename[:len(filename)-len(ext)]
+		excessLength := len(filePath) - 250
+		if excessLength >= len(baseFilename) {
+			baseFilename = fmt.Sprintf("file_%d_%d", indexNo, refMatNo)
+		} else {
+			baseFilename = baseFilename[:len(baseFilename)-excessLength-1]
+		}
+		filename = baseFilename + ext
+		filePath = filepath.Join(dirPath, filename)
+	}
+
+	return filePath
 }
 
 func isSuccessfulDownload(body []byte) bool {
@@ -1359,4 +1377,16 @@ func clearSingleNewline() {
 
 func getOptimizedConcurrency() int {
 	return 4
+}
+
+// Helper function to extract just the topic content from the full topic string
+func extractTopicContent(topic string) string {
+
+	parts := strings.Split(topic, " - ")
+	if len(parts) >= 3 {
+		return parts[2]
+	} else if len(parts) == 2 {
+		return parts[1]
+	}
+	return topic
 }

@@ -60,6 +60,8 @@ type CourseMaterial struct {
 	Topic              string
 	ReferenceMaterials []ReferenceMaterial
 	WebLink            string
+	MNo                string
+	TNo                string
 }
 
 type ReferenceMaterial struct {
@@ -92,7 +94,7 @@ type ExamEvent struct {
 	Seat        string
 	SeatNo      string
 	DaysLeft    int
-	Category    string 
+	Category    string
 }
 
 type DAsubject struct {

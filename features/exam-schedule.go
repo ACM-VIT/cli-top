@@ -297,10 +297,17 @@ func generateICSFile(exams []types.ExamEvent) {
 		icsEvents = append(icsEvents, event)
 	}
 
-	icsFileName := "Exam_Schedule.ics"
-	icsFilePath := filepath.Join(helpers.GetDownloadsDir(), icsFileName)
+	// Create the Other Downloads/ICS File directory
+	icsDir, err := helpers.GetOrCreateDownloadDir(filepath.Join("Other Downloads", "ICS File"))
+	if err != nil {
+		fmt.Println("Error creating ICS file directory:", err)
+		return
+	}
 
-	err := helpers.VenueAdd(icsEvents, icsFilePath, "CLI-TOP Exams")
+	icsFileName := "Exam_Schedule.ics"
+	icsFilePath := filepath.Join(icsDir, icsFileName)
+
+	err = helpers.VenueAdd(icsEvents, icsFilePath, "CLI-TOP Exams")
 	if err != nil {
 		fmt.Println("Error generating ICS file:", err)
 	} else {

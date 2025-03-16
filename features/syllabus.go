@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -73,7 +72,7 @@ func DownloadSyllabus(courseCode, courseName string, cookies types.Cookies, auth
 	} else {
 		return "", fmt.Errorf("unexpected content type: %s", ct)
 	}
-	filename := fmt.Sprintf("%s_%s.pdf", courseCode, courseName)
+	filename := fmt.Sprintf("%s_%s.pdf", courseName, courseCode)
 	sanitizedFilename := sanitizeFilename(filename)
 	outputPath := filepath.Join(outputDir, sanitizedFilename)
 	if err := os.MkdirAll(outputDir, os.ModePerm); err != nil {
@@ -165,26 +164,6 @@ func getCoursesForCategory(regNo string, cookies types.Cookies, categoryID strin
 	return courses, nil
 }
 
-func OpenFolder(path string) {
-	var cmd *exec.Cmd
-	switch os := os.Getenv("OS"); os {
-	case "Windows_NT":
-		cmd = exec.Command("explorer", filepath.Dir(path))
-	default:
-		if _, err := exec.LookPath("open"); err == nil {
-			cmd = exec.Command("open", filepath.Dir(path))
-		} else if _, err := exec.LookPath("xdg-open"); err == nil {
-			cmd = exec.Command("xdg-open", filepath.Dir(path))
-		} else {
-			fmt.Println("Please open the folder manually:", filepath.Dir(path))
-			return
-		}
-	}
-	if err := cmd.Start(); err != nil {
-		fmt.Printf("Error opening folder: %v\n", err)
-	}
-}
-
 func ExecuteSyllabusDownload(regNo string, cookies types.Cookies, courseSearch string) {
 	if !helpers.ValidateCookies(cookies) {
 		fmt.Println("Please login using the cli-top login command.")
@@ -246,7 +225,13 @@ func ExecuteSyllabusDownload(regNo string, cookies types.Cookies, courseSearch s
 
 	selectedCourseData := allCourses[selectedCourseIndex.Index-1] // Adjust for header row
 
-	outputDir := filepath.Join(helpers.GetDownloadsDir(), "Syllabus Downloads")
+	// Create the Syllabus directory inside CLI-TOP Downloads
+	outputDir, err := helpers.GetOrCreateDownloadDir("Syllabus")
+	if err != nil {
+		helpers.HandleError("creating syllabus download directory", err)
+		return
+	}
+
 	downloadedPath, err := DownloadSyllabus(
 		selectedCourseData.Course.Code,
 		selectedCourseData.Course.Title,
@@ -259,5 +244,7 @@ func ExecuteSyllabusDownload(regNo string, cookies types.Cookies, courseSearch s
 		return
 	}
 
-	OpenFolder(downloadedPath)
+	pathDir := filepath.Dir(downloadedPath)
+
+	helpers.OpenFolder(pathDir)
 }
