@@ -121,8 +121,6 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 		displayExamScheduleTable(fatExams)
 	}
 
-	fmt.Println("Exams", allExams)
-
 	// Generate ICS file with all upcoming exams
 	if len(allExams) > 0 {
 		generateICSFile(allExams)
