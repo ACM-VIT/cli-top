@@ -32,6 +32,7 @@ var facultyFlag string
 var classGrpFlag int
 var fuzzyIndexFlag int
 var courseNameFlag string
+var syllabusCourseFlag string
 
 func getOrCreateUUID() string {
 	registeredUUID := viper.GetString("UUID")
@@ -397,6 +398,7 @@ func Execute() {
 	coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
 	coursePageCmd.PersistentFlags().StringVarP(&facultyFlag, "faculty", "f", "", "Specify the faculty")
 	coursePageCmd.PersistentFlags().IntVarP(&fuzzyIndexFlag, "fuzzy-index", "i", 0, "Specify the fuzzy index")
+	syllabusCmd.PersistentFlags().StringVarP(&syllabusCourseFlag, "course", "c", "", "Specify course search query ") 
 
 	// Define global flags
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
@@ -436,7 +438,7 @@ var syllabusCmd = &cobra.Command{
 	Short: "Download syllabus for a selected course",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.ExecuteSyllabusDownload(regNo, cookies)
+		features.ExecuteSyllabusDownload(regNo, cookies, syllabusCourseFlag)
 	},
 }
 

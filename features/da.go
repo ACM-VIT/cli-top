@@ -29,8 +29,11 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		if debug.Debug {
 			fmt.Println("Error retrieving semester details:", err)
 		}
-		fmt.Println("Failed to retrieve semester details.")
-		return
+		allSems, err = helpers.GetSemDetailsBackup(cookies, regNo)
+		if err != nil {
+			fmt.Println("Error retrieving semester details:", err)
+			return
+		}
 	}
 	if len(allSems) == 0 {
 		fmt.Println("No semesters found.")
@@ -88,11 +91,11 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 					days := int(da.DueDate.Sub(today).Hours() / 24)
 					if days < 3 {
 						nextDueDate = "\033[31m" + da.DueDate.Format("02-Jan-2006") + "\033[0m" // Red for < 3 days
-				} else if days < 7 {
+					} else if days < 7 {
 						nextDueDate = "\033[33m" + da.DueDate.Format("02-Jan-2006") + "\033[0m" // Yellow for < 7 days
-				} else {
+					} else {
 						nextDueDate = da.DueDate.Format("02-Jan-2006")
-				}
+					}
 				}
 			}
 			if da.DueDate.After(today) || da.DueDate.Equal(today) {
@@ -188,13 +191,13 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		}
 
 		fmt.Println("\nPlease select a subject by entering the corresponding number:")
-		subjectChoice := helpers.TableSelector("subject", subjectsTable, 0)
-		if subjectChoice < 1 || subjectChoice > len(subjectIDs) {
-			fmt.Println("Invalid subject selection.")
+		subjectChoice := helpers.TableSelector("subject", subjectsTable, "0")
+		if subjectChoice.ExitRequest || !subjectChoice.Selected {
+			fmt.Println("Selection canceled")
 			return
 		}
 
-		selectedSubjectID := subjectIDs[subjectChoice-1]
+		selectedSubjectID := subjectIDs[subjectChoice.Index-1]
 
 		var singleSubDownload [][]string
 		singleSubDownload = append(singleSubDownload, []string{"Title", "Due Date", "Days Left", "Status", "QP", "Last Upload"})
@@ -258,13 +261,13 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		}
 
 		if len(singleSubDownload) > 1 {
-			downloadChoice := helpers.TableSelector("DA index", singleSubDownload, 0)
-			if downloadChoice < 1 || downloadChoice > len(singleSubDownload)-1 {
-				fmt.Println("Invalid DA selection.")
+			downloadChoice := helpers.TableSelector("DA", singleSubDownload, "0")
+			if downloadChoice.ExitRequest || !downloadChoice.Selected {
+				fmt.Println("Selection canceled")
 				return
 			}
 
-			selectedDA := singleSubDownload[downloadChoice]
+			selectedDA := singleSubDownload[downloadChoice.Index]
 			if selectedDA[4] == "No" {
 				fmt.Println("No question papers available for this DA.")
 				return

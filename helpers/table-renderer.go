@@ -23,108 +23,250 @@ func StripAnsiCodes(str string) string {
 	return str
 }
 
-func TableSelector(subject string, nestedList [][]string, choice int) int {
-	if choice != 0 {
-		return choice
-	}
-	reader := bufio.NewReader(os.Stdin)
-	for {
-		fmt.Println("")
-		PrintTable(nestedList, 1)
-		fmt.Println("")
-		fmt.Print("Choose a ", subject, ": ")
-		input, _ := reader.ReadString('\n')
-		input = strings.TrimSpace(input)
-		choice, err := strconv.Atoi(input)
-		if err != nil {
-			fmt.Println("Invalid input. Please enter a valid number.")
-			continue
-		}
-		if choice < 1 || choice > len(nestedList)-1 {
-			fmt.Println("Invalid choice.")
-			continue
-		}
-		fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, nestedList[choice][0])
-		return choice
-	}
+// FuzzySearchFunc is a function type for custom fuzzy search implementations
+type FuzzySearchFunc func([][]string, string) []int
+
+// SelectionResult represents the result of a table selection operation
+type SelectionResult struct {
+	Index       int
+	Selected    bool
+	ExitRequest bool
 }
 
-func TableSelectorFuzzy(subject string, nestedList [][]string, choice string) int {
-
-	if choice != "" {
-		var matchedResults [][]string
-		for _, v := range nestedList {
-			combinedData := strings.Join(v[1:], " ")
-
-			if strictFuzzyMatch(choice, combinedData) {
-				matchedResults = append(matchedResults, []string{v[0], v[1], strings.Join(v[2:], " ")})
-			}
+// TableSelector handles selection from a table with support for direct selection only
+func TableSelector(subject string, nestedList [][]string, initialQuery string) SelectionResult {
+	// If initial query is a number, try to select it directly
+	if isNumeric(initialQuery) {
+		choice, _ := strconv.Atoi(initialQuery)
+		if choice >= 1 && choice <= len(nestedList)-1 {
+			fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, nestedList[choice][0])
+			return SelectionResult{Index: choice, Selected: true}
 		}
-
-		if len(matchedResults) > 0 {
-			fmt.Println("\nMatching results:")
-			PrintTable(matchedResults, 1)
-
-			for {
-				fmt.Print("Choose an index from the matching results: ")
-				var indexInput string
-				_, err := fmt.Scanln(&indexInput)
-				if err != nil {
-					fmt.Println("\nInvalid input. Please enter a valid number.")
-					continue
-				}
-
-				indexInput = strings.TrimSpace(indexInput)
-				index, err := strconv.Atoi(indexInput)
-				if err != nil || index < 1 || index > len(matchedResults) {
-					fmt.Println("Invalid selection. Please enter a valid number.")
-					continue
-				}
-
-				fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, strings.Join(matchedResults[index-1][1:], " "))
-				return index - 1
-			}
-		} else {
-			fmt.Println("No matching result found. Please try again.")
-			return -1
-		}
+	} else if initialQuery == "exit" {
+		return SelectionResult{ExitRequest: true}
 	}
 
+	reader := bufio.NewReader(os.Stdin)
+
+	// Initial display of the table
 	fmt.Println("")
 	PrintTable(nestedList, 1)
 	fmt.Println("")
 
 	for {
-		fmt.Print("Choose a ", subject, ": ")
-		var userChoice string
-		_, err := fmt.Scanln(&userChoice)
+		fmt.Printf("Choose a %s (enter a number): ", subject)
+		input, _ := reader.ReadString('\n')
+		choice := strings.TrimSpace(input)
+
+		if choice == "exit" {
+			return SelectionResult{ExitRequest: true}
+		}
+
+		// Check if input is a number
+		choiceNum, err := strconv.Atoi(choice)
 		if err != nil {
-			fmt.Println("Invalid input. Please enter a valid ", subject)
+			fmt.Printf("Invalid input. Please enter a number between 1 and %d.\n", len(nestedList)-1)
+			// Reprint the table after invalid input
+			fmt.Println("")
+			PrintTable(nestedList, 1)
+			fmt.Println("")
 			continue
 		}
 
-		userChoice = strings.TrimSpace(userChoice)
-		if userChoice == "" {
-			fmt.Println("Please enter a valid choice.")
-			continue
+		// Validate the choice
+		if choiceNum >= 1 && choiceNum <= len(nestedList)-1 {
+			fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, nestedList[choiceNum][0])
+			return SelectionResult{Index: choiceNum, Selected: true}
+		} else {
+			fmt.Printf("Invalid choice. Please enter a number between 1 and %d.\n", len(nestedList)-1)
+			// Reprint the table after invalid input
+			fmt.Println("")
+			PrintTable(nestedList, 1)
+			fmt.Println("")
 		}
-
-		for i, v := range nestedList {
-			combinedData := strings.Join(v[1:], " ")
-			if strictFuzzyMatch(userChoice, combinedData) {
-				fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, combinedData)
-				return i
-			}
-		}
-
-		fmt.Println("No matching result found. Please try again.")
 	}
 }
 
-func strictFuzzyMatch(input string, data string) bool {
-	input = strings.TrimSpace(input)
+// TableSelectorFuzzy handles selection with support for fuzzy search
+func TableSelectorFuzzy(subject string, nestedList [][]string, initialQuery string, fuzzySearchFunc FuzzySearchFunc) SelectionResult {
+	// If initial query is numeric, use direct selection
+	if isNumeric(initialQuery) {
+		choice, _ := strconv.Atoi(initialQuery)
+		if choice >= 1 && choice <= len(nestedList)-1 {
+			fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, nestedList[choice][0])
+			return SelectionResult{Index: choice, Selected: true}
+		} else {
+			// Invalid numeric initial query, will display table and prompt for new input
+			fmt.Printf("Invalid number. Please enter a number between 1 and %d.\n", len(nestedList)-1)
+			initialQuery = ""
+		}
+	} else if initialQuery == "exit" {
+		return SelectionResult{ExitRequest: true}
+	}
 
-	return strings.Contains(data, input)
+	reader := bufio.NewReader(os.Stdin)
+	searchQuery := initialQuery
+
+	// If no initial query provided or if initial query was an invalid number, prompt for input
+	if searchQuery == "" {
+		if subject == "Course" {
+			fmt.Printf("Enter the course name to download the syllabus (or 'exit' to quit): ")
+		} else {
+			fmt.Println("")
+			PrintTable(nestedList, 1)
+			fmt.Println("")
+			fmt.Printf("Enter a search term or number for %s (or 'exit' to quit): ", subject)
+		}
+		input, _ := reader.ReadString('\n')
+		searchQuery = strings.TrimSpace(input)
+
+		if searchQuery == "exit" {
+			return SelectionResult{ExitRequest: true}
+		}
+	}
+
+	for {
+		// Check if query is a direct number selection
+		if num, err := strconv.Atoi(searchQuery); err == nil {
+			if num >= 1 && num <= len(nestedList)-1 {
+				fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, nestedList[num][0])
+				return SelectionResult{Index: num, Selected: true}
+			} else {
+				fmt.Printf("Invalid number. Please enter a number between 1 and %d.\n", len(nestedList)-1)
+				// Reprint the table after invalid input
+				fmt.Println("")
+				PrintTable(nestedList, 1)
+				fmt.Println("")
+				fmt.Printf("Enter a search term or number for %s (or 'exit' to quit): ", subject)
+				input, _ := reader.ReadString('\n')
+				searchQuery = strings.TrimSpace(input)
+				if searchQuery == "exit" {
+					return SelectionResult{ExitRequest: true}
+				}
+				continue // Skip the fuzzy search for invalid numeric input
+			}
+		}
+
+		// Only perform fuzzy search for non-numeric input
+		// Use provided fuzzy search function or default to NewFuzzySearch
+		var selectedIndices []int
+		if fuzzySearchFunc != nil {
+			selectedIndices = fuzzySearchFunc(nestedList, searchQuery)
+		} else {
+			selectedIndices = NewFuzzySearch(nestedList, searchQuery)
+		}
+
+		if len(selectedIndices) == 0 {
+			fmt.Println("No matching results found for your query.")
+			// Reprint the table after no results found
+			fmt.Println("")
+			PrintTable(nestedList, 1)
+			fmt.Println("")
+			fmt.Printf("Enter a new search term or number for %s (or 'exit' to quit): ", subject)
+			input, _ := reader.ReadString('\n')
+			searchQuery = strings.TrimSpace(input)
+			if searchQuery == "exit" {
+				return SelectionResult{ExitRequest: true}
+			}
+			continue
+		} else if len(selectedIndices) == 1 {
+			index := selectedIndices[0]
+			if index < 1 || index > len(nestedList)-1 {
+				fmt.Println("Selected index is out of range.")
+				// Reprint the table after invalid selection
+				fmt.Println("")
+				PrintTable(nestedList, 1)
+				fmt.Println("")
+				fmt.Printf("Enter a new search term or number for %s (or 'exit' to quit): ", subject)
+				input, _ := reader.ReadString('\n')
+				searchQuery = strings.TrimSpace(input)
+				if searchQuery == "exit" {
+					return SelectionResult{ExitRequest: true}
+				}
+				continue
+			}
+			fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, nestedList[index][0])
+			return SelectionResult{Index: index, Selected: true}
+		} else {
+			// Multiple matches found, create a filtered list
+			filteredList := [][]string{nestedList[0]} // Keep the header
+			filteredIndices := []int{}                // Track which original indices correspond to each filtered row
+			for _, index := range selectedIndices {
+				if index >= 1 && index <= len(nestedList)-1 {
+					filteredList = append(filteredList, nestedList[index])
+					filteredIndices = append(filteredIndices, index)
+				}
+			}
+
+			if len(filteredList) <= 1 {
+				fmt.Println("No valid results found in the matched items.")
+				// Reprint the table after no valid results
+				fmt.Println("")
+				PrintTable(nestedList, 1)
+				fmt.Println("")
+				fmt.Printf("Enter a new search term or number for %s (or 'exit' to quit): ", subject)
+				input, _ := reader.ReadString('\n')
+				searchQuery = strings.TrimSpace(input)
+				if searchQuery == "exit" {
+					return SelectionResult{ExitRequest: true}
+				}
+				continue
+			}
+
+			fmt.Println("\nMultiple matches found. Please select from the results below:")
+			fmt.Println("")
+			PrintTable(filteredList, 1)
+			fmt.Println("")
+
+			// Loop until valid selection from filtered results
+			for {
+				fmt.Printf("Choose a %s (number) or type 'search' for a new search: ", subject)
+				input, _ := reader.ReadString('\n')
+				input = strings.TrimSpace(input)
+
+				if input == "exit" {
+					return SelectionResult{ExitRequest: true}
+				}
+
+				if input == "search" {
+					fmt.Println()
+					PrintTable(nestedList, 1)
+					fmt.Println()
+					fmt.Printf("Enter a new search term or number for %s (or 'exit' to quit): ", subject)
+					input, _ := reader.ReadString('\n')
+					searchQuery = strings.TrimSpace(input)
+					if searchQuery == "exit" {
+						return SelectionResult{ExitRequest: true}
+					}
+					break // Break inner loop to return to outer loop with new search
+				}
+
+				choice, err := strconv.Atoi(input)
+				if err != nil {
+					fmt.Println("Invalid input. Please enter a valid number.")
+					// Reprint the filtered table after invalid input
+					fmt.Println("")
+					PrintTable(filteredList, 1)
+					fmt.Println("")
+					continue
+				}
+
+				if choice < 1 || choice > len(filteredList)-1 {
+					fmt.Printf("Invalid choice. Please enter a number between 1 and %d.\n", len(filteredList)-1)
+					// Reprint the filtered table after invalid choice
+					fmt.Println("")
+					PrintTable(filteredList, 1)
+					fmt.Println("")
+					continue
+				}
+
+				// Map the selection back to the original index directly from our mapping
+				originalIndex := filteredIndices[choice-1]
+				fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, nestedList[originalIndex][0])
+				return SelectionResult{Index: originalIndex, Selected: true}
+			}
+		}
+	}
 }
 
 func PrintTable(nestedList [][]string, indexStatus int) int {
@@ -261,43 +403,8 @@ func NewFuzzySearch(nestedList [][]string, stringFlag string) []int {
 	return matchedResults
 }
 
-func NewTableSelectorFuzzy(subject string, nestedList [][]string, choice string) int {
-	if choice == "" {
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Enter your choice: ")
-		input, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Println("Error reading input:", err)
-			return -1
-		}
-		choice = strings.TrimSpace(input)
-	}
-	matchedResults := NewFuzzySearch(nestedList, choice)
-	if len(matchedResults) > 0 {
-		fmt.Println("\nMatching results:")
-		PrintTable(nestedList, 1)
-
-		for {
-			fmt.Print("Choose an index from the matching results: ")
-			var indexInput string
-			_, err := fmt.Scanln(&indexInput)
-			if err != nil {
-				fmt.Println("Invalid input. Please enter a valid number.")
-				continue
-			}
-
-			indexInput = strings.TrimSpace(indexInput)
-			index, err := strconv.Atoi(indexInput)
-			if err != nil || index < 1 || index > len(matchedResults) {
-				fmt.Println("Invalid selection. Please enter a valid number.")
-				continue
-			}
-
-			fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, strings.Join(nestedList[matchedResults[index-1]], " "))
-			return matchedResults[index-1]
-		}
-	} else {
-		fmt.Println("No matching result found. Please try again.")
-		return -1
-	}
+// isNumeric checks if a string can be parsed as an integer
+func isNumeric(s string) bool {
+	_, err := strconv.Atoi(s)
+	return err == nil
 }
