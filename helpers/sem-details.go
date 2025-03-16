@@ -128,7 +128,6 @@ func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) (types.
 			fmt.Println("Error fetching semester details", err)
 		}
 		return selectedSem, fmt.Errorf("error fetching semester details or no semesters available. Try logging out and logging back in")
-
 	}
 
 	var nested_sem_list [][]string

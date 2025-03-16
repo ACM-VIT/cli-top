@@ -212,3 +212,16 @@ type Kv struct {
 type UploadResponse struct {
 	URL string `json:"url"`
 }
+type Event struct {
+	Number               int
+	Association          string
+	Title                string
+	Description          string
+	StartDateTime        time.Time
+	EndDateTime          time.Time
+	DaysLeft             float64
+	RegistrationDeadline time.Time
+	Venue                string
+	RegisterStatus       string
+	CanRegister          bool
+}
