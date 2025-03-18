@@ -496,7 +496,7 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 				topicVal := ""
 				if topicContentVal != "" {
 					// Use the topic content instead of module title
-					topicVal = fmt.Sprintf("%s - %s - %s", moduleNumberVal, topicNumberVal, topicContentVal)
+					topicVal = fmt.Sprintf("%s", topicContentVal)
 				} else {
 					mNoCell := cells.Eq(topicGroupStart + mNoIndex)
 					topicContentCell := cells.Eq(topicGroupStart + topicContentIndex)
@@ -628,7 +628,7 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 					topicContentVal := strings.TrimSpace(cells.Eq(topicIndex).Text())
 					if moduleNumberVal != "" && topicNumberVal != "" {
 						// Format with module and topic numbers
-						topicVal = fmt.Sprintf("%s - %s - %s", moduleNumberVal, topicNumberVal, topicContentVal)
+						topicVal = fmt.Sprintf("%s",topicContentVal)
 					} else {
 						topicVal = topicContentVal
 					}
@@ -673,8 +673,6 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 			})
 		}
 	})
-
-	fmt.Println("Materials:", materials)
 
 	return materials, nil
 }
@@ -849,7 +847,6 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 
 	fullDirPath := filepath.Join(coursePageDir, courseFolderName, facultyFolderName)
 
-	fmt.Println("fullDirPath", fullDirPath)
 
 	err = os.MkdirAll(fullDirPath, os.ModePerm)
 	if err != nil {
@@ -1279,8 +1276,7 @@ func generateFilePath(dirPath string, indexNo int, moduleNo, topicNo, topicName 
 	// If we have module and topic numbers, use them for a more descriptive filename
 	if moduleNo != "" && topicNo != "" {
 		// Extract topic content without module and topic numbers if possible
-		topicContent := extractTopicContent(topicName)
-		filename = fmt.Sprintf("M%s_T%s_%s_%d%s", moduleNo, topicNo, helpers.SanitizeFilename(topicContent), refMatNo, ext)
+		filename = fmt.Sprintf("M%s_T%s_%s_%d%s", moduleNo, topicNo, helpers.SanitizeFilename(topicName), refMatNo, ext)
 	} else {
 		// Fall back to index-based naming
 		filename = fmt.Sprintf("%d_%s_%d%s", indexNo, topicName, refMatNo, ext)

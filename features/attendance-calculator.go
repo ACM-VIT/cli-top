@@ -14,8 +14,6 @@ import (
 	"golang.org/x/text/language"
 
 	"github.com/PuerkitoBio/goquery"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 func GetAttendance(regNo string, cookies types.Cookies, sem_choice int) {
@@ -116,7 +114,6 @@ func findAndSaveAttendance(doc *goquery.Document) [][]string {
 			reProf := regexp.MustCompile(`^(.*?)\s*-\s*`)
 			matchProf := reProf.FindStringSubmatch(proff)
 
-			caser := cases.Title(language.English)
 			if len(matchProf) > 1 {
 				caser := cases.Title(language.English)
 				proff = caser.String(strings.ToLower(matchProf[1]))
