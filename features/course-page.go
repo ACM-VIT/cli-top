@@ -496,7 +496,7 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 				topicVal := ""
 				if topicContentVal != "" {
 					// Use the topic content instead of module title
-					topicVal = topicContentVal
+					topicVal = fmt.Sprintf("%s - %s", moduleNumberVal, topicContentVal)				
 				} else {
 					mNoCell := cells.Eq(topicGroupStart + mNoIndex)
 					topicContentCell := cells.Eq(topicGroupStart + topicContentIndex)
@@ -628,7 +628,7 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 					topicContentVal := strings.TrimSpace(cells.Eq(topicIndex).Text())
 					if moduleNumberVal != "" && topicNumberVal != "" {
 						// Format with module and topic numbers
-						topicVal = topicContentVal
+						topicVal = fmt.Sprintf("%s - %s - %s", moduleNumberVal, topicNumberVal, topicContentVal)
 					} else {
 						topicVal = topicContentVal
 					}
@@ -1275,8 +1275,9 @@ func generateFilePath(dirPath string, indexNo int, moduleNo, topicNo, topicName 
 
 	// If we have module and topic numbers, use them for a more descriptive filename
 	if moduleNo != "" && topicNo != "" {
+		topicContent := extractTopicContent(topicName)
 		// Extract topic content without module and topic numbers if possible
-		filename = fmt.Sprintf("M%s_T%s_%s_%d%s", moduleNo, topicNo, helpers.SanitizeFilename(topicName), refMatNo, ext)
+		filename = fmt.Sprintf("M%s_T%s_%s_%d%s", moduleNo, topicNo, helpers.SanitizeFilename(topicContent), refMatNo, ext)
 	} else {
 		// Fall back to index-based naming
 		filename = fmt.Sprintf("%d_%s_%d%s", indexNo, topicName, refMatNo, ext)
@@ -1375,3 +1376,13 @@ func getOptimizedConcurrency() int {
 	return 4
 }
 
+func extractTopicContent(topic string) string {
+
+	parts := strings.Split(topic, " - ")
+	if len(parts) >= 3 {
+		return parts[2]
+	} else if len(parts) == 2 {
+		return parts[1]
+	}
+	return topic
+}
