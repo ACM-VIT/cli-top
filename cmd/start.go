@@ -618,11 +618,3 @@ var daDetailsCmd = &cobra.Command{
 		features.PrintAllDAs(regNo, cookies, courseNameFlag)
 	},
 }
-
-var updateCmd = &cobra.Command{
-	Use:  "update",
-	Short: "Perform updates",
-	Run: func(cmd *cobra.Command, args []string) {
-		features.Update()
-	},
-}
