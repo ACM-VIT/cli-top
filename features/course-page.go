@@ -496,7 +496,7 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 				topicVal := ""
 				if topicContentVal != "" {
 					// Use the topic content instead of module title
-					topicVal = fmt.Sprintf("%s", topicContentVal)
+					topicVal = topicContentVal
 				} else {
 					mNoCell := cells.Eq(topicGroupStart + mNoIndex)
 					topicContentCell := cells.Eq(topicGroupStart + topicContentIndex)
@@ -628,7 +628,7 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 					topicContentVal := strings.TrimSpace(cells.Eq(topicIndex).Text())
 					if moduleNumberVal != "" && topicNumberVal != "" {
 						// Format with module and topic numbers
-						topicVal = fmt.Sprintf("%s",topicContentVal)
+						topicVal = topicContentVal
 					} else {
 						topicVal = topicContentVal
 					}
@@ -1375,14 +1375,3 @@ func getOptimizedConcurrency() int {
 	return 4
 }
 
-// Helper function to extract just the topic content from the full topic string
-func extractTopicContent(topic string) string {
-
-	parts := strings.Split(topic, " - ")
-	if len(parts) >= 3 {
-		return parts[2]
-	} else if len(parts) == 2 {
-		return parts[1]
-	}
-	return topic
-}
