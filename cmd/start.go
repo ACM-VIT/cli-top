@@ -33,8 +33,6 @@ var classGrpFlag int
 var fuzzyIndexFlag int
 var courseNameFlag string
 var syllabusCourseFlag string
-var daysFlag int
-var allFlag bool
 
 func getOrCreateUUID() string {
 	registeredUUID := viper.GetString("UUID")
@@ -403,8 +401,6 @@ func Execute() {
 	coursePageCmd.PersistentFlags().StringVarP(&facultyFlag, "faculty", "f", "", "Specify the faculty")
 	coursePageCmd.PersistentFlags().IntVarP(&fuzzyIndexFlag, "fuzzy-index", "i", 0, "Specify the fuzzy index")
 	syllabusCmd.PersistentFlags().StringVarP(&syllabusCourseFlag, "course", "c", "", "Specify course search query ")
-	eventsCmd.PersistentFlags().IntVarP(&daysFlag, "days", "n", -1, "Specify the day for which you want to search for event")
-	eventsCmd.PersistentFlags().BoolVarP(&allFlag, "show all", "a", false, "Show unavailable and online events also")
 	//daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
 	// Define global flags
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
@@ -412,7 +408,7 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
 
 	// Add subcommands to root command
-	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd, facilityCmd, syllabusCmd, eventsCmd)
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd, facilityCmd, syllabusCmd)
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
@@ -622,22 +618,5 @@ var daDetailsCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.PrintAllDAs(regNo, cookies, courseNameFlag)
-	},
-}
-
-var updateCmd = &cobra.Command{
-	Use:   "update",
-	Short: "Perform updates",
-	Run: func(cmd *cobra.Command, args []string) {
-		features.Update()
-	},
-}
-
-var eventsCmd = &cobra.Command{
-	Use:   "events",
-	Short: "Show upcoming and registered events",
-	Run: func(cmd *cobra.Command, args []string) {
-		cookies, regNo := readCookiesFromFile()
-		features.Events(regNo, cookies, "https://vtop.vit.ac.in/vtop/event/swf/loadEventRegistration", daysFlag, allFlag)
 	},
 }
