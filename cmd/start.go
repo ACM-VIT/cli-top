@@ -368,7 +368,9 @@ Use "{{.CommandPath}} <subcommand> --help" for more information about a subcomma
 func Execute() {
 	killSwitch := helpers.CheckKillSwitch()
 	if killSwitch == 2 {
-		fmt.Println("This version of cli-top has been decommissioned. Please await an update at https://cli-top.acmvit.in/.")
+		fmt.Println("This version of cli-top has been decommissioned.")
+		return
+	} else if killSwitch == 3 {
 		return
 	}
 
@@ -400,7 +402,7 @@ func Execute() {
 	coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
 	coursePageCmd.PersistentFlags().StringVarP(&facultyFlag, "faculty", "f", "", "Specify the faculty")
 	coursePageCmd.PersistentFlags().IntVarP(&fuzzyIndexFlag, "fuzzy-index", "i", 0, "Specify the fuzzy index")
-	syllabusCmd.PersistentFlags().StringVarP(&syllabusCourseFlag, "course", "c", "", "Specify course search query ") 
+	syllabusCmd.PersistentFlags().StringVarP(&syllabusCourseFlag, "course", "c", "", "Specify course search query ")
 	eventsCmd.PersistentFlags().IntVarP(&daysFlag, "days", "n", -1, "Specify the day for which you want to search for event")
 	eventsCmd.PersistentFlags().BoolVarP(&allFlag, "show all", "a", false, "Show unavailable and online events also")
 	//daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
@@ -410,7 +412,7 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
 
 	// Add subcommands to root command
-	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd, facilityCmd, syllabusCmd,eventsCmd)
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd, facilityCmd, syllabusCmd, eventsCmd)
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
@@ -624,7 +626,7 @@ var daDetailsCmd = &cobra.Command{
 }
 
 var updateCmd = &cobra.Command{
-	Use:  "update",
+	Use:   "update",
 	Short: "Perform updates",
 	Run: func(cmd *cobra.Command, args []string) {
 		features.Update()
@@ -632,10 +634,10 @@ var updateCmd = &cobra.Command{
 }
 
 var eventsCmd = &cobra.Command{
-	Use:  "events",
+	Use:   "events",
 	Short: "Show upcoming and registered events",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.Events(regNo,cookies,"https://vtop.vit.ac.in/vtop/event/swf/loadEventRegistration",daysFlag,allFlag)
+		features.Events(regNo, cookies, "https://vtop.vit.ac.in/vtop/event/swf/loadEventRegistration", daysFlag, allFlag)
 	},
 }
