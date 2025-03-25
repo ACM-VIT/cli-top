@@ -11,7 +11,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -280,9 +282,9 @@ func FetchReqClient(client *http.Client, regNo string, cookies types.Cookies, ur
 	return body, resp.Header, nil
 }
 
-func buildCookieHeader(cookies types.Cookies) string {
-	return fmt.Sprintf("JSESSIONID=%s; SERVERID=%s;", cookies.JSESSIONID, cookies.SERVERID)
-}
+// func buildCookieHeader(cookies types.Cookies) string {
+// 	return fmt.Sprintf("JSESSIONID=%s; SERVERID=%s;", cookies.JSESSIONID, cookies.SERVERID)
+// }
 
 func GetFileExtension(filename string, body []byte, headers http.Header) string {
 	ext := filepath.Ext(filename)
@@ -410,21 +412,21 @@ func GetFileExtension(filename string, body []byte, headers http.Header) string 
 	return ".bin"
 }
 
-func urlQueryEscape(s string) string {
-	return strings.ReplaceAll(url.QueryEscape(s), "+", "%20")
-}
+// func urlQueryEscape(s string) string {
+// 	return strings.ReplaceAll(url.QueryEscape(s), "+", "%20")
+// }
 
-func mimeParseMediaType(v string) (mediatype string, params map[string]string, err error) {
-	return mime.ParseMediaType(v)
-}
+// func mimeParseMediaType(v string) (mediatype string, params map[string]string, err error) {
+// 	return mime.ParseMediaType(v)
+// }
 
-func isOLECompoundDocument(body []byte) bool {
-	return len(body) >= 8 && bytes.Equal(body[:8], []byte{0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1})
-}
+// func isOLECompoundDocument(body []byte) bool {
+// 	return len(body) >= 8 && bytes.Equal(body[:8], []byte{0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1})
+// }
 
-func bytesContains(body []byte, substr string) bool {
-	return bytes.Contains(body, []byte(substr))
-}
+// func bytesContains(body []byte, substr string) bool {
+// 	return bytes.Contains(body, []byte(substr))
+// }
 
 func isOOXML(body []byte) bool {
 	readerAt := bytes.NewReader(body)
@@ -520,3 +522,65 @@ func HandleError(context string, err error) {
 		fmt.Println("An error occurred. Please try again.")
 	}
 }
+
+// GetOrCreateDownloadDir creates and returns the path to a subdirectory in the CLI-TOP Downloads directory
+func GetOrCreateDownloadDir(subDir string) (string, error) {
+	baseDir := filepath.Join(GetDownloadsDir(), "CLI-TOP Downloads")
+
+	// Create the base CLI-TOP Downloads directory if it doesn't exist
+	if err := os.MkdirAll(baseDir, os.ModePerm); err != nil {
+		return "", fmt.Errorf("failed to create base directory: %w", err)
+	}
+
+	// If no subdirectory specified, return the base directory
+	if subDir == "" {
+		return baseDir, nil
+	}
+
+	// Create the specified subdirectory
+	fullPath := filepath.Join(baseDir, subDir)
+	if err := os.MkdirAll(fullPath, os.ModePerm); err != nil {
+		return "", fmt.Errorf("failed to create subdirectory %s: %w", subDir, err)
+	}
+
+	return fullPath, nil
+}
+
+// OpenFolder opens the folder containing the specified path using the system's default file manager
+func OpenFolder(path string) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("explorer", path)
+	case "darwin":
+		cmd = exec.Command("open", path)
+	default:
+		if os.Getenv("WSL_DISTRO_NAME") != "" {
+			if _, err := exec.LookPath("wslview"); err == nil {
+				cmd = exec.Command("wslview", path)
+			}
+		}
+		if cmd == nil {
+			if _, err := exec.LookPath("xdg-open"); err == nil {
+				cmd = exec.Command("xdg-open", path)
+			} else if _, err := exec.LookPath("gio"); err == nil {
+				cmd = exec.Command("gio", "open", path)
+			} else {
+				fmt.Println("Please open the folder manually:", path)
+				return
+			}
+		}
+	}
+
+	if err := cmd.Start(); err != nil {
+		fmt.Printf("Error opening folder: %v\n", err)
+	}
+}
+func ParseFloat(s string) float64 {
+    f, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
+    if err != nil {
+        return 0
+    }
+    return f
+}
+
