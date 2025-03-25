@@ -283,14 +283,14 @@ var rootCmd = &cobra.Command{
 		// 		if userUUID == "" {
 		// 			return
 		// 		}
-
+		//
 		// 		data := types.VersionTrackingData{
 		// 			UUID:      userUUID,
 		// 			Command:   cmd.Name(),
 		// 			Version:   debug.Version,
 		// 			Timestamp: time.Now().Format(time.RFC3339),
 		// 		}
-
+		//
 		// 		jsonData, err := json.Marshal(data)
 		// 		if err != nil {
 		// 			if debug.Debug {
@@ -298,9 +298,9 @@ var rootCmd = &cobra.Command{
 		// 			}
 		// 			return
 		// 		}
-
+		//
 		// 		serverURL := "https://cli-calendar.acmvit.in/version-track"
-
+		//
 		// 		req, err := http.NewRequest("POST", serverURL, bytes.NewBuffer(jsonData))
 		// 		if err != nil {
 		// 			if debug.Debug {
@@ -308,10 +308,10 @@ var rootCmd = &cobra.Command{
 		// 			}
 		// 			return
 		// 		}
-
+		//
 		// 		req.Header.Set("Content-Type", "application/json")
 		// 		req.Header.Set("x-api-key", userUUID)
-
+		//
 		// 		client := &http.Client{Timeout: 10 * time.Second}
 		// 		resp, err := client.Do(req)
 		// 		if err != nil {
@@ -321,7 +321,7 @@ var rootCmd = &cobra.Command{
 		// 			return
 		// 		}
 		// 		defer resp.Body.Close()
-
+		//
 		// 		io.Copy(io.Discard, resp.Body)
 		// 	}()
 		// }
@@ -369,6 +369,10 @@ func Execute() {
 		fmt.Println("This version of cli-top has been decommissioned.")
 		return
 	} else if killSwitch == 3 {
+		err := helpers.OpenURLInBrowser("https://vtop.vit.ac.in")
+		if err != nil {
+			fmt.Println("An unexpected error has occurred", err)
+		}
 		return
 	}
 
