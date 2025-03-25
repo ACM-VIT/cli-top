@@ -32,6 +32,7 @@ var facultyFlag string
 var classGrpFlag int
 var fuzzyIndexFlag int
 var courseNameFlag string
+var syllabusCourseFlag string
 
 func getOrCreateUUID() string {
 	registeredUUID := viper.GetString("UUID")
@@ -365,7 +366,9 @@ Use "{{.CommandPath}} <subcommand> --help" for more information about a subcomma
 func Execute() {
 	killSwitch := helpers.CheckKillSwitch()
 	if killSwitch == 2 {
-		fmt.Println("This version of cli-top has been decommissioned. Please await an update at https://cli-top.acmvit.in/.")
+		fmt.Println("This version of cli-top has been decommissioned.")
+		return
+	} else if killSwitch == 3 {
 		return
 	}
 
@@ -397,7 +400,8 @@ func Execute() {
 	coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
 	coursePageCmd.PersistentFlags().StringVarP(&facultyFlag, "faculty", "f", "", "Specify the faculty")
 	coursePageCmd.PersistentFlags().IntVarP(&fuzzyIndexFlag, "fuzzy-index", "i", 0, "Specify the fuzzy index")
-
+	syllabusCmd.PersistentFlags().StringVarP(&syllabusCourseFlag, "course", "c", "", "Specify course search query ")
+	//daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
 	// Define global flags
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
@@ -436,7 +440,7 @@ var syllabusCmd = &cobra.Command{
 	Short: "Download syllabus for a selected course",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.ExecuteSyllabusDownload(regNo, cookies)
+		features.ExecuteSyllabusDownload(regNo, cookies, syllabusCourseFlag)
 	},
 }
 

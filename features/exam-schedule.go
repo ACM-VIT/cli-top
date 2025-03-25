@@ -37,9 +37,7 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 	}
 
 	var semID string
-	var fatExams []types.ExamEvent
-	var cat1Exams []types.ExamEvent
-	var cat2Exams []types.ExamEvent
+	var allExams []types.ExamEvent
 
 	for i := len(allSems) - 1; i >= 0; i-- {
 		semID = allSems[i].SemID
@@ -63,7 +61,7 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 			continue
 		}
 
-		fatExams, cat1Exams, cat2Exams, err = parseExamScheduleByType(doc)
+		allExams, err = parseExamSchedule(doc)
 		if err != nil {
 			if debug.Debug {
 				fmt.Printf("Error parsing exam schedule for Semester %s: %v\n", allSems[i].SemName, err)
@@ -71,7 +69,7 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 			continue
 		}
 
-		if len(fatExams) > 0 || len(cat1Exams) > 0 || len(cat2Exams) > 0 {
+		if len(allExams) > 0 {
 			if debug.Debug {
 				fmt.Printf("Selected Semester: %s (%s)\n", allSems[i].SemName, semID)
 			}
@@ -83,47 +81,54 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 		}
 	}
 
-	if len(fatExams) == 0 && len(cat1Exams) == 0 && len(cat2Exams) == 0 {
+	if len(allExams) == 0 {
 		fmt.Println("No exams scheduled in this Semester.")
 		return
 	}
 
-	// Sort exams and filter for upcoming exams
-	fatExams = filterAndSortUpcomingExams(fatExams)
-	cat1Exams = filterAndSortUpcomingExams(cat1Exams)
-	cat2Exams = filterAndSortUpcomingExams(cat2Exams)
+	// Filter and sort upcoming exams
+	allExams = filterAndSortUpcomingExams(allExams)
 
-	// Display the three tables
+	// Group exams by category
+	var cat1Exams, cat2Exams, fatExams []types.ExamEvent
+	for _, exam := range allExams {
+		switch exam.Category {
+		case "CAT1":
+			cat1Exams = append(cat1Exams, exam)
+		case "CAT2":
+			cat2Exams = append(cat2Exams, exam)
+		case "FAT":
+			fatExams = append(fatExams, exam)
+		}
+	}
 
+	// Display the grouped exams
 	if len(cat1Exams) > 0 {
-		fmt.Println("\nCAT1 EXAMS\n")
+		fmt.Println("\nCAT1 EXAMS")
+		fmt.Println()
 		displayExamScheduleTable(cat1Exams)
-	} 
+	}
 
 	if len(cat2Exams) > 0 {
-		fmt.Println("\nCAT2 EXAMS\n")
+		fmt.Println("\nCAT2 EXAMS")
+		fmt.Println()
 		displayExamScheduleTable(cat2Exams)
-	} 
+	}
 
 	if len(fatExams) > 0 {
-		fmt.Println("\nFAT EXAMS\n")
+		fmt.Println("\nFAT EXAMS")
+		fmt.Println()
 		displayExamScheduleTable(fatExams)
-	} 
-
-
-	
+	}
 
 	// Generate ICS file with all upcoming exams
-	allUpcomingExams := append(append(fatExams, cat1Exams...), cat2Exams...)
-	if len(allUpcomingExams) > 0 {
-		generateICSFile(allUpcomingExams)
+	if len(allExams) > 0 {
+		generateICSFile(allExams)
 	}
 }
 
-func parseExamScheduleByType(doc *goquery.Document) ([]types.ExamEvent, []types.ExamEvent, []types.ExamEvent, error) {
-	var fatExams []types.ExamEvent
-	var cat1Exams []types.ExamEvent
-	var cat2Exams []types.ExamEvent
+func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
+	var allExams []types.ExamEvent
 
 	now := time.Now()
 	todayDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
@@ -187,27 +192,31 @@ func parseExamScheduleByType(doc *goquery.Document) ([]types.ExamEvent, []types.
 				Seat:        seat,
 				SeatNo:      seatNo,
 				DaysLeft:    daysLeft,
+				Category:    strings.ToUpper(currentExamType),
 			}
 
-			// Categorize based on the current exam type header
-			switch strings.ToUpper(currentExamType) {
-			case "FAT":
-				fatExams = append(fatExams, examEvent)
-			case "CAT1":
-				cat1Exams = append(cat1Exams, examEvent)
-			case "CAT2":
-				cat2Exams = append(cat2Exams, examEvent)
-			}
+			allExams = append(allExams, examEvent)
 		} else if debug.Debug {
 			fmt.Printf("Unexpected number of cells (%d) in row %d. Expected at least 13.\n", cells.Length(), i+1)
 		}
 	})
 
 	if debug.Debug {
-		fmt.Printf("Parsed exams: FAT=%d, CAT1=%d, CAT2=%d\n", len(fatExams), len(cat1Exams), len(cat2Exams))
+		var cat1Count, cat2Count, fatCount int
+		for _, exam := range allExams {
+			switch exam.Category {
+			case "CAT1":
+				cat1Count++
+			case "CAT2":
+				cat2Count++
+			case "FAT":
+				fatCount++
+			}
+		}
+		fmt.Printf("Parsed exams: FAT=%d, CAT1=%d, CAT2=%d\n", fatCount, cat1Count, cat2Count)
 	}
 
-	return fatExams, cat1Exams, cat2Exams, nil
+	return allExams, nil
 }
 
 // Filter exams to only include upcoming ones and sort them by date
@@ -267,15 +276,8 @@ func generateICSFile(exams []types.ExamEvent) {
 		startFormatted := fmt.Sprintf("TZID=Asia/Kolkata:%s", startDateTime.Format(outputTimeLayout))
 		endFormatted := fmt.Sprintf("TZID=Asia/Kolkata:%s", endDateTime.Format(outputTimeLayout))
 
-		// Determine exam type for the summary
-		examType := "Exam"
-		if strings.Contains(exam.CourseTitle, "CAT1") {
-			examType = "CAT1"
-		} else if strings.Contains(exam.CourseTitle, "CAT2") {
-			examType = "CAT2"
-		} else {
-			examType = "FAT"
-		}
+		// Use the Category field directly instead of trying to determine from course title
+		examType := exam.Category
 
 		eventwithoutlocation := types.ICSEvent{
 			UID:     helpers.GenerateUID("Exam"),
@@ -295,10 +297,17 @@ func generateICSFile(exams []types.ExamEvent) {
 		icsEvents = append(icsEvents, event)
 	}
 
-	icsFileName := "Exam_Schedule.ics"
-	icsFilePath := filepath.Join(helpers.GetDownloadsDir(), icsFileName)
+	// Create the Other Downloads/ICS File directory
+	icsDir, err := helpers.GetOrCreateDownloadDir(filepath.Join("Other Downloads", "ICS File"))
+	if err != nil {
+		fmt.Println("Error creating ICS file directory:", err)
+		return
+	}
 
-	err := helpers.VenueAdd(icsEvents, icsFilePath, "CLI-TOP Exams")
+	icsFileName := "Exam_Schedule.ics"
+	icsFilePath := filepath.Join(icsDir, icsFileName)
+
+	err = helpers.VenueAdd(icsEvents, icsFilePath, "CLI-TOP Exams")
 	if err != nil {
 		fmt.Println("Error generating ICS file:", err)
 	} else {
