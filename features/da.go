@@ -29,8 +29,11 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		if debug.Debug {
 			fmt.Println("Error retrieving semester details:", err)
 		}
-		fmt.Println("Failed to retrieve semester details.")
-		return
+		allSems, err = helpers.GetSemDetailsBackup(cookies, regNo)
+		if err != nil {
+			fmt.Println("Error retrieving semester details:", err)
+			return
+		}
 	}
 	if len(allSems) == 0 {
 		fmt.Println("No semesters found.")
@@ -88,11 +91,11 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 					days := int(da.DueDate.Sub(today).Hours() / 24)
 					if days < 3 {
 						nextDueDate = "\033[31m" + da.DueDate.Format("02-Jan-2006") + "\033[0m" // Red for < 3 days
-				} else if days < 7 {
+					} else if days < 7 {
 						nextDueDate = "\033[33m" + da.DueDate.Format("02-Jan-2006") + "\033[0m" // Yellow for < 7 days
-				} else {
+					} else {
 						nextDueDate = da.DueDate.Format("02-Jan-2006")
-				}
+					}
 				}
 			}
 			if da.DueDate.After(today) || da.DueDate.Equal(today) {
@@ -153,23 +156,28 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 			icsEvents = append(icsEvents, event)
 		}
 
-		downloadsDir := helpers.GetDownloadsDir()
-		icsFileName := "All_DA_Deadlines.ics"
-		icsFilePath = filepath.Join(downloadsDir, icsFileName)
-
-		err := helpers.GenerateICSFileDateOnly(icsEvents, icsFilePath, "CLI-TOP DA")
+		// Create the Other Downloads/ICS File directory for DA deadlines
+		icsDir, err := helpers.GetOrCreateDownloadDir(filepath.Join("Other Downloads", "ICS File"))
 		if err != nil {
-			fmt.Println("Error generating ICS file:", err)
+			fmt.Println("Error creating ICS file directory:", err)
 		} else {
-			serverURL := "https://cli-calendar.acmvit.in"
-			uploadedFileURL, err = helpers.UploadICSFile(icsFilePath, serverURL)
+			icsFileName := "All_DA_Deadlines.ics"
+			icsFilePath = filepath.Join(icsDir, icsFileName)
+
+			err := helpers.GenerateICSFileDateOnly(icsEvents, icsFilePath, "CLI-TOP DA")
 			if err != nil {
-				fmt.Println("Error uploading ICS file:", err)
-				fmt.Println("Please import the 'All_DA_Deadlines.ics' file manually from your Downloads folder.")
+				fmt.Println("Error generating ICS file:", err)
 			} else {
-				icsGenerated = true
-				if debug.Debug {
-					fmt.Println("ICS file uploaded successfully. URL:", uploadedFileURL)
+				serverURL := "https://cli-calendar.acmvit.in"
+				uploadedFileURL, err = helpers.UploadICSFile(icsFilePath, serverURL)
+				if err != nil {
+					fmt.Println("Error uploading ICS file:", err)
+					fmt.Println("Please import the 'All_DA_Deadlines.ics' file manually from your Downloads folder.")
+				} else {
+					icsGenerated = true
+					if debug.Debug {
+						fmt.Println("ICS file uploaded successfully. URL:", uploadedFileURL)
+					}
 				}
 			}
 		}
@@ -188,13 +196,13 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		}
 
 		fmt.Println("\nPlease select a subject by entering the corresponding number:")
-		subjectChoice := helpers.TableSelector("subject", subjectsTable, 0)
-		if subjectChoice < 1 || subjectChoice > len(subjectIDs) {
-			fmt.Println("Invalid subject selection.")
+		subjectChoice := helpers.TableSelector("subject", subjectsTable, "0")
+		if subjectChoice.ExitRequest || !subjectChoice.Selected {
+			fmt.Println("Selection canceled")
 			return
 		}
 
-		selectedSubjectID := subjectIDs[subjectChoice-1]
+		selectedSubjectID := subjectIDs[subjectChoice.Index-1]
 
 		var singleSubDownload [][]string
 		singleSubDownload = append(singleSubDownload, []string{"Title", "Due Date", "Days Left", "Status", "QP", "Last Upload"})
@@ -258,13 +266,13 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		}
 
 		if len(singleSubDownload) > 1 {
-			downloadChoice := helpers.TableSelector("DA index", singleSubDownload, 0)
-			if downloadChoice < 1 || downloadChoice > len(singleSubDownload)-1 {
-				fmt.Println("Invalid DA selection.")
+			downloadChoice := helpers.TableSelector("DA", singleSubDownload, "0")
+			if downloadChoice.ExitRequest || !downloadChoice.Selected {
+				fmt.Println("Selection canceled")
 				return
 			}
 
-			selectedDA := singleSubDownload[downloadChoice]
+			selectedDA := singleSubDownload[downloadChoice.Index]
 			if selectedDA[4] == "No" {
 				fmt.Println("No question papers available for this DA.")
 				return
@@ -340,9 +348,45 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 			}
 			selectedSubjectName = helpers.SanitizeFilename(selectedSubjectName)
 
-			fileName := fmt.Sprintf("%s_%s%s", selectedSubjectName, selectedDA[0], ext)
-			downloadsDir := helpers.GetDownloadsDir()
-			filePath := filepath.Join(downloadsDir, fileName)
+			// Extract course code (usually the first part before space or hyphen)
+			var courseCode, courseName string
+			parts := strings.SplitN(selectedSubjectName, " ", 2)
+			if len(parts) >= 2 {
+				courseCode = parts[0]
+				courseName = strings.Join(parts[1:], " ")
+			} else {
+				// If no space, try to find a hyphen
+				parts = strings.SplitN(selectedSubjectName, "-", 2)
+				if len(parts) >= 2 {
+					courseCode = parts[0]
+					courseName = strings.Join(parts[1:], "-")
+				} else {
+					courseCode = selectedSubjectName
+					courseName = selectedSubjectName
+				}
+			}
+
+			// Folder structure: DA/CourseName_CourseCode/
+			fileName := fmt.Sprintf("%s%s", selectedDA[0], ext)
+
+			// Create the DA directory structure
+			daDir, err := helpers.GetOrCreateDownloadDir("DA")
+			if err != nil {
+				fmt.Println("Error creating DA download directory:", err)
+				return
+			}
+
+			courseFolderName := fmt.Sprintf("%s_%s", courseName, courseCode)
+			courseFolderName = helpers.SanitizeFilename(courseFolderName)
+			courseDir := filepath.Join(daDir, courseFolderName)
+
+			// Create the course directory
+			if err := os.MkdirAll(courseDir, os.ModePerm); err != nil {
+				fmt.Println("Error creating course directory:", err)
+				return
+			}
+
+			filePath := filepath.Join(courseDir, fileName)
 
 			err = helpers.SaveFile(body, filePath)
 			if err != nil {

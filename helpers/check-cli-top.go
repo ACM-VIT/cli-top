@@ -20,6 +20,16 @@ import (
 	"github.com/spf13/viper"
 )
 
+var latestJSONURL = "https://cli-top.acmvit.in/latest.json"
+
+func SetLatestJSONURL(url string) {
+	latestJSONURL = url
+}
+
+func GetLatestJSONURL() string {
+	return latestJSONURL
+}
+
 // Version info structure to match the JSON response
 
 func CheckUpdate() {
@@ -83,9 +93,35 @@ func CheckUpdate() {
 	}
 }
 
+func OpenURLInBrowser(url string) error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("cmd", "/c", "start", url)
+	case "darwin":
+		cmd = exec.Command("open", url)
+	default:
+		if os.Getenv("WSL_DISTRO_NAME") != "" {
+			if _, err := exec.LookPath("wslview"); err == nil {
+				cmd = exec.Command("wslview", url)
+			}
+		}
+		if cmd == nil {
+			if _, err := exec.LookPath("xdg-open"); err == nil {
+				cmd = exec.Command("xdg-open", url)
+			} else if _, err := exec.LookPath("gio"); err == nil {
+				cmd = exec.Command("gio", "open", url)
+			} else {
+				return fmt.Errorf("no suitable browser opener found")
+			}
+		}
+	}
+	return cmd.Start()
+}
+
 func CheckKillSwitch() int {
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", "https://cli-top.acmvit.in/latest.json", nil)
+	req, err := http.NewRequest("GET", latestJSONURL, nil)
 
 	if err != nil && debug.Debug {
 		fmt.Println(err)
@@ -107,15 +143,13 @@ func CheckKillSwitch() int {
 		fmt.Println(err)
 	}
 
-	if strings.Contains(string(bodyText), "\"killSwitch\": 2") {
-		// Disables the app completely
-		return 2
-	} else if strings.Contains(string(bodyText), "\"killSwitch\": 0") {
-		// Allows automated captcha solver to run
-		return 0
+	var versionInfo types.VersionInfo
+	if err := json.Unmarshal(bodyText, &versionInfo); err != nil && debug.Debug {
+		fmt.Println("Error parsing version info:", err)
+		return 1
 	}
-	// Disables the automated captcha solver - manual captcha solving required
-	return 1
+
+	return versionInfo.KillSwitch
 }
 
 // Update checks for a new version and auto-updates the current binary.

@@ -4,10 +4,9 @@ import (
 	"archive/zip"
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -38,7 +37,7 @@ func DownloadSyllabus(courseCode, courseName string, cookies types.Cookies, auth
 	downloadURL := "https://vtop.vit.ac.in/vtop/courseSyllabusDownload1"
 	payload := fmt.Sprintf("_csrf=%s&_csrf=%s&authorizedID=%s&courseCode=%s", cookies.CSRF, cookies.CSRF, authorizedID, courseCode)
 
-	bodyBytes,err := helpers.FetchReq("",cookies,downloadURL,"",payload,"POST","")
+	bodyBytes, err := helpers.FetchReq("", cookies, downloadURL, "", payload, "POST", "")
 	if err != nil {
 		return "", fmt.Errorf("failed to read response: %w", err)
 	}
@@ -58,7 +57,7 @@ func DownloadSyllabus(courseCode, courseName string, cookies types.Cookies, auth
 				if err != nil {
 					return "", fmt.Errorf("failed to open pdf file in zip: %w", err)
 				}
-				pdfBytes, err = ioutil.ReadAll(rc)
+				pdfBytes, err = io.ReadAll(rc)
 				rc.Close()
 				if err != nil {
 					return "", fmt.Errorf("failed to read pdf file from zip: %w", err)
@@ -73,7 +72,7 @@ func DownloadSyllabus(courseCode, courseName string, cookies types.Cookies, auth
 	} else {
 		return "", fmt.Errorf("unexpected content type: %s", ct)
 	}
-	filename := fmt.Sprintf("%s_%s.pdf", courseCode, courseName)
+	filename := fmt.Sprintf("%s_%s.pdf", courseName, courseCode)
 	sanitizedFilename := sanitizeFilename(filename)
 	outputPath := filepath.Join(outputDir, sanitizedFilename)
 	if err := os.MkdirAll(outputDir, os.ModePerm); err != nil {
@@ -117,6 +116,7 @@ func getCurriculumCategories(regNo string, cookies types.Cookies) ([]Category, e
 	if len(categories) == 0 {
 		return nil, fmt.Errorf("no syllabus categories found")
 	}
+
 	return categories, nil
 }
 
@@ -164,70 +164,87 @@ func getCoursesForCategory(regNo string, cookies types.Cookies, categoryID strin
 	return courses, nil
 }
 
-func OpenFolder(path string) {
-	var cmd *exec.Cmd
-	switch os := os.Getenv("OS"); os {
-	case "Windows_NT":
-		cmd = exec.Command("explorer", filepath.Dir(path))
-	default:
-		if _, err := exec.LookPath("open"); err == nil {
-			cmd = exec.Command("open", filepath.Dir(path))
-		} else if _, err := exec.LookPath("xdg-open"); err == nil {
-			cmd = exec.Command("xdg-open", filepath.Dir(path))
-		} else {
-			fmt.Println("Please open the folder manually:", filepath.Dir(path))
-			return
-		}
-	}
-	if err := cmd.Start(); err != nil {
-		fmt.Printf("Error opening folder: %v\n", err)
-	}
-}
-
-func ExecuteSyllabusDownload(regNo string, cookies types.Cookies) {
+func ExecuteSyllabusDownload(regNo string, cookies types.Cookies, courseSearch string) {
 	if !helpers.ValidateCookies(cookies) {
 		fmt.Println("Please login using the cli-top login command.")
 		return
 	}
+
 	categories, err := getCurriculumCategories(regNo, cookies)
 	if err != nil {
 		helpers.HandleError("fetching syllabus categories", err)
 		return
 	}
-	var catTable [][]string
-	catTable = append(catTable, []string{"Syllabus Category"})
-	for _, cat := range categories {
-		catTable = append(catTable, []string{cat.Name})
+
+	// Get all courses from all categories
+	var allCourses []struct {
+		Course   Course
+		Category Category
 	}
-	selectedCatIndex := helpers.TableSelector("Syllabus Category", catTable, 0)
-	if selectedCatIndex < 1 || selectedCatIndex > len(categories) {
-		fmt.Println("Invalid category selection.")
+
+	for _, category := range categories {
+		courses, err := getCoursesForCategory(regNo, cookies, category.ID)
+		if err != nil {
+			fmt.Printf("Error fetching courses for category %s: %v\n", category.Name, err)
+			continue
+		}
+
+		for _, course := range courses {
+			allCourses = append(allCourses, struct {
+				Course   Course
+				Category Category
+			}{
+				Course:   course,
+				Category: category,
+			})
+		}
+	}
+
+	if len(allCourses) == 0 {
+		fmt.Println("No courses found in any category.")
 		return
 	}
-	selectedCategory := categories[selectedCatIndex-1]
-	courses, err := getCoursesForCategory(regNo, cookies, selectedCategory.ID)
-	if err != nil {
-		helpers.HandleError("fetching courses", err)
-		return
-	}
+
+	// Prepare table for fuzzy search selection
 	var courseTable [][]string
-	courseTable = append(courseTable, []string{"Course Title", "Course Code"})
-	for _, course := range courses {
-		courseTable = append(courseTable, []string{course.Title, course.Code})
+	courseTable = append(courseTable, []string{"Course Title", "Course Code", "Category"})
+	for _, courseData := range allCourses {
+		courseTable = append(courseTable, []string{
+			courseData.Course.Title,
+			courseData.Course.Code,
+			courseData.Category.Name,
+		})
 	}
-	selectedCourseIndex := helpers.TableSelector("Course", courseTable, 0)
-	if selectedCourseIndex < 1 || selectedCourseIndex > len(courses) {
-		fmt.Println("Invalid course selection.")
+
+	// Use fuzzy search for course selection with the provided courseSearch query flag
+	selectedCourseIndex := helpers.TableSelectorFuzzy("Course", courseTable, courseSearch, helpers.FuzzySearchWithAcronym)
+	if selectedCourseIndex.ExitRequest || !selectedCourseIndex.Selected {
+		fmt.Println("Selection canceled")
 		return
 	}
-	selectedCourse := courses[selectedCourseIndex-1]
-	//fmt.Printf("You selected course: %s (%s)\n", selectedCourse.Title, selectedCourse.Code)
-	outputDir := filepath.Join(helpers.GetDownloadsDir(), "Syllabus Downloads")
-	downloadedPath, err := DownloadSyllabus(selectedCourse.Code, selectedCourse.Title, cookies, regNo, outputDir)
+
+	selectedCourseData := allCourses[selectedCourseIndex.Index-1] // Adjust for header row
+
+	// Create the Syllabus directory inside CLI-TOP Downloads
+	outputDir, err := helpers.GetOrCreateDownloadDir("Syllabus")
+	if err != nil {
+		helpers.HandleError("creating syllabus download directory", err)
+		return
+	}
+
+	downloadedPath, err := DownloadSyllabus(
+		selectedCourseData.Course.Code,
+		selectedCourseData.Course.Title,
+		cookies,
+		regNo,
+		outputDir,
+	)
 	if err != nil {
 		helpers.HandleError("downloading syllabus", err)
 		return
 	}
-	//fmt.Printf("Syllabus downloaded successfully to: %s\n", downloadedPath)
-	OpenFolder(downloadedPath)
+
+	pathDir := filepath.Dir(downloadedPath)
+
+	helpers.OpenFolder(pathDir)
 }
