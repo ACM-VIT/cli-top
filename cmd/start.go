@@ -32,6 +32,7 @@ var facultyFlag string
 var classGrpFlag int
 var fuzzyIndexFlag int
 var courseNameFlag string
+var syllabusCourseFlag string
 
 func getOrCreateUUID() string {
 	registeredUUID := viper.GetString("UUID")
@@ -282,14 +283,14 @@ var rootCmd = &cobra.Command{
 		// 		if userUUID == "" {
 		// 			return
 		// 		}
-
+		//
 		// 		data := types.VersionTrackingData{
 		// 			UUID:      userUUID,
 		// 			Command:   cmd.Name(),
 		// 			Version:   debug.Version,
 		// 			Timestamp: time.Now().Format(time.RFC3339),
 		// 		}
-
+		//
 		// 		jsonData, err := json.Marshal(data)
 		// 		if err != nil {
 		// 			if debug.Debug {
@@ -297,9 +298,9 @@ var rootCmd = &cobra.Command{
 		// 			}
 		// 			return
 		// 		}
-
+		//
 		// 		serverURL := "https://cli-calendar.acmvit.in/version-track"
-
+		//
 		// 		req, err := http.NewRequest("POST", serverURL, bytes.NewBuffer(jsonData))
 		// 		if err != nil {
 		// 			if debug.Debug {
@@ -307,10 +308,10 @@ var rootCmd = &cobra.Command{
 		// 			}
 		// 			return
 		// 		}
-
+		//
 		// 		req.Header.Set("Content-Type", "application/json")
 		// 		req.Header.Set("x-api-key", userUUID)
-
+		//
 		// 		client := &http.Client{Timeout: 10 * time.Second}
 		// 		resp, err := client.Do(req)
 		// 		if err != nil {
@@ -320,7 +321,7 @@ var rootCmd = &cobra.Command{
 		// 			return
 		// 		}
 		// 		defer resp.Body.Close()
-
+		//
 		// 		io.Copy(io.Discard, resp.Body)
 		// 	}()
 		// }
@@ -365,7 +366,13 @@ Use "{{.CommandPath}} <subcommand> --help" for more information about a subcomma
 func Execute() {
 	killSwitch := helpers.CheckKillSwitch()
 	if killSwitch == 2 {
-		fmt.Println("This version of cli-top has been decommissioned. Please await an update at https://cli-top.acmvit.in/.")
+		fmt.Println("This version of cli-top has been decommissioned.")
+		return
+	} else if killSwitch == 3 {
+		err := helpers.OpenURLInBrowser("https://vtop.vit.ac.in")
+		if err != nil {
+			fmt.Println("An unexpected error has occurred", err)
+		}
 		return
 	}
 
@@ -397,7 +404,8 @@ func Execute() {
 	coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
 	coursePageCmd.PersistentFlags().StringVarP(&facultyFlag, "faculty", "f", "", "Specify the faculty")
 	coursePageCmd.PersistentFlags().IntVarP(&fuzzyIndexFlag, "fuzzy-index", "i", 0, "Specify the fuzzy index")
-
+	syllabusCmd.PersistentFlags().StringVarP(&syllabusCourseFlag, "course", "c", "", "Specify course search query ")
+	//daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
 	// Define global flags
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
@@ -436,7 +444,7 @@ var syllabusCmd = &cobra.Command{
 	Short: "Download syllabus for a selected course",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.ExecuteSyllabusDownload(regNo, cookies)
+		features.ExecuteSyllabusDownload(regNo, cookies, syllabusCourseFlag)
 	},
 }
 

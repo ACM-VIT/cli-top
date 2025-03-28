@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -111,8 +113,10 @@ func findAndSaveAttendance(doc *goquery.Document) [][]string {
 			// Normalize Faculty Name
 			reProf := regexp.MustCompile(`^(.*?)\s*-\s*`)
 			matchProf := reProf.FindStringSubmatch(proff)
+
 			if len(matchProf) > 1 {
-				proff = strings.Title(strings.ToLower(matchProf[1]))
+				caser := cases.Title(language.English)
+				proff = caser.String(strings.ToLower(matchProf[1]))
 			}
 
 			// Classes Attended
