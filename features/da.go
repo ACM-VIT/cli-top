@@ -85,14 +85,20 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		subjectIDs = append(subjectIDs, detail.ID)
 
 		var nextDueDate string = "N/A"
+		var earliestDue time.Time
+
 		for _, da := range singleSubAllDa.DAs {
-			if (da.Last_upload == "N/A" || strings.EqualFold(da.Last_upload, "File Not Uploaded")) && da.DueDate.After(today) {
-				if nextDueDate == "N/A" || da.DueDate.Before(parseDate(nextDueDate)) {
+			if (da.Last_upload == "N/A" || strings.EqualFold(da.Last_upload, "File Not Uploaded")) &&
+				(da.DueDate.Equal(today) || da.DueDate.After(today)) {
+				if earliestDue.IsZero() || da.DueDate.Before(earliestDue) {
+					earliestDue = da.DueDate
 					days := int(da.DueDate.Sub(today).Hours() / 24)
-					if days < 3 {
-						nextDueDate = "\033[31m" + da.DueDate.Format("02-Jan-2006") + "\033[0m" // Red for < 3 days
+					if days == 0 {
+						nextDueDate = "\033[31mTODAY\033[0m"
+					} else if days < 3 {
+						nextDueDate = "\033[31m" + da.DueDate.Format("02-Jan-2006") + "\033[0m"
 					} else if days < 7 {
-						nextDueDate = "\033[33m" + da.DueDate.Format("02-Jan-2006") + "\033[0m" // Yellow for < 7 days
+						nextDueDate = "\033[33m" + da.DueDate.Format("02-Jan-2006") + "\033[0m"
 					} else {
 						nextDueDate = da.DueDate.Format("02-Jan-2006")
 					}
@@ -431,14 +437,6 @@ func openFile(filePath string) {
 	if err := cmd.Start(); err != nil {
 		fmt.Printf("Error opening file: %v\n", err)
 	}
-}
-
-func parseDate(dateStr string) time.Time {
-	t, err := time.Parse("02-Jan-2006", dateStr)
-	if err != nil {
-		return time.Time{}
-	}
-	return t
 }
 
 func getAllSubs(regNo string, cookies types.Cookies, semID string) []types.DAsubject {
