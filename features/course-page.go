@@ -909,7 +909,6 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 		if material.WebLink != "" {
 			fmt.Printf("Web Material available for '%s'\n", material.Topic)
 			fmt.Printf("Link: %s\n", material.WebLink)
-			continue
 		}
 
 		topicName := helpers.SanitizeFilename(material.Topic)
