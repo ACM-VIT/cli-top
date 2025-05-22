@@ -1,25 +1,28 @@
 package features
 
 import (
-	//"bufio"
-	"bytes"
 	"cli-top/debug"
 	"cli-top/helpers"
 	"cli-top/types"
 	"fmt"
-
-	//"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+	"bytes"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
+const (
+	FacilityTableSelector         = "table.table-bordered.table-hover.table-stripped.dataTable"
+	FacilityRowsSelector          = "tr"
+	FacilityCellSelector          = "td"
+	FacilityPanelHeadingSelector  = "div.panel-heading.panel-head-custom"
+)
+
 func RegisterPhyFacility(regNo string, cookies types.Cookies) {
-	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-		fmt.Println("Please login using the cli-top login command.")
+	if !helpers.ValidateLogin(cookies) {
 		return
 	}
 
@@ -129,9 +132,9 @@ func fetchAvailableFacilities(regNo string, cookies types.Cookies) ([]types.Faci
 
 	buttonRegex := regexp.MustCompile(`registerNow\(["']1["'],\s*["'](\d+)["']\)`)
 
-	doc.Find("table.table-bordered.table-hover.table-stripped.dataTable tr").Each(func(i int, s *goquery.Selection) {
+	doc.Find(FacilityTableSelector).Find(FacilityRowsSelector).Each(func(i int, s *goquery.Selection) {
 		if i == 0 {
-			cells := s.Find("td")
+			cells := s.Find(FacilityCellSelector)
 			if cells.Length() >= 1 {
 				firstCell := strings.ToLower(strings.TrimSpace(cells.Eq(0).Text()))
 				if firstCell == "facility name" || firstCell == "facility" {
@@ -140,7 +143,7 @@ func fetchAvailableFacilities(regNo string, cookies types.Cookies) ([]types.Faci
 			}
 		}
 
-		cells := s.Find("td")
+		cells := s.Find(FacilityCellSelector)
 		if cells.Length() < 4 {
 			if debug.Debug {
 				fmt.Printf("Skipping row %d: insufficient cells\n", i)
@@ -236,7 +239,7 @@ func ListRegistrations(regNo string, cookies types.Cookies) ([]types.Registratio
 
 	var registrations []types.Registration
 
-	registrationsHeader := doc.Find("div.panel-heading.panel-head-custom").FilterFunction(func(i int, s *goquery.Selection) bool {
+	registrationsHeader := doc.Find(FacilityPanelHeadingSelector).FilterFunction(func(i int, s *goquery.Selection) bool {
 		return strings.TrimSpace(s.Text()) == "My Registration(s)"
 	})
 
@@ -255,8 +258,8 @@ func ListRegistrations(regNo string, cookies types.Cookies) ([]types.Registratio
 		return registrations, nil
 	}
 
-	registrationsTable.Find("tr").Each(func(i int, s *goquery.Selection) {
-		cells := s.Find("td")
+	registrationsTable.Find(FacilityRowsSelector).Each(func(i int, s *goquery.Selection) {
+		cells := s.Find(FacilityCellSelector)
 		if cells.Length() < 2 {
 			return
 		}

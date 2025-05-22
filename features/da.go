@@ -18,9 +18,14 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+const (
+	DATableRowSelector    = "tr.tableContent"
+	DACustomTableSelector = "table.customTable"
+	DACellSelector        = "td"
+)
+
 func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
-	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-		fmt.Println("Please login using the cli-top login command.")
+	if !helpers.ValidateLogin(cookies) {
 		return
 	}
 
@@ -463,8 +468,8 @@ func getAllSubs(regNo string, cookies types.Cookies, semID string) []types.DAsub
 func allSubDetails(doc *goquery.Document) []types.DAsubject {
 	var allsubs []types.DAsubject
 	subjectMap := make(map[string]bool)
-	doc.Find("tr.tableContent").Each(func(i int, s *goquery.Selection) {
-		td := s.Find("td")
+	doc.Find(DATableRowSelector).Each(func(i int, s *goquery.Selection) {
+		td := s.Find(DACellSelector)
 		if td.Length() < 5 {
 			return
 		}
@@ -519,7 +524,7 @@ func pendingDAs(doc *goquery.Document, subject types.DAsubject) (types.LatestDA,
 	latestDA.Subject = subject
 	daMap := make(map[string]bool)
 
-	doc.Find("table.customTable").Each(func(i int, s *goquery.Selection) {
+	doc.Find(DACustomTableSelector).Each(func(i int, s *goquery.Selection) {
 		headers := []string{}
 		s.Find("tr.tableHeader td").Each(func(j int, th *goquery.Selection) {
 			headers = append(headers, strings.TrimSpace(th.Text()))
@@ -529,7 +534,7 @@ func pendingDAs(doc *goquery.Document, subject types.DAsubject) (types.LatestDA,
 		}
 		if headers[0] == "Sl.No." && headers[1] == "Title" && headers[4] == "Due Date" && headers[5] == "QP" {
 			s.Find("tr.fixedContent.tableContent").Each(func(k int, tr *goquery.Selection) {
-				td := tr.Find("td")
+				td := tr.Find(DACellSelector)
 				if td.Length() < 9 {
 					return
 				}

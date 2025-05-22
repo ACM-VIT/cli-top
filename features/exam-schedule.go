@@ -14,9 +14,14 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+const (
+	ExamTableSelector  = "table.customTable"
+	ExamRowsSelector   = "tbody tr"
+	ExamCellSelector   = "td"
+)
+
 func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
-	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-		fmt.Println("Please login using the cli-top login command.")
+	if !helpers.ValidateLogin(cookies) {
 		return
 	}
 
@@ -134,7 +139,7 @@ func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
 	todayDate := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 
 	currentExamType := ""
-	doc.Find("table.customTable tbody tr").Each(func(i int, s *goquery.Selection) {
+	doc.Find(ExamTableSelector).Find(ExamRowsSelector).Each(func(i int, s *goquery.Selection) {
 		// Check for section headers
 		if s.Find("td.panelHead-secondary").Length() > 0 {
 			headerText := strings.TrimSpace(s.Find("td.panelHead-secondary").Text())
@@ -145,7 +150,7 @@ func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
 			return
 		}
 
-		cells := s.Find("td")
+		cells := s.Find(ExamCellSelector)
 		if cells.Length() >= 13 {
 			serialNo := strings.TrimSpace(cells.Eq(0).Text())
 			if _, err := strconv.Atoi(serialNo); err != nil {
