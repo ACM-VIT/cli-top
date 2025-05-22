@@ -10,9 +10,14 @@ import (
 	"strings"
 )
 
+const (
+	LibraryDuesTableSelector = "table.table-bordered"
+	LibraryDuesRowsSelector  = "tbody tr"
+	LibraryDuesCellSelector  = "td"
+)
+
 func GetLibraryDues(regNo string, cookies types.Cookies) {
-	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-		fmt.Println("Please login using the cli-top login command.")
+	if !helpers.ValidateLogin(cookies) {
 		return
 	}
 	url := "https://vtop.vit.ac.in/vtop/finance/libraryPayments"
@@ -33,9 +38,9 @@ func GetLibraryDues(regNo string, cookies types.Cookies) {
 	var AllDuesTable [][]string
 	AllDuesTable = append(AllDuesTable, []string{"TYPE", "AMOUNT"})
 
-	doc.Find("table.table-bordered tbody tr").Each(func(i int, rowSelection *goquery.Selection) {
+	doc.Find(LibraryDuesTableSelector + " " + LibraryDuesRowsSelector).Each(func(i int, rowSelection *goquery.Selection) {
 		row := []string{}
-		rowSelection.Find("td").Each(func(j int, cellSelection *goquery.Selection) {
+		rowSelection.Find(LibraryDuesCellSelector).Each(func(j int, cellSelection *goquery.Selection) {
 			cellText := strings.TrimSpace(cellSelection.Text())
 			row = append(row, cellText)
 		})

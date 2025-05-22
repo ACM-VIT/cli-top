@@ -10,9 +10,25 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+const (
+	CGPATableSelector      = "div.table-responsive table.table"
+	CGPARowsSelector       = "tbody tr"
+	CGPACellSelector       = "td"
+	CreditsRegisteredIndex = 0
+	CreditsEarnedIndex     = 1
+	CGPAIndex              = 2
+	SGradesIndex           = 3
+	AGradesIndex           = 4
+	BGradesIndex           = 5
+	CGradesIndex           = 6
+	DGradesIndex           = 7
+	EGradesIndex           = 8
+	FGradesIndex           = 9
+	NGradesIndex           = 10
+)
+
 func PrintCgpa(regNo string, cookies types.Cookies, url string) {
-	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-		fmt.Println("Please login using the cli-top login command.")
+	if !helpers.ValidateLogin(cookies) {
 		return
 	}
 
@@ -30,21 +46,21 @@ func PrintCgpa(regNo string, cookies types.Cookies, url string) {
 	}
 
 	// Extract and print data from the specified HTML structure
-	table := doc.Find("div.table-responsive table.table tbody tr")
+	table := doc.Find(CGPATableSelector + " " + CGPARowsSelector)
 	row := table.First()
 
 	// Extract data from each column
-	creditsRegistered := row.Find("td").Eq(0).Text()
-	creditsEarned := row.Find("td").Eq(1).Text()
-	cgpa := row.Find("td").Eq(2).Text()
-	sGrades := row.Find("td").Eq(3).Text()
-	aGrades := row.Find("td").Eq(4).Text()
-	bGrades := row.Find("td").Eq(5).Text()
-	cGrades := row.Find("td").Eq(6).Text()
-	dGrades := row.Find("td").Eq(7).Text()
-	eGrades := row.Find("td").Eq(8).Text()
-	fGrades := row.Find("td").Eq(9).Text()
-	nGrades := row.Find("td").Eq(10).Text()
+	creditsRegistered := row.Find(CGPACellSelector).Eq(CreditsRegisteredIndex).Text()
+	creditsEarned := row.Find(CGPACellSelector).Eq(CreditsEarnedIndex).Text()
+	cgpa := row.Find(CGPACellSelector).Eq(CGPAIndex).Text()
+	sGrades := row.Find(CGPACellSelector).Eq(SGradesIndex).Text()
+	aGrades := row.Find(CGPACellSelector).Eq(AGradesIndex).Text()
+	bGrades := row.Find(CGPACellSelector).Eq(BGradesIndex).Text()
+	cGrades := row.Find(CGPACellSelector).Eq(CGradesIndex).Text()
+	dGrades := row.Find(CGPACellSelector).Eq(DGradesIndex).Text()
+	eGrades := row.Find(CGPACellSelector).Eq(EGradesIndex).Text()
+	fGrades := row.Find(CGPACellSelector).Eq(FGradesIndex).Text()
+	nGrades := row.Find(CGPACellSelector).Eq(NGradesIndex).Text()
 
 	// Create a nested list for grades
 	gradesTableData := [][]string{

@@ -12,9 +12,27 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+const (
+	MarksTableContentSelector    = "tr.tableContent"
+	MarksCustomTableSelector     = "customTable-level1"
+	MarksRowsSelector            = "tbody tr"
+	MarksCellSelector            = "td"
+	MarksGPASpanSelector         = "span[style='font-size: 18px; font-weight: bold;']"
+	MarksTitleCellIndex          = 1
+	MarksMaxMarkCellIndex        = 2
+	MarksWeightageCellIndex      = 3
+	MarksStatusCellIndex         = 4
+	MarksScoredMarkCellIndex     = 5
+	MarksWeightageMarkCellIndex  = 6
+	CourseCodeCellIndex          = 2
+	CourseTitleCellIndex         = 3
+	CourseTypeCellIndex          = 4
+	CourseFacultyCellIndex       = 6
+	CourseSlotCellIndex          = 7
+)
+
 func GetMarks(regNo string, cookies types.Cookies, semID string, semChoice int) {
-	if !helpers.ValidateCookies(cookies) {
-		fmt.Println("Please login using the cli-top login command.")
+	if !helpers.ValidateLogin(cookies) {
 		return
 	}
 
@@ -45,8 +63,7 @@ func GetMarks(regNo string, cookies types.Cookies, semID string, semChoice int) 
 
 	courseDetails := subjectDetails(doc)
 
-	class := "customTable-level1"
-	elements := findElementsByClass(doc, class)
+	elements := findElementsByClass(doc, MarksCustomTableSelector)
 
 	if len(elements) == 0 {
 		fmt.Println()
@@ -92,7 +109,7 @@ func GetMarks(regNo string, cookies types.Cookies, semID string, semChoice int) 
 		fmt.Printf("\n%s/%s\n\n", weightageMarkStr, maxMarkSumStr)
 	}
 
-	doc.Find("span[style='font-size: 18px; font-weight: bold;']").Each(func(i int, s *goquery.Selection) {
+	doc.Find(MarksGPASpanSelector).Each(func(i int, s *goquery.Selection) {
 		gpa := s.Text()
 		fmt.Println("\x1b[32;1mCourse not included in GPA/CGPA\x1b[0m")
 		fmt.Println(gpa)
@@ -102,17 +119,17 @@ func GetMarks(regNo string, cookies types.Cookies, semID string, semChoice int) 
 func subjectDetails(doc *goquery.Document) []types.CourseDetail {
 	var details []types.CourseDetail
 
-	doc.Find("tr.tableContent").Each(func(i int, s *goquery.Selection) {
+	doc.Find(MarksTableContentSelector).Each(func(i int, s *goquery.Selection) {
 		if i%2 != 0 {
 			return
 		}
 
-		td := s.Find("td")
-		courseCode := strings.TrimSpace(td.Eq(2).Text())
-		courseTitle := strings.TrimSpace(td.Eq(3).Text())
-		courseType := strings.TrimSpace(td.Eq(4).Text())
-		faculty := strings.TrimSpace(td.Eq(6).Text())
-		slot := strings.TrimSpace(td.Eq(7).Text())
+		td := s.Find(MarksCellSelector)
+		courseCode := strings.TrimSpace(td.Eq(CourseCodeCellIndex).Text())
+		courseTitle := strings.TrimSpace(td.Eq(CourseTitleCellIndex).Text())
+		courseType := strings.TrimSpace(td.Eq(CourseTypeCellIndex).Text())
+		faculty := strings.TrimSpace(td.Eq(CourseFacultyCellIndex).Text())
+		slot := strings.TrimSpace(td.Eq(CourseSlotCellIndex).Text())
 
 		course := types.CourseDetail{
 			CourseCode:  courseCode,
@@ -142,18 +159,18 @@ func ExtractMarks(element *goquery.Selection) ([][]string, float64, int) {
 	var weightageMarkSum float64
 	var maxSubjectMarksSum int
 
-	element.Find("tbody tr").Each(func(_ int, rowSelection *goquery.Selection) {
-		firstCell := strings.TrimSpace(rowSelection.Find("td").Eq(0).Text())
+	element.Find(MarksRowsSelector).Each(func(_ int, rowSelection *goquery.Selection) {
+		firstCell := strings.TrimSpace(rowSelection.Find(MarksCellSelector).Eq(0).Text())
 		if firstCell == "Sl.No." || firstCell == "Index" || firstCell == "" {
 			return
 		}
 
-		title := strings.TrimSpace(rowSelection.Find("td").Eq(1).Text())
-		maxMark := strings.TrimSpace(rowSelection.Find("td").Eq(2).Text())
-		weightage := strings.TrimSpace(rowSelection.Find("td").Eq(3).Text())
-		status := strings.TrimSpace(rowSelection.Find("td").Eq(4).Text())
-		scoredMark := strings.TrimSpace(rowSelection.Find("td").Eq(5).Text())
-		weightageMark := strings.TrimSpace(rowSelection.Find("td").Eq(6).Text())
+		title := strings.TrimSpace(rowSelection.Find(MarksCellSelector).Eq(MarksTitleCellIndex).Text())
+		maxMark := strings.TrimSpace(rowSelection.Find(MarksCellSelector).Eq(MarksMaxMarkCellIndex).Text())
+		weightage := strings.TrimSpace(rowSelection.Find(MarksCellSelector).Eq(MarksWeightageCellIndex).Text())
+		status := strings.TrimSpace(rowSelection.Find(MarksCellSelector).Eq(MarksStatusCellIndex).Text())
+		scoredMark := strings.TrimSpace(rowSelection.Find(MarksCellSelector).Eq(MarksScoredMarkCellIndex).Text())
+		weightageMark := strings.TrimSpace(rowSelection.Find(MarksCellSelector).Eq(MarksWeightageMarkCellIndex).Text())
 
 		SingleSubTable = append(SingleSubTable, []string{title, maxMark, weightage, status, scoredMark, weightageMark})
 
