@@ -205,7 +205,6 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		if icsGenerated {
 			helpers.GenerateCalendarImportLinks(uploadedFileURL, "DAs")
 		}
-
 		fmt.Println("\nPlease select a subject by entering the corresponding number:")
 		subjectChoice := helpers.TableSelector("subject", subjectsTable, "0")
 		if subjectChoice.ExitRequest || !subjectChoice.Selected {
@@ -345,49 +344,33 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 			}
 
 			defaultName := "downloadedFile.pdf"
-			ext := helpers.GetFileExtension(defaultName, body, headers)
+			ext := helpers.GetFileExtension(defaultName, body, headers)			
 			if debug.Debug {
 				fmt.Printf("Determined file extension: %s\n", ext)
 			}
-
+			
 			var selectedSubjectName string
+			var selectedSubjectCode string
 			for _, detail := range listOfSubjects {
 				if detail.ID == selectedSubjectID {
 					selectedSubjectName = detail.Name
+					selectedSubjectCode = detail.Code
 					break
 				}
 			}
 			selectedSubjectName = helpers.SanitizeFilename(selectedSubjectName)
 
-			// Extract course code (usually the first part before space or hyphen)
-			var courseCode, courseName string
-			parts := strings.SplitN(selectedSubjectName, " ", 2)
-			if len(parts) >= 2 {
-				courseCode = parts[0]
-				courseName = strings.Join(parts[1:], " ")
-			} else {
-				// If no space, try to find a hyphen
-				parts = strings.SplitN(selectedSubjectName, "-", 2)
-				if len(parts) >= 2 {
-					courseCode = parts[0]
-					courseName = strings.Join(parts[1:], "-")
-				} else {
-					courseCode = selectedSubjectName
-					courseName = selectedSubjectName
-				}
-			}
+			courseCode := selectedSubjectCode
+			courseName := selectedSubjectName
 
-			// Folder structure: DA/CourseName_CourseCode/
 			fileName := fmt.Sprintf("%s%s", selectedDA[0], ext)
-
-			// Create the DA directory structure
 			daDir, err := helpers.GetOrCreateDownloadDir("DA")
 			if err != nil {
 				fmt.Println("Error creating DA download directory:", err)
 				return
 			}
 
-			courseFolderName := fmt.Sprintf("%s_%s", courseName, courseCode)
+			courseFolderName := fmt.Sprintf("%s_%s", courseCode, courseName)
 			courseFolderName = helpers.SanitizeFilename(courseFolderName)
 			courseDir := filepath.Join(daDir, courseFolderName)
 
