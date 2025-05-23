@@ -14,6 +14,14 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+const (
+	TimeTableTableSelector      = "table.table"
+	TimeTableRowsSelector       = "tbody tr"
+	TimeTableCellSelector       = "td"
+	CourseCellIndex             = 2
+	SlotCellIndex               = 7
+)
+
 var schedule = map[string]map[string][]string{
 	"A1": {
 		"Monday":    []string{"08:00", "08:50"},
@@ -329,8 +337,7 @@ var schedule = map[string]map[string][]string{
 }
 
 func GetTimeTable(regNo string, cookies types.Cookies, semId string, sem_choice int) {
-	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-		fmt.Println("Please login first using the cli-top login command")
+	if !helpers.ValidateLogin(cookies) {
 		return
 	}
 	url := "https://vtop.vit.ac.in/vtop/processViewTimeTable"
@@ -483,11 +490,11 @@ func writetoFile(filepath string, content string) error {
 
 func getCourseName(doc *goquery.Document) map[string]types.SubjectTime {
 	courseMap := make(map[string]types.SubjectTime)
-	table := doc.Find("table.table")
+	table := doc.Find(TimeTableTableSelector)
 
 	if table.Length() > 0 {
-		table.Find("tbody tr").Each(func(i int, row *goquery.Selection) {
-			courseCell := row.Find("td").Eq(2) // Third column (index 2)
+		table.Find(TimeTableRowsSelector).Each(func(i int, row *goquery.Selection) {
+			courseCell := row.Find(TimeTableCellSelector).Eq(CourseCellIndex) // Third column (index 2)
 			cellText := strings.TrimSpace(courseCell.Text())
 			parts := strings.SplitN(cellText, " - ", 2)
 			var courseName string
@@ -506,7 +513,7 @@ func getCourseName(doc *goquery.Document) map[string]types.SubjectTime {
 					}
 				}
 			}
-			slotCell := row.Find("td").Eq(7)
+			slotCell := row.Find(TimeTableCellSelector).Eq(SlotCellIndex)
 			slotText := strings.TrimSpace(slotCell.Text())
 			parts = strings.SplitN(slotText, " - ", 2)
 			newparts := strings.Split(parts[0], "+")
