@@ -1,11 +1,10 @@
 package helpers
 
 import (
-	types "cli-top/types"
-
 	"archive/zip"
 	"bufio"
 	"cli-top/debug"
+	types "cli-top/types"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -247,7 +246,6 @@ func Update() {
 		return
 	}
 
-	// Windows-specific update logic
 	if runtime.GOOS == "windows" {
 		updatePath := realPath + ".update.exe"
 		err = os.WriteFile(updatePath, data, 0755)
@@ -255,24 +253,36 @@ func Update() {
 			fmt.Println("Error writing updated binary:", err)
 			return
 		}
-		// Create a batch script to replace the binary after exiting
+
 		batchScript := fmt.Sprintf(`@echo off
+:: Wait 5 seconds first
 ping 127.0.0.1 -n 5 > nul
-move /Y "%s" "%s"
+
+:retry
+move /Y "%s" "%s" > nul 2>&1
+if errorlevel 1 (
+    echo Waiting for the old process to close...
+    ping 127.0.0.1 -n 2 > nul
+    goto retry
+)
+
 start "" "%s"
-del "%%~f0"`, updatePath, realPath, realPath)
+del "%%~f0"
+`, updatePath, realPath, realPath)
+
 		batPath := filepath.Join(filepath.Dir(realPath), "update.bat")
 		err = os.WriteFile(batPath, []byte(batchScript), 0644)
 		if err != nil {
 			fmt.Println("Error writing update batch file:", err)
 			return
 		}
-		// Launch the batch script
+
 		err = exec.Command("cmd", "/C", "start", "", batPath).Start()
 		if err != nil {
 			fmt.Println("Error launching update script:", err)
 			return
 		}
+
 		fmt.Println("Update is in progress. The application will restart shortly.")
 		os.Exit(0)
 	}
@@ -361,7 +371,6 @@ func checkWritePermission(path string) error {
 		}
 	}
 
-	// Check if file is readonly
 	if info.Mode().Perm()&0200 == 0 {
 		return fmt.Errorf("binary file %s is read-only", path)
 	}

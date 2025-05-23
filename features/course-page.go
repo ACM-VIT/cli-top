@@ -25,6 +25,14 @@ import (
 	"github.com/schollz/progressbar/v3"
 )
 
+const (
+	CourseOptionSelector = "select#courseCode option"
+	SlotOptionSelector   = "select#slotId option"
+	CourseTableSelector  = "table"
+	CourseRowSelector    = "tbody tr"
+	CourseCellSelector   = "td"
+)
+
 var httpClient *http.Client
 
 func init() {
@@ -34,8 +42,7 @@ func init() {
 }
 
 func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag int, courseFlag int, facultyFlag string, fuzzyFlag int) {
-	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-		fmt.Println("Please login using the cli-top login command.")
+	if !helpers.ValidateLogin(cookies) {
 		return
 	}
 
@@ -147,7 +154,7 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string, 
 	}
 
 	var courses []types.Course
-	doc.Find("select#courseCode option").Each(func(_ int, s *goquery.Selection) {
+	doc.Find(CourseOptionSelector).Each(func(_ int, s *goquery.Selection) {
 		value, exists := s.Attr("value")
 		if exists && value != "" {
 			text := strings.TrimSpace(s.Text())
@@ -201,7 +208,7 @@ func fetchSlotIds(regNo string, cookies types.Cookies, semSubId string, classId 
 	}
 
 	var slots []string
-	doc.Find("select#slotId option").Each(func(_ int, s *goquery.Selection) {
+	doc.Find(SlotOptionSelector).Each(func(_ int, s *goquery.Selection) {
 		value, exists := s.Attr("value")
 		if exists && value != "" {
 			slots = append(slots, value)
