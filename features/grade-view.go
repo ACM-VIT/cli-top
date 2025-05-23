@@ -11,9 +11,17 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+const (
+	GradeTableSelector     = "table.table-hover.table-bordered"
+	GradeHeaderRowSelector = "thead tr"
+	GradeRowsSelector      = "tbody tr"
+	GradeCellSelector      = "td"
+	GradeHeaderSelector    = "th"
+	GradeSummarySelector   = "div.panel-body"
+)
+
 func GetGrades(regNo string, cookies types.Cookies, semId string, semChoice int) {
-	if !helpers.ValidateCookies(cookies) {
-		fmt.Println("Please login using the cli-top login command.")
+	if !helpers.ValidateLogin(cookies) {
 		return
 	}
 
@@ -47,8 +55,7 @@ func GetGrades(regNo string, cookies types.Cookies, semId string, semChoice int)
 
 func findAndSaveGrade(doc *goquery.Document) {
 	var gradesData [][]string
-	targetClass := "table.table-hover.table-bordered"
-	table := doc.Find(targetClass)
+	table := doc.Find(GradeTableSelector)
 
 	if table.Length() == 0 {
 		fmt.Println("Data not found")

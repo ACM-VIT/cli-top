@@ -12,9 +12,14 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+const (
+	LeaveStatusTableSelector = "table#LeaveAppliedTable"
+	LeaveStatusRowsSelector  = "tbody tr"
+	LeaveStatusCellSelector  = "td"
+)
+
 func GetLeaveStatus(regNo string, cookies types.Cookies) {
-	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-		fmt.Println("Please login using the cli-top login command.")
+	if !helpers.ValidateLogin(cookies) {
 		return
 	}
 	url1 := "https://vtop.vit.ac.in/vtop/hostels/student/leave/1"
@@ -55,13 +60,13 @@ func GetLeaveStatus(regNo string, cookies types.Cookies) {
 
 	var leaveRequests []types.LeaveRequest
 
-	doc.Find("table#LeaveAppliedTable tbody tr").Each(func(i int, rowSelection *goquery.Selection) {
-		reason := strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(1).Text())
-		visitPlace := strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(0).Text())
-		leaveType := strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(2).Text())
-		from := helpers.FormatDate(strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(3).Text()))
-		to := helpers.FormatDate(strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(4).Text()))
-		status := strings.TrimSpace(rowSelection.Find("td.text-primary.text-nowrap").Eq(5).Text())
+	doc.Find(LeaveStatusTableSelector).Find(LeaveStatusRowsSelector).Each(func(i int, rowSelection *goquery.Selection) {
+		reason := strings.TrimSpace(rowSelection.Find(LeaveStatusCellSelector + ".text-primary.text-nowrap").Eq(1).Text())
+		visitPlace := strings.TrimSpace(rowSelection.Find(LeaveStatusCellSelector + ".text-primary.text-nowrap").Eq(0).Text())
+		leaveType := strings.TrimSpace(rowSelection.Find(LeaveStatusCellSelector + ".text-primary.text-nowrap").Eq(2).Text())
+		from := helpers.FormatDate(strings.TrimSpace(rowSelection.Find(LeaveStatusCellSelector + ".text-primary.text-nowrap").Eq(3).Text()))
+		to := helpers.FormatDate(strings.TrimSpace(rowSelection.Find(LeaveStatusCellSelector + ".text-primary.text-nowrap").Eq(4).Text()))
+		status := strings.TrimSpace(rowSelection.Find(LeaveStatusCellSelector + ".text-primary.text-nowrap").Eq(5).Text())
 		coloredStatus := helpers.ColorStatus(status)
 		if visitPlace != "" {
 			leaveRequests = append(leaveRequests, types.LeaveRequest{

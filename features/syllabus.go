@@ -18,6 +18,17 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+const (
+	SyllabusCategorySelector = "div.row[style*='cursor: pointer']"
+	SyllabusCategoryNameSelector = "div.col-6"
+	SyllabusTableSelector = "table.example"
+	SyllabusTableAltSelector = "table[id^='tableData']"
+	SyllabusRowsSelector = "tbody tr"
+	SyllabusCellSelector = "td"
+	SyllabusCourseCodeIndex = 1
+	SyllabusCourseTitleIndex = 2
+)
+
 type Category struct {
 	ID   string
 	Name string
@@ -98,7 +109,7 @@ func getCurriculumCategories(regNo string, cookies types.Cookies) ([]Category, e
 	}
 	var categories []Category
 	doc.Find("div.card.categoty-card").Each(func(i int, s *goquery.Selection) {
-		onclick, exists := s.Find("div.row[style*='cursor: pointer']").Attr("onclick")
+		onclick, exists := s.Find(SyllabusCategorySelector).Attr("onclick")
 		if !exists {
 			return
 		}
@@ -108,7 +119,7 @@ func getCurriculumCategories(regNo string, cookies types.Cookies) ([]Category, e
 			return
 		}
 		catID := matches[1]
-		catName := strings.TrimSpace(s.Find("div.col-6").Text())
+		catName := strings.TrimSpace(s.Find(SyllabusCategoryNameSelector).Text())
 		if catName != "" && catID != "" {
 			categories = append(categories, Category{ID: catID, Name: catName})
 		}
@@ -131,29 +142,29 @@ func getCoursesForCategory(regNo string, cookies types.Cookies, categoryID strin
 	if err != nil {
 		return nil, fmt.Errorf("error parsing category view HTML: %w", err)
 	}
-	table := doc.Find("table.example")
+	table := doc.Find(SyllabusTableSelector)
 	if table.Length() == 0 {
-		table = doc.Find("table[id^='tableData']")
+		table = doc.Find(SyllabusTableAltSelector)
 	}
 	if table.Length() == 0 {
 		return nil, fmt.Errorf("no course table found in category view")
 	}
 	var courses []Course
-	table.Find("tbody tr").Each(func(i int, s *goquery.Selection) {
-		tds := s.Find("td")
+	table.Find(SyllabusRowsSelector).Each(func(i int, s *goquery.Selection) {
+		tds := s.Find(SyllabusCellSelector)
 		if tds.Length() < 3 {
 			return
 		}
 		code := ""
-		s.Find("td").Eq(1).Find("button").Each(func(i int, btn *goquery.Selection) {
+		s.Find(SyllabusCellSelector).Eq(SyllabusCourseCodeIndex).Find("button").Each(func(i int, btn *goquery.Selection) {
 			if val, exists := btn.Attr("data-coursecode"); exists {
 				code = strings.TrimSpace(val)
 			}
 		})
 		if code == "" {
-			code = strings.TrimSpace(tds.Eq(1).Text())
+			code = strings.TrimSpace(tds.Eq(SyllabusCourseCodeIndex).Text())
 		}
-		title := strings.TrimSpace(tds.Eq(2).Text())
+		title := strings.TrimSpace(tds.Eq(SyllabusCourseTitleIndex).Text())
 		if code != "" && title != "" {
 			courses = append(courses, Course{Code: code, Title: title})
 		}
@@ -165,8 +176,7 @@ func getCoursesForCategory(regNo string, cookies types.Cookies, categoryID strin
 }
 
 func ExecuteSyllabusDownload(regNo string, cookies types.Cookies, courseSearch string) {
-	if !helpers.ValidateCookies(cookies) {
-		fmt.Println("Please login using the cli-top login command.")
+	if !helpers.ValidateLogin(cookies) {
 		return
 	}
 
