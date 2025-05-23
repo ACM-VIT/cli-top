@@ -10,9 +10,14 @@ import (
 	"strings"
 )
 
+const (
+	HostelTableSelector = "div.table-responsive table.table"
+	HostelRowsSelector  = "tbody tr"
+	HostelCellSelector  = "td"
+)
+
 func PrintHostelInfo(regNo string, cookies types.Cookies, url string) {
-	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-		fmt.Println("Please login using the cli-top login command.")
+	if !helpers.ValidateLogin(cookies) {
 		return
 	}
 	body, err := helpers.FetchReq(regNo, cookies, url, "", "", "POST", "")
@@ -29,14 +34,14 @@ func PrintHostelInfo(regNo string, cookies types.Cookies, url string) {
 
 	fmt.Println("Student Accommodation Info")
 
-	table := doc.Find("div.table-responsive table.table tbody tr")
+	table := doc.Find(HostelTableSelector + " " + HostelRowsSelector)
 	lastFiveRows := table.Slice(-5, table.Length())
 
 	// Prepare nested list for PrintTable
 	nestedList := [][]string{{"Field", "Information"}}
 	lastFiveRows.Each(func(j int, rowSelection *goquery.Selection) {
-		header := rowSelection.Find("td").Eq(0).Text()
-		value := rowSelection.Find("td").Eq(1).Text()
+		header := rowSelection.Find(HostelCellSelector).Eq(0).Text()
+		value := rowSelection.Find(HostelCellSelector).Eq(1).Text()
 		nestedList = append(nestedList, []string{
 			strings.TrimSpace(header),
 			strings.TrimSpace(value),
