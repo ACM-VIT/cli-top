@@ -1,6 +1,8 @@
 module cli-top
 
-go 1.23
+go 1.23.0
+
+toolchain go1.24.3
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.1
