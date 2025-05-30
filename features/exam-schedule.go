@@ -93,15 +93,16 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 
 	// Filter and sort upcoming exams
 	allExams = filterAndSortUpcomingExams(allExams)
-
 	// Group exams by category
-	var cat1Exams, cat2Exams, fatExams []types.ExamEvent
+	var cat1Exams, cat2Exams, mtExams, fatExams []types.ExamEvent
 	for _, exam := range allExams {
 		switch exam.Category {
 		case "CAT1":
 			cat1Exams = append(cat1Exams, exam)
 		case "CAT2":
 			cat2Exams = append(cat2Exams, exam)
+		case "MT":
+			mtExams = append(mtExams, exam)
 		case "FAT":
 			fatExams = append(fatExams, exam)
 		}
@@ -113,11 +114,16 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 		fmt.Println()
 		displayExamScheduleTable(cat1Exams)
 	}
-
 	if len(cat2Exams) > 0 {
 		fmt.Println("\nCAT2 EXAMS")
 		fmt.Println()
 		displayExamScheduleTable(cat2Exams)
+	}
+
+	if len(mtExams) > 0 {
+		fmt.Println("\nMID-TERM EXAMS")
+		fmt.Println()
+		displayExamScheduleTable(mtExams)
 	}
 
 	if len(fatExams) > 0 {
@@ -205,20 +211,21 @@ func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
 			fmt.Printf("Unexpected number of cells (%d) in row %d. Expected at least 13.\n", cells.Length(), i+1)
 		}
 	})
-
 	if debug.Debug {
-		var cat1Count, cat2Count, fatCount int
+		var cat1Count, cat2Count, mtCount, fatCount int
 		for _, exam := range allExams {
 			switch exam.Category {
 			case "CAT1":
 				cat1Count++
 			case "CAT2":
 				cat2Count++
+			case "MT":
+				mtCount++
 			case "FAT":
 				fatCount++
 			}
 		}
-		fmt.Printf("Parsed exams: FAT=%d, CAT1=%d, CAT2=%d\n", fatCount, cat1Count, cat2Count)
+		fmt.Printf("Parsed exams: FAT=%d, CAT1=%d, CAT2=%d, MT=%d\n", fatCount, cat1Count, cat2Count, mtCount)
 	}
 
 	return allExams, nil
