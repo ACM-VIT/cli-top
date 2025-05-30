@@ -180,6 +180,7 @@ type SubjectTime struct {
 type Registration struct {
 	FacilityName  string
 	StatusMessage string
+	IsPaid        bool
 }
 
 type VersionInfo struct {

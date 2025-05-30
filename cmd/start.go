@@ -432,7 +432,7 @@ var profileCmd = &cobra.Command{
 
 var facilityCmd = &cobra.Command{
 	Use:   "facility",
-	Short: "Register for facilities",
+	Short: "View facilities",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.RegisterPhyFacility(regNo, cookies)
