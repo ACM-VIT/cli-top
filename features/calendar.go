@@ -13,8 +13,7 @@ import (
 )
 
 func PrintCal(regNo string, cookies types.Cookies, sem_choice int, classGrpFlag int) {
-    if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-        fmt.Println("Please login first using the cli-top login command")
+    if !helpers.ValidateLogin(cookies) {
         return
     }
 
@@ -101,7 +100,7 @@ func processDates(regNo string, cookies types.Cookies, semester types.Semester, 
 	year := datelist[0][7:]
 	var color_list [][]int
 	if flag == 1 {
-		fmt.Println("\033[31mRed-Exam Day\033[0m\n\033[34mBlue-Holiday\033[0m\n\033[32mGreen-Instructional Day\033[0m")
+		fmt.Println("\033[31mRed-Exam Day\033[0m\n\033[34mBlue-Holiday\033[0m\n\033[32mGreen-Instructional Day\033[0m\n\033[33mYellow-Today\033[0m")
 	}
 	isLeapYear := func(year int) bool {
 		if year%4 == 0 {
@@ -282,6 +281,9 @@ func renderMonths(months []string, year string, nestedColour [][]int) {
 
 func generateCalendarLines(month string, colour []int) []string {
 	var lines []string
+	now := time.Now()
+    todayMonth := strings.ToUpper(now.Month().String()[:3])
+    todayDay := now.Day()
 	monthHeader := month
 	maxLength := 20
 	padding := (maxLength - len(monthHeader)/2) / 2
@@ -298,14 +300,19 @@ func generateCalendarLines(month string, colour []int) []string {
 		if day == 0 {
 			currentLine.WriteString("   ")
 		} else {
-			color := helpers.Reset
-			switch day {
-			case 1:
-				color = helpers.Blue
-			case 2:
-				color = helpers.Red
-			case 3:
-				color = helpers.Green
+			var color string
+			if month == todayMonth && dayOfMonth == todayDay {
+                color = helpers.Yellow
+            } else {
+				color = helpers.Reset
+				switch day {
+				case 1:
+					color = helpers.Blue
+				case 2:
+					color = helpers.Red
+				case 3:
+					color = helpers.Green
+				}
 			}
 			currentLine.WriteString(fmt.Sprintf("%s%2d%s ", color, dayOfMonth, helpers.Reset))
 			dayOfMonth++

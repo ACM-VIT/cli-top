@@ -18,9 +18,14 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+const (
+	DATableRowSelector    = "tr.tableContent"
+	DACustomTableSelector = "table.customTable"
+	DACellSelector        = "td"
+)
+
 func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
-	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-		fmt.Println("Please login using the cli-top login command.")
+	if !helpers.ValidateLogin(cookies) {
 		return
 	}
 
@@ -85,14 +90,20 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		subjectIDs = append(subjectIDs, detail.ID)
 
 		var nextDueDate string = "N/A"
+		var earliestDue time.Time
+
 		for _, da := range singleSubAllDa.DAs {
-			if (da.Last_upload == "N/A" || strings.EqualFold(da.Last_upload, "File Not Uploaded")) && da.DueDate.After(today) {
-				if nextDueDate == "N/A" || da.DueDate.Before(parseDate(nextDueDate)) {
+			if (da.Last_upload == "N/A" || strings.EqualFold(da.Last_upload, "File Not Uploaded")) &&
+				(da.DueDate.Equal(today) || da.DueDate.After(today)) {
+				if earliestDue.IsZero() || da.DueDate.Before(earliestDue) {
+					earliestDue = da.DueDate
 					days := int(da.DueDate.Sub(today).Hours() / 24)
-					if days < 3 {
-						nextDueDate = "\033[31m" + da.DueDate.Format("02-Jan-2006") + "\033[0m" // Red for < 3 days
+					if days == 0 {
+						nextDueDate = "\033[31mTODAY\033[0m"
+					} else if days < 3 {
+						nextDueDate = "\033[31m" + da.DueDate.Format("02-Jan-2006") + "\033[0m"
 					} else if days < 7 {
-						nextDueDate = "\033[33m" + da.DueDate.Format("02-Jan-2006") + "\033[0m" // Yellow for < 7 days
+						nextDueDate = "\033[33m" + da.DueDate.Format("02-Jan-2006") + "\033[0m"
 					} else {
 						nextDueDate = da.DueDate.Format("02-Jan-2006")
 					}
@@ -194,7 +205,6 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		if icsGenerated {
 			helpers.GenerateCalendarImportLinks(uploadedFileURL, "DAs")
 		}
-
 		fmt.Println("\nPlease select a subject by entering the corresponding number:")
 		subjectChoice := helpers.TableSelector("subject", subjectsTable, "0")
 		if subjectChoice.ExitRequest || !subjectChoice.Selected {
@@ -334,49 +344,33 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 			}
 
 			defaultName := "downloadedFile.pdf"
-			ext := helpers.GetFileExtension(defaultName, body, headers)
+			ext := helpers.GetFileExtension(defaultName, body, headers)			
 			if debug.Debug {
 				fmt.Printf("Determined file extension: %s\n", ext)
 			}
-
+			
 			var selectedSubjectName string
+			var selectedSubjectCode string
 			for _, detail := range listOfSubjects {
 				if detail.ID == selectedSubjectID {
 					selectedSubjectName = detail.Name
+					selectedSubjectCode = detail.Code
 					break
 				}
 			}
 			selectedSubjectName = helpers.SanitizeFilename(selectedSubjectName)
 
-			// Extract course code (usually the first part before space or hyphen)
-			var courseCode, courseName string
-			parts := strings.SplitN(selectedSubjectName, " ", 2)
-			if len(parts) >= 2 {
-				courseCode = parts[0]
-				courseName = strings.Join(parts[1:], " ")
-			} else {
-				// If no space, try to find a hyphen
-				parts = strings.SplitN(selectedSubjectName, "-", 2)
-				if len(parts) >= 2 {
-					courseCode = parts[0]
-					courseName = strings.Join(parts[1:], "-")
-				} else {
-					courseCode = selectedSubjectName
-					courseName = selectedSubjectName
-				}
-			}
+			courseCode := selectedSubjectCode
+			courseName := selectedSubjectName
 
-			// Folder structure: DA/CourseName_CourseCode/
 			fileName := fmt.Sprintf("%s%s", selectedDA[0], ext)
-
-			// Create the DA directory structure
 			daDir, err := helpers.GetOrCreateDownloadDir("DA")
 			if err != nil {
 				fmt.Println("Error creating DA download directory:", err)
 				return
 			}
 
-			courseFolderName := fmt.Sprintf("%s_%s", courseName, courseCode)
+			courseFolderName := fmt.Sprintf("%s_%s", courseCode, courseName)
 			courseFolderName = helpers.SanitizeFilename(courseFolderName)
 			courseDir := filepath.Join(daDir, courseFolderName)
 
@@ -433,14 +427,6 @@ func openFile(filePath string) {
 	}
 }
 
-func parseDate(dateStr string) time.Time {
-	t, err := time.Parse("02-Jan-2006", dateStr)
-	if err != nil {
-		return time.Time{}
-	}
-	return t
-}
-
 func getAllSubs(regNo string, cookies types.Cookies, semID string) []types.DAsubject {
 	url := "https://vtop.vit.ac.in/vtop/examinations/doDigitalAssignment"
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, semID, "UTC", "POST", "")
@@ -465,8 +451,8 @@ func getAllSubs(regNo string, cookies types.Cookies, semID string) []types.DAsub
 func allSubDetails(doc *goquery.Document) []types.DAsubject {
 	var allsubs []types.DAsubject
 	subjectMap := make(map[string]bool)
-	doc.Find("tr.tableContent").Each(func(i int, s *goquery.Selection) {
-		td := s.Find("td")
+	doc.Find(DATableRowSelector).Each(func(i int, s *goquery.Selection) {
+		td := s.Find(DACellSelector)
 		if td.Length() < 5 {
 			return
 		}
@@ -521,7 +507,7 @@ func pendingDAs(doc *goquery.Document, subject types.DAsubject) (types.LatestDA,
 	latestDA.Subject = subject
 	daMap := make(map[string]bool)
 
-	doc.Find("table.customTable").Each(func(i int, s *goquery.Selection) {
+	doc.Find(DACustomTableSelector).Each(func(i int, s *goquery.Selection) {
 		headers := []string{}
 		s.Find("tr.tableHeader td").Each(func(j int, th *goquery.Selection) {
 			headers = append(headers, strings.TrimSpace(th.Text()))
@@ -531,7 +517,7 @@ func pendingDAs(doc *goquery.Document, subject types.DAsubject) (types.LatestDA,
 		}
 		if headers[0] == "Sl.No." && headers[1] == "Title" && headers[4] == "Due Date" && headers[5] == "QP" {
 			s.Find("tr.fixedContent.tableContent").Each(func(k int, tr *goquery.Selection) {
-				td := tr.Find("td")
+				td := tr.Find(DACellSelector)
 				if td.Length() < 9 {
 					return
 				}

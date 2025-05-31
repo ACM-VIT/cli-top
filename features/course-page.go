@@ -25,6 +25,14 @@ import (
 	"github.com/schollz/progressbar/v3"
 )
 
+const (
+	CourseOptionSelector = "select#courseCode option"
+	SlotOptionSelector   = "select#slotId option"
+	CourseTableSelector  = "table"
+	CourseRowSelector    = "tbody tr"
+	CourseCellSelector   = "td"
+)
+
 var httpClient *http.Client
 
 func init() {
@@ -34,8 +42,7 @@ func init() {
 }
 
 func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag int, courseFlag int, facultyFlag string, fuzzyFlag int) {
-	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-		fmt.Println("Please login using the cli-top login command.")
+	if !helpers.ValidateLogin(cookies) {
 		return
 	}
 
@@ -147,7 +154,7 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string, 
 	}
 
 	var courses []types.Course
-	doc.Find("select#courseCode option").Each(func(_ int, s *goquery.Selection) {
+	doc.Find(CourseOptionSelector).Each(func(_ int, s *goquery.Selection) {
 		value, exists := s.Attr("value")
 		if exists && value != "" {
 			text := strings.TrimSpace(s.Text())
@@ -201,7 +208,7 @@ func fetchSlotIds(regNo string, cookies types.Cookies, semSubId string, classId 
 	}
 
 	var slots []string
-	doc.Find("select#slotId option").Each(func(_ int, s *goquery.Selection) {
+	doc.Find(SlotOptionSelector).Each(func(_ int, s *goquery.Selection) {
 		value, exists := s.Attr("value")
 		if exists && value != "" {
 			slots = append(slots, value)
@@ -351,7 +358,6 @@ func selectFaculty(faculties []types.Faculty, facultyFlag string) (types.Faculty
 		clearSingleNewline()
 	}
 
-	// Use helper for complete faculty selection process
 	result := helpers.TableSelectorFuzzy("Faculty", nestedList, facultyFlag, helpers.NewFuzzySearch)
 
 	if result.ExitRequest {
@@ -909,7 +915,6 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 		if material.WebLink != "" {
 			fmt.Printf("Web Material available for '%s'\n", material.Topic)
 			fmt.Printf("Link: %s\n", material.WebLink)
-			continue
 		}
 
 		topicName := helpers.SanitizeFilename(material.Topic)
@@ -1269,17 +1274,13 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 	return nil
 }
 
-// generateFilePath creates a file path based on material data
 func generateFilePath(dirPath string, indexNo int, moduleNo, topicNo, topicName string, refMatNo int, ext string) string {
 	var filename string
 
-	// If we have module and topic numbers, use them for a more descriptive filename
 	if moduleNo != "" && topicNo != "" {
 		topicContent := extractTopicContent(topicName)
-		// Extract topic content without module and topic numbers if possible
 		filename = fmt.Sprintf("M%s_T%s_%s_%d%s", moduleNo, topicNo, helpers.SanitizeFilename(topicContent), refMatNo, ext)
 	} else {
-		// Fall back to index-based naming
 		filename = fmt.Sprintf("%d_%s_%d%s", indexNo, topicName, refMatNo, ext)
 	}
 

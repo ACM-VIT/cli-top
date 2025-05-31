@@ -348,6 +348,9 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
+	helpers.VtopLoginGlobal = vtop_login
+	helpers.DecryptPasswordProxy = decryptPassword
+
 	rootCmd.SetUsageTemplate(`Usage:
   {{.CommandPath}} [global flags] <subcommand> [subcommand flags] [arguments]
 {{if .HasAvailableLocalFlags}}
@@ -432,7 +435,7 @@ var profileCmd = &cobra.Command{
 
 var facilityCmd = &cobra.Command{
 	Use:   "facility",
-	Short: "Register for facilities",
+	Short: "View facilities",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.RegisterPhyFacility(regNo, cookies)
@@ -489,7 +492,7 @@ var timeTableCmd = &cobra.Command{
 	Short: "Show Time Table of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.GetTimeTable(regNo, cookies, "", semesterFlag)
+		features.GetTimeTable(regNo, cookies, semesterFlag)
 	},
 }
 

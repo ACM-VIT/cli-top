@@ -11,8 +11,15 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+const (
+	ProfileRegisterNumberSelector = "label[for='no']"
+	ProfileProgramBranchSelector  = "label[for='branchno']"
+	ProfileVITEmailSelector       = "label[for='vmail']"
+	ProfileSchoolNameSelector     = "label[for='schoolno']"
+)
+
 func fetchStudentDetails(cookies types.Cookies, regNo string) (types.StudentDetails, error) {
-	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
+	if !helpers.ValidateLogin(cookies) {
 		return types.StudentDetails{}, fmt.Errorf("please login using the cli-top login command")
 	}
 	url := "https://vtop.vit.ac.in/vtop/studentsRecord/StudentProfileAllView"
@@ -34,10 +41,10 @@ func fetchStudentDetails(cookies types.Cookies, regNo string) (types.StudentDeta
 		return types.StudentDetails{}, err
 	}
 
-	registerNumber := doc.Find("label[for='no']").Text()
-	programAndBranch := doc.Find("label[for='branchno']").Text()
-	vitEmail := doc.Find("label[for='vmail']").Text()
-	schoolName := doc.Find("label[for='schoolno']").Text()
+	registerNumber := doc.Find(ProfileRegisterNumberSelector).Text()
+	programAndBranch := doc.Find(ProfileProgramBranchSelector).Text()
+	vitEmail := doc.Find(ProfileVITEmailSelector).Text()
+	schoolName := doc.Find(ProfileSchoolNameSelector).Text()
 
 	if registerNumber == "" || programAndBranch == "" || vitEmail == "" || schoolName == "" {
 		return types.StudentDetails{}, fmt.Errorf("unable to fetch student details, check login config")

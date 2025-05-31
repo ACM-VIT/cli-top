@@ -7,7 +7,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"time"
+
+	"github.com/lpernett/godotenv"
 )
 
 func FetchReq(regNo string, cookies types.Cookies, url string, semID string, payload string, method string, header string) ([]byte, error) {
@@ -48,19 +51,57 @@ func FetchReq(regNo string, cookies types.Cookies, url string, semID string, pay
 	// Set common headers
 	req.Header.Set("Cookie", fmt.Sprintf("SERVERID=%s; JSESSIONID=%s", cookies.SERVERID, cookies.JSESSIONID))
 
-	// Perform the request
+	retry := false
+RETRY:
 	resp, err := client.Do(req)
-	if err != nil && debug.Debug {
+	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	// Read the response body
-	body, err := io.ReadAll(resp.Body)
-
-	if err != nil && debug.Debug {
+=	body, err := io.ReadAll(resp.Body)
+	if err != nil {
 		return nil, err
+	}
+
+	if (resp.StatusCode == 404 || bytes.Contains(body, []byte("Session Timed Out")) || bytes.Contains(body, []byte("HTTP Status 404"))) && !retry {
+		if vtopLoginFunc := getVtopLoginFunc(); vtopLoginFunc != nil {
+			newCookies, _ := vtopLoginFunc()
+			cookies = newCookies
+			retry = true
+			if method == "POST" {
+				req, err = http.NewRequest("POST", url, bytes.NewBuffer([]byte(payload)))
+			} else {
+				req, err = http.NewRequest("GET", url, nil)
+			}
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			req.Header.Set("Cookie", fmt.Sprintf("SERVERID=%s; JSESSIONID=%s", cookies.SERVERID, cookies.JSESSIONID))
+			goto RETRY
+		}
+		return nil, fmt.Errorf("Session expired or VTOP returned 404. Please run 'cli-top login' to refresh your session.")
 	}
 
 	return body, nil
 }
+
+func getVtopLoginFunc() func() (types.Cookies, string) {
+	return func() (types.Cookies, string) {
+		_ = godotenv.Load("cli-top-config.env")
+		userInfo := types.LogIn{
+			Username: os.Getenv("VTOP_USERNAME"),
+			Password: os.Getenv("PASSWORD"),
+		}
+		key := os.Getenv("KEY")
+		_, err := DecryptPasswordProxy(userInfo.Password, key)
+		if err != nil && debug.Debug {
+			fmt.Println("Error decrypting password during auto-relogin:", err)
+		}
+		if vtopLoginGlobal != nil {
+			return vtopLoginGlobal()
+		}
+		return types.Cookies{}, ""
+	}
+}
+
+var vtopLoginGlobal func() (types.Cookies, string)
+var DecryptPasswordProxy func(string, string) (string, error)

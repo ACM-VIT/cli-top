@@ -11,9 +11,14 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+const (
+	NightSlipTableSelector = "table#LateHourStatusTable"
+	NightSlipRowsSelector  = "tbody tr" 
+	NightSlipCellSelector  = "td"
+)
+
 func GetNightSlipStatus(regNo string, cookies types.Cookies) {
-	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-		fmt.Println("Please login using the cli-top login command.")
+	if !helpers.ValidateLogin(cookies) {
 		return
 	}
 	url1 := "https://vtop.vit.ac.in/vtop/hostels/late/hour/student/request/1"
@@ -60,15 +65,15 @@ func GetNightSlipStatus(regNo string, cookies types.Cookies) {
 
 	var nightSlipRequests []types.NightSlipRequest
 
-	doc.Find("table#LateHourStatusTable tbody tr").Each(func(i int, rowSelection *goquery.Selection) {
-		venue := strings.TrimSpace(rowSelection.Find("td").Eq(2).Text())
-		eventType := strings.TrimSpace(rowSelection.Find("td").Eq(3).Text())
-		details := strings.TrimSpace(rowSelection.Find("td").Eq(4).Text())
-		appliedTo := strings.TrimSpace(rowSelection.Find("td").Eq(5).Text())
-		fromDate := helpers.FormatDate(strings.TrimSpace(rowSelection.Find("td").Eq(6).Text()))
-		toDate := helpers.FormatDate(strings.TrimSpace(rowSelection.Find("td").Eq(7).Text()))
-		fromToTime := strings.TrimSpace(rowSelection.Find("td").Eq(8).Text())
-		status := strings.TrimSpace(rowSelection.Find("td").Eq(9).Text())
+	doc.Find(NightSlipTableSelector).Find(NightSlipRowsSelector).Each(func(i int, rowSelection *goquery.Selection) {
+		venue := strings.TrimSpace(rowSelection.Find(NightSlipCellSelector).Eq(2).Text())
+		eventType := strings.TrimSpace(rowSelection.Find(NightSlipCellSelector).Eq(3).Text())
+		details := strings.TrimSpace(rowSelection.Find(NightSlipCellSelector).Eq(4).Text())
+		appliedTo := strings.TrimSpace(rowSelection.Find(NightSlipCellSelector).Eq(5).Text())
+		fromDate := helpers.FormatDate(strings.TrimSpace(rowSelection.Find(NightSlipCellSelector).Eq(6).Text()))
+		toDate := helpers.FormatDate(strings.TrimSpace(rowSelection.Find(NightSlipCellSelector).Eq(7).Text()))
+		fromToTime := strings.TrimSpace(rowSelection.Find(NightSlipCellSelector).Eq(8).Text())
+		status := strings.TrimSpace(rowSelection.Find(NightSlipCellSelector).Eq(9).Text())
 
 		status = strings.Replace(status, "REQUEST RAISED-", "", -1)
 

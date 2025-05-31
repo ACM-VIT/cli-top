@@ -584,3 +584,5 @@ func ParseFloat(s string) float64 {
     return f
 }
 
+var VtopLoginGlobal func() (types.Cookies, string)
+

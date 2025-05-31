@@ -11,9 +11,13 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+const (
+	MessageHeadingSelector = "h5"
+	MessageBodySelector    = "div.panel-body"
+)
+
 func GetClassMessage(regNo string, cookies types.Cookies) {
-	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
-		fmt.Println("Please login using the cli-top login command.")
+	if !helpers.ValidateLogin(cookies) {
 		return
 	}
 	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentClassMessage"
@@ -48,7 +52,7 @@ func extractClassMessages(bodyText []byte) ([][]string, error) {
 
 	re := regexp.MustCompile(`^[A-Z0-9]+ - | - Online Course`)
 
-	doc.Find("h5").Each(func(i int, h5 *goquery.Selection) {
+	doc.Find(MessageHeadingSelector).Each(func(i int, h5 *goquery.Selection) {
 		var row []string
 		h5.Find("span").Each(func(i int, span *goquery.Selection) {
 			trimmedText := strings.TrimSpace(span.Text())
