@@ -298,7 +298,6 @@ func ListRegistrations(regNo string, cookies types.Cookies) ([]types.Registratio
 }
 
 func displayFacilities(facilities []types.Facility, registrations []types.Registration) {
-	// If we have registrations but no facilities, create a special display section for just registrations
 	if len(facilities) == 0 && len(registrations) > 0 {
 		fmt.Println("\nYour Current Registrations:")
 		nestedList := [][]string{
