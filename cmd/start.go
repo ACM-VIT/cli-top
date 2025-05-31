@@ -348,6 +348,9 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
+	helpers.VtopLoginGlobal = vtop_login
+	helpers.DecryptPasswordProxy = decryptPassword
+
 	rootCmd.SetUsageTemplate(`Usage:
   {{.CommandPath}} [global flags] <subcommand> [subcommand flags] [arguments]
 {{if .HasAvailableLocalFlags}}
