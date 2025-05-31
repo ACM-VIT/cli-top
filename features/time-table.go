@@ -566,7 +566,7 @@ func GetTimeTable(regNo string, cookies types.Cookies, sem_choice int) {
 		fmt.Println("Error creating ICS file directory:", err)
 		return
 	}
-	icsPath := filepath.Join(icsDir, "VITtimetable.ics")
+	icsPath := filepath.Join(icsDir, "CLI-TOP_Timetable.ics")
 	icsContent := makeISC(timetable, semSec, month, year, workingSats)
 	if err := writetoFile(icsPath, icsContent); err != nil {
 		fmt.Println("Error generating ICS file:", err)
@@ -601,53 +601,78 @@ func makeTT(schedule map[string]map[string][]string, courseMap map[string]types.
 }
 
 func makeISC(timetable map[string][]types.Class, semSection [][]int, startMonth int, startYear int, workingSaturdays []WorkingSaturday) string {
-	icsContent := "BEGIN:VCALENDAR\nVERSION:2.0\nCALSCALE:GREGORIAN\nX-WR-CALNAME:VIT timetable\n"
+	icsContent := "BEGIN:VCALENDAR\nVERSION:2.0\nCALSCALE:GREGORIAN\nX-WR-CALNAME:CLI-TOP Timetable\n"
 	startMonth++
 	startDate := time.Date(startYear, time.Month(startMonth), 1, 0, 0, 0, 0, time.UTC)
-	dayOrderMap := map[int]string{
-		1: "Monday",
-		2: "Tuesday",
-		3: "Wednesday",
-		4: "Thursday",
-		5: "Friday",
+	wsMap := make(map[string]string)
+	for _, ws := range workingSaturdays {
+		wsMap[ws.Date.Format("2006-01-02")] = ws.DayOrder
 	}
-
-	for monthIdx := 0; monthIdx < len(semSection); monthIdx++ {
-		for dayIdx := 0; dayIdx < len(semSection[monthIdx]); dayIdx++ {
-			dayValue := semSection[monthIdx][dayIdx]
-			currentDate := startDate.AddDate(0, 0, dayIdx+(monthIdx*0))
-			if dayValue == -1 {
+	for months := 0; months < len(semSection); months++ {
+		for dayofMonth := 0; dayofMonth < len(semSection[months]); dayofMonth++ {
+			if semSection[months][dayofMonth] == -1 {
 				startDate = startDate.AddDate(0, 0, 1)
 				continue
 			}
-			var dayName string
-			if dayValue == 0 {
-				dayName = currentDate.Weekday().String()
+			dateKey := startDate.Format("2006-01-02")
+			var day string
+			if wd, isWS := wsMap[dateKey]; isWS {
+				day = wd
+				for _, class := range timetable[day] {
+					startDateTime := fmt.Sprintf("%sT%s00", startDate.Format("20060102"), strings.ReplaceAll(class.StartTime, ":", ""))
+					endDateTime := fmt.Sprintf("%sT%s00", startDate.Format("20060102"), strings.ReplaceAll(class.EndTime, ":", ""))
+					icsContent += fmt.Sprintf("BEGIN:VEVENT\n"+
+						"SUMMARY:%s (Working Saturday - %s schedule)\n"+
+						"DTSTART;TZID=Asia/Kolkata:%s\n"+
+						"DTEND;TZID=Asia/Kolkata:%s\n"+
+						"LOCATION:%s\n"+
+						"DESCRIPTION:Slot: %s\\nWorking Saturday following %s schedule\n"+
+						"BEGIN:VALARM\n"+
+						"TRIGGER:-PT5M\n"+
+						"ACTION:DISPLAY\n"+
+						"END:VALARM\n"+
+						"END:VEVENT\n",
+						class.Subject, day, startDateTime, endDateTime, class.Venue, class.Slot, day)
+				}
+			} else if semSection[months][dayofMonth] == 0 {
+				day = startDate.Format("Monday")
+				for _, class := range timetable[day] {
+					startDateTime := fmt.Sprintf("%sT%s00", startDate.Format("20060102"), strings.ReplaceAll(class.StartTime, ":", ""))
+					endDateTime := fmt.Sprintf("%sT%s00", startDate.Format("20060102"), strings.ReplaceAll(class.EndTime, ":", ""))
+					icsContent += fmt.Sprintf("BEGIN:VEVENT\n"+
+						"SUMMARY:%s\n"+
+						"DTSTART;TZID=Asia/Kolkata:%s\n"+
+						"DTEND;TZID=Asia/Kolkata:%s\n"+
+						"LOCATION:%s\n"+
+						"DESCRIPTION:Slot: %s\n"+
+						"BEGIN:VALARM\n"+
+						"TRIGGER:-PT5M\n"+
+						"ACTION:DISPLAY\n"+
+						"END:VALARM\n"+
+						"END:VEVENT\n",
+						class.Subject, startDateTime, endDateTime, class.Venue, class.Slot)
+				}
 			} else {
-				dayName = dayOrderMap[dayValue]
-			}
-
-			if classes, exists := timetable[dayName]; exists {
-				for _, c := range classes {
-					startDateTime := fmt.Sprintf("%sT%s00", currentDate.Format("20060102"), strings.ReplaceAll(c.StartTime, ":", ""))
-					endDateTime := fmt.Sprintf("%sT%s00", currentDate.Format("20060102"), strings.ReplaceAll(c.EndTime, ":", ""))
-					icsContent += fmt.Sprintf(
-						"BEGIN:VEVENT\nSUMMARY:%s\nDTSTART;TZID=Asia/Kolkata:%s\nDTEND;TZID=Asia/Kolkata:%s\nLOCATION:%s\nDESCRIPTION:Slot: %s\nBEGIN:VALARM\nTRIGGER:-PT5M\nACTION:DISPLAY\nEND:VALARM\nEND:VEVENT\n",
-						c.Subject, startDateTime, endDateTime, c.Venue, c.Slot)
+				dayInt := semSection[months][dayofMonth]
+				day = getDayName(time.Weekday(dayInt))
+				for _, class := range timetable[day] {
+					startDateTime := fmt.Sprintf("%sT%s00", startDate.Format("20060102"), strings.ReplaceAll(class.StartTime, ":", ""))
+					endDateTime := fmt.Sprintf("%sT%s00", startDate.Format("20060102"), strings.ReplaceAll(class.EndTime, ":", ""))
+					icsContent += fmt.Sprintf("BEGIN:VEVENT\n"+
+						"SUMMARY:%s\n"+
+						"DTSTART;TZID=Asia/Kolkata:%s\n"+
+						"DTEND;TZID=Asia/Kolkata:%s\n"+
+						"LOCATION:%s\n"+
+						"DESCRIPTION:Slot: %s\n"+
+						"BEGIN:VALARM\n"+
+						"TRIGGER:-PT5M\n"+
+						"ACTION:DISPLAY\n"+
+						"END:VALARM\n"+
+						"END:VEVENT\n",
+						class.Subject, startDateTime, endDateTime, class.Venue, class.Slot)
 				}
 			}
-
 			startDate = startDate.AddDate(0, 0, 1)
-		}
-	}
-	for _, ws := range workingSaturdays {
-		for _, c := range timetable[ws.DayOrder] {
-			startDT := fmt.Sprintf("%sT%s00", ws.Date.Format("20060102"), strings.ReplaceAll(c.StartTime, ":", ""))
-			endDT := fmt.Sprintf("%sT%s00", ws.Date.Format("20060102"), strings.ReplaceAll(c.EndTime, ":", ""))
-			desc := fmt.Sprintf("Slot: %s\nWorking Saturday following %s schedule", c.Slot, ws.DayOrder)
-			icsContent += fmt.Sprintf(
-				"BEGIN:VEVENT\nSUMMARY:%s (Working Saturday - %s schedule)\nDTSTART;TZID=Asia/Kolkata:%s\nDTEND;TZID=Asia/Kolkata:%s\nLOCATION:%s\nDESCRIPTION:%s\nBEGIN:VALARM\nTRIGGER:-PT5M\nACTION:DISPLAY\nEND:VALARM\nEND:VEVENT\n",
-				c.Subject, ws.DayOrder, startDT, endDT, c.Venue, desc)
 		}
 	}
 	icsContent += "END:VCALENDAR"
