@@ -358,7 +358,6 @@ func selectFaculty(faculties []types.Faculty, facultyFlag string) (types.Faculty
 		clearSingleNewline()
 	}
 
-	// Use helper for complete faculty selection process
 	result := helpers.TableSelectorFuzzy("Faculty", nestedList, facultyFlag, helpers.NewFuzzySearch)
 
 	if result.ExitRequest {
@@ -1275,17 +1274,13 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 	return nil
 }
 
-// generateFilePath creates a file path based on material data
 func generateFilePath(dirPath string, indexNo int, moduleNo, topicNo, topicName string, refMatNo int, ext string) string {
 	var filename string
 
-	// If we have module and topic numbers, use them for a more descriptive filename
 	if moduleNo != "" && topicNo != "" {
 		topicContent := extractTopicContent(topicName)
-		// Extract topic content without module and topic numbers if possible
 		filename = fmt.Sprintf("M%s_T%s_%s_%d%s", moduleNo, topicNo, helpers.SanitizeFilename(topicContent), refMatNo, ext)
 	} else {
-		// Fall back to index-based naming
 		filename = fmt.Sprintf("%d_%s_%d%s", indexNo, topicName, refMatNo, ext)
 	}
 

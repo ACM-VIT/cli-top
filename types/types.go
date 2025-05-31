@@ -161,6 +161,7 @@ type Class struct {
 	Venue     string
 	StartTime string
 	EndTime   string
+	DayOrder  string
 }
 
 type Facility struct {
@@ -180,6 +181,7 @@ type SubjectTime struct {
 type Registration struct {
 	FacilityName  string
 	StatusMessage string
+	IsPaid        bool
 }
 
 type VersionInfo struct {
