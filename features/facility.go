@@ -16,9 +16,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-// Set to 0 for view-only mode, 1 for interactive registration
-const FacilityRegistrationEnabled = 1
-
 const (
 	FacilityTableSelector         = "table.table-bordered.table-hover.table-stripped.dataTable"
 	FacilityRowsSelector          = "tr"
@@ -33,6 +30,23 @@ func RegisterPhyFacility(regNo string, cookies types.Cookies) {
 	if !helpers.ValidateLogin(cookies) {
 		return
 	}
+
+	killSwitch := helpers.CheckKillSwitch()
+	if killSwitch == 4 {
+		// fmt.Println("This feature is currently disabled by the administrator (killswitch=4). View-only mode enabled.")
+		registrations, err := ListRegistrations(regNo, cookies)
+		if err != nil {
+			fmt.Println("Error fetching registrations:", err)
+			registrations = []types.Registration{}
+		}
+		facilities, err := fetchAvailableFacilities(regNo, cookies)
+		if err != nil {
+			fmt.Println("Error fetching facilities:", err)
+		}
+		displayFacilities(facilities, registrations)
+		return
+	}
+
 	registrations, err := ListRegistrations(regNo, cookies)
 	if err != nil {
 		fmt.Println("Error fetching registrations:", err)
@@ -75,7 +89,7 @@ func RegisterPhyFacility(regNo string, cookies types.Cookies) {
 	
 	displayFacilities(facilities, registrations)
 
-	if FacilityRegistrationEnabled == 0 {
+	if killSwitch == 4 {
 		// fmt.Println("Registration feature is currently in view-only mode.")
 		return
 	}

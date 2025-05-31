@@ -192,6 +192,7 @@ This function implements a remote control mechanism for the application, allowin
 - `1`: Restricted operation - manual captcha solving required
 - `2`: Complete shutdown - application disabled
 - `3`: Complete shutdown + open VTOP in browser
+- `4`: Disable facility registration
 
 **Implementation Details:**
 
