@@ -161,6 +161,7 @@ type Class struct {
 	Venue     string
 	StartTime string
 	EndTime   string
+	DayOrder  string
 }
 
 type Facility struct {

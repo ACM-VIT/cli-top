@@ -489,7 +489,7 @@ var timeTableCmd = &cobra.Command{
 	Short: "Show Time Table of a particular semester",
 	Run: func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.GetTimeTable(regNo, cookies, "", semesterFlag)
+		features.GetTimeTable(regNo, cookies, semesterFlag)
 	},
 }
 
