@@ -17,7 +17,7 @@ import (
 )
 
 // Set to 0 for view-only mode, 1 for interactive registration
-const FacilityRegistrationEnabled = 0
+const FacilityRegistrationEnabled = 1
 
 const (
 	FacilityTableSelector         = "table.table-bordered.table-hover.table-stripped.dataTable"
