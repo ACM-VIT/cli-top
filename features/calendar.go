@@ -254,7 +254,6 @@ func extractTypeOfDay(doc *goquery.Document, arr []int) []int {
 			arr[count] = t
 		}
 	})
-	fmt.Println(typeOfDay)
 	return typeOfDay
 }
 
