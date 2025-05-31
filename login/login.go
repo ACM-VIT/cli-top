@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -190,4 +191,29 @@ func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
 	}
 
 	return vtopTokens, RegNo
+}
+
+func AutoRelogin(regNo string) (types.Cookies, bool) {
+	username := os.Getenv("VTOP_USERNAME")
+	password := os.Getenv("PASSWORD")
+	if username == "" || password == "" {
+		if debug.Debug {
+			fmt.Println("No stored credentials found for auto-relogin.")
+		}
+		return types.Cookies{}, false
+	}
+	if debug.Debug {
+		fmt.Println("Attempting auto-relogin with stored credentials...")
+	}
+	newCookies := Login(username, password)
+	if helpers.ValidateCookies(newCookies) {
+		if debug.Debug {
+			fmt.Println("Auto-relogin successful.")
+		}
+		return newCookies, true
+	}
+	if debug.Debug {
+		fmt.Println("Auto-relogin failed.")
+	}
+	return types.Cookies{}, false
 }

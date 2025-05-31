@@ -16,7 +16,16 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+const (
+	AttendanceTableSelector  = "table#AttendanceDetailDataTable"
+	AttendanceRowsSelector   = "tbody tr"
+	AttendanceCellSelector   = "td"
+)
+
 func GetAttendance(regNo string, cookies types.Cookies, sem_choice int) {
+	if !helpers.ValidateLogin(cookies) {
+		return
+	}
 	url := "https://vtop.vit.ac.in/vtop/processViewStudentAttendance"
 
 	semDetails, err := helpers.GetSemDetails(cookies, regNo)
@@ -87,16 +96,16 @@ func findAndSaveAttendance(doc *goquery.Document) [][]string {
 	var attendanceList [][]string
 	attendanceList = append(attendanceList, []string{"Subject", "Type", "Faculty Name", "Classes Attended", "Percentage", "75% Alert"})
 
-	table := doc.Find("table#AttendanceDetailDataTable")
+	table := doc.Find(AttendanceTableSelector)
 	if table.Length() > 0 {
-		table.Find("tbody tr").Each(func(i int, rowSelection *goquery.Selection) {
-			sub_name_and_type := rowSelection.Find("td").Eq(2).Find("span").Text()
+		table.Find(AttendanceRowsSelector).Each(func(i int, rowSelection *goquery.Selection) {
+			sub_name_and_type := rowSelection.Find(AttendanceCellSelector).Eq(2).Find("span").Text()
 			var sub_name string
 			var sub_type string
-			proff := rowSelection.Find("td").Eq(4).Find("span").Text()
-			attended := rowSelection.Find("td").Eq(5).Find("span").Text()
-			total := rowSelection.Find("td").Eq(6).Find("span").Text()
-			percent := rowSelection.Find("td").Eq(7).Find("span").Find("span").Text()
+			proff := rowSelection.Find(AttendanceCellSelector).Eq(4).Find("span").Text()
+			attended := rowSelection.Find(AttendanceCellSelector).Eq(5).Find("span").Text()
+			total := rowSelection.Find(AttendanceCellSelector).Eq(6).Find("span").Text()
+			percent := rowSelection.Find(AttendanceCellSelector).Eq(7).Find("span").Find("span").Text()
 
 			// Extract Subject Name
 			reSub := regexp.MustCompile(`-\s*(.*?)\s*-`)
