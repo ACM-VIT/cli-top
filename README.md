@@ -42,6 +42,7 @@
 - **Hostel Info**: Check hostel details 
 - **CGPA View**: Track your cumulative GPA over semesters
 - **Syllabus**: Easily download syllabus files
+- **Facility**: View hostel facilities
 - **Logout**: Securely logout from the CLI
 
 
