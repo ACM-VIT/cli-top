@@ -1,0 +1,66 @@
+name: Release with GoReleaser
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Extract version from debug.go
+        id: extract_version
+        run: |
+          VERSION=$(grep 'var Version string =' debug/debug.go | sed 's/.*= "\(.*\)".*/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Verify tag matches version
+        run: |
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          DEBUG_VERSION="${{ steps.extract_version.outputs.version }}"
+          echo "Tag version: $TAG_VERSION"
+          echo "Debug.go version: $DEBUG_VERSION"
+          if [ "$TAG_VERSION" != "$DEBUG_VERSION" ]; then
+            echo "❌ Tag version ($TAG_VERSION) does not match debug.go version ($DEBUG_VERSION)"
+            echo "Please update debug/debug.go or create the correct tag"
+            exit 1
+          fi
+          echo "✅ Version verification passed"
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload release summary
+        run: |
+          echo "🚀 **Release ${{ github.ref_name }} completed successfully!**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Artifacts Generated:" >> $GITHUB_STEP_SUMMARY
+          echo "- Linux (x86_64 & ARM64)" >> $GITHUB_STEP_SUMMARY
+          echo "- Windows (x86_64)" >> $GITHUB_STEP_SUMMARY
+          echo "- macOS (Intel & Apple Silicon)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Links:" >> $GITHUB_STEP_SUMMARY
+          echo "- [View Release](https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [Download Assets](https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }})" >> $GITHUB_STEP_SUMMARY
