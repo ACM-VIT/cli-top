@@ -1,0 +1,157 @@
+project_name: cli-top
+
+builds:
+  - id: linux-amd64
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+    binary: cli-top
+    ldflags:
+      - -s -w -X cli-top/debug.Version={{.Version}}
+
+  - id: linux-arm64
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - arm64
+    binary: cli-top
+    ldflags:
+      - -s -w -X cli-top/debug.Version={{.Version}}
+
+  - id: windows-amd64
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+    goarch:
+      - amd64
+    binary: cli-top
+    ldflags:
+      - -s -w -X cli-top/debug.Version={{.Version}}
+
+  - id: darwin-amd64
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - amd64
+    binary: cli-top
+    ldflags:
+      - -s -w -X cli-top/debug.Version={{.Version}}
+
+  - id: darwin-arm64
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - arm64
+    binary: cli-top
+    ldflags:
+      - -s -w -X cli-top/debug.Version={{.Version}}
+
+archives:
+  - id: default
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: >-
+      {{- .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    files:
+      - README.md
+      - LICENSE*
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^chore:'
+      - merge conflict
+      - Merge pull request
+      - Merge remote-tracking branch
+      - Merge branch
+      - go mod tidy
+  groups:
+    - title: 'New Features'
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: 'Security updates'
+      regexp: '^.*?sec(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: 'Bug fixes'
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: 'Performance improvements'
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 3
+    - title: 'Refactors'
+      regexp: '^.*?refactor(\([[:word:]]+\))??!?:.+$'
+      order: 4
+    - title: 'Tests'
+      regexp: '^.*?test(\([[:word:]]+\))??!?:.+$'
+      order: 5
+    - title: 'Documentation updates'
+      regexp: '^.*?docs(\([[:word:]]+\))??!?:.+$'
+      order: 6
+    - title: 'Other work'
+      order: 999
+
+release:
+  github:
+    owner: ACM-VIT
+    name: CLI-TOP
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## CLI-TOP Release {{ .Tag }}
+    
+    Welcome to this new release of CLI-TOP! 🎉
+    
+    ### What's Changed
+  footer: |
+    ---
+
+    **Full Changelog**: https://github.com/ACM-VIT/CLI-TOP/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+    ### Installation
+    
+    #### Windows
+    Download the `cli-top_Windows_x86_64.zip` file, extract it, and run the executable.
+    
+    #### macOS
+    Download the `cli-top_Darwin_x86_64.tar.gz` (Intel) or `cli-top_Darwin_arm64.tar.gz` (Apple Silicon) file, extract it, and run the binary.
+    
+    #### Linux
+    Download the `cli-top_Linux_x86_64.tar.gz` or `cli-top_Linux_arm64.tar.gz` file, extract it, and run the binary.
+    
+    ### Verification
+    You can verify the integrity of downloaded files using the checksums provided in `checksums.txt`.
+
+git:
+  tag_sort: -version:refname
+
+metadata:
+  mod_timestamp: '{{ .CommitTimestamp }}'
