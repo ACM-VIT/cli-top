@@ -255,18 +255,19 @@ func Update() {
 		}
 
 		batchScript := fmt.Sprintf(`@echo off
-:: Wait 5 seconds first
-ping 127.0.0.1 -n 5 > nul
-
-:retry
-move /Y "%s" "%s" > nul 2>&1
-if errorlevel 1 (
-    echo Waiting for the old process to close...
-    ping 127.0.0.1 -n 2 > nul
-    goto retry
+setlocal
+REM Wait for cli-top.exe to exit
+:loop
+tasklist | find /I "cli-top.exe" >nul
+if not errorlevel 1 (
+    timeout /t 1 >nul
+    goto loop
 )
-
+REM Replace the old exe with the new one
+move /Y "%s" "%s"
+REM Restart the app
 start "" "%s"
+endlocal
 del "%%~f0"
 `, updatePath, realPath, realPath)
 
