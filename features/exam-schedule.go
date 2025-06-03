@@ -1,6 +1,7 @@
 package features
 
 import (
+	"bytes"
 	"cli-top/debug"
 	"cli-top/helpers"
 	"cli-top/types"
@@ -15,9 +16,9 @@ import (
 )
 
 const (
-	ExamTableSelector  = "table.customTable"
-	ExamRowsSelector   = "tbody tr"
-	ExamCellSelector   = "td"
+	ExamTableSelector = "table.customTable"
+	ExamRowsSelector  = "tbody tr"
+	ExamCellSelector  = "td"
 )
 
 func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
@@ -58,7 +59,7 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 			fmt.Printf("HTML Response for Semester %s:\n%s\n", allSems[i].SemName, string(bodyText))
 		}
 
-		doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
+		doc, err := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
 		if err != nil {
 			if debug.Debug {
 				fmt.Printf("Error parsing HTML document for Semester %s: %v\n", allSems[i].SemName, err)

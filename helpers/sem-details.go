@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"bufio"
+	"bytes"
 	"cli-top/debug"
 	"cli-top/types"
 	"fmt"
@@ -71,7 +72,7 @@ func GetSemDetails(cookies types.Cookies, regNo string) ([]types.Semester, error
 		return allSems, err
 	}
 
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
 	if err != nil {
 		if debug.Debug {
 			fmt.Println("Error parsing the HTML document:", err)
@@ -96,7 +97,7 @@ func GetSemDetailsBackup(cookies types.Cookies, regNo string) ([]types.Semester,
 	if err != nil {
 		return allSems, err
 	}
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
 	if err != nil {
 		return allSems, err
 	}
