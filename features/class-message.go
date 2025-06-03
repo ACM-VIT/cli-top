@@ -1,6 +1,7 @@
 package features
 
 import (
+	"bytes"
 	"cli-top/debug"
 	"cli-top/helpers"
 	"cli-top/types"
@@ -45,7 +46,7 @@ func GetClassMessage(regNo string, cookies types.Cookies) {
 func extractClassMessages(bodyText []byte) ([][]string, error) {
 	var messages [][]string
 	messages = append(messages, []string{"Course", "Message"})
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
 	if err != nil {
 		return nil, fmt.Errorf("error parsing HTML: %v", err)
 	}
