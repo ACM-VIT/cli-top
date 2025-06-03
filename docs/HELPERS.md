@@ -648,6 +648,8 @@ Creates calendar import links for major platforms.
 #### `FetchReqClient(client *http.Client, ...) ([]byte, http.Header, error)`
 Advanced HTTP request handling.
 
+Use `helpers.GetHTTPClient()` to obtain the shared client when making requests.
+
 **Features:**
 - Cookie management
 - Custom headers

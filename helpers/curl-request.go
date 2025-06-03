@@ -14,8 +14,7 @@ import (
 )
 
 func FetchReq(regNo string, cookies types.Cookies, url string, semID string, payload string, method string, header string) ([]byte, error) {
-	// Create a new HTTP client
-	client := &http.Client{}
+	client := GetHTTPClient()
 
 	var req *http.Request
 	var err error
