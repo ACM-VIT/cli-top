@@ -244,7 +244,8 @@ func Update() {
                 installer := filepath.Join(os.TempDir(), fmt.Sprintf("cli-top_update_%s.exe", vi.Version))
                 os.WriteFile(installer, data, 0755)
                 green.Println("[DONE]")
-                  cyan.Print("[*] Creating update script... ")                bat := filepath.Join(os.TempDir(), "cli-top_update.bat")
+                  cyan.Print("[*] Creating update script... ")                
+				  bat := filepath.Join(os.TempDir(), "cli-top_update.bat")
                 script := fmt.Sprintf(`@echo off
 title CLI-TOP Auto-Updater
 echo.
