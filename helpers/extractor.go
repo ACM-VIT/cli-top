@@ -84,15 +84,15 @@ func ExtractCSRF(bodyString string) string {
 	lines := re.FindAllString(bodyString, -1)
 
 	csrf := ""
+	// Compile pattern for extracting csrfValue only once
+	csrfPattern := regexp.MustCompile(`var csrfValue = /\*(.*?)\*/'.*';`)
+
 	// Iterate over the lines
 	for _, line := range lines {
 		// fmt.Println("Found line:", line)
 
-		// Define a regular expression that matches the pattern of the variable assignment
-		re := regexp.MustCompile(`var csrfValue = /\*(.*?)\*/'.*';`)
-
 		// Find the match
-		match := re.FindStringSubmatch(line)
+		match := csrfPattern.FindStringSubmatch(line)
 
 		// If a match was found, print the value of the variable
 		if len(match) > 1 {
