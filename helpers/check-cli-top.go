@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/spf13/viper"
 )
 
@@ -27,6 +28,30 @@ func SetLatestJSONURL(url string) {
 
 func GetLatestJSONURL() string {
 	return latestJSONURL
+}
+
+func displayUpdateLogo() {
+	logo := `
+
+	▄████▄   ██▓     ██▓▄▄▄█████▓ ▒█████   ██▓███  
+	▒██▀ ▀█  ▓██▒    ▓██▒▓  ██▒ ▓▒▒██▒  ██▒▓██░  ██▒
+	▒▓█    ▄ ▒██░    ▒██▒▒ ▓██░ ▒░▒██░  ██▒▓██░ ██▓▒
+	▒▓▓▄ ▄██▒▒██░    ░██░░ ▓██▓ ░ ▒██   ██░▒██▄█▓▒ ▒
+	▒ ▓███▀ ░░██████▒░██░  ▒██▒ ░ ░ ████▓▒░▒██▒ ░  ░
+	░ ░▒ ▒  ░░ ▒░▓  ░░▓    ▒ ░░   ░ ▒░▒░▒░ ▒▓▒░ ░  ░
+	  ░  ▒   ░ ░ ▒  ░ ▒ ░    ░      ░ ▒ ▒░ ░▒ ░     
+	░          ░ ░    ▒ ░  ░      ░ ░ ░ ▒  ░░       
+	░ ░          ░  ░ ░               ░ ░           
+	░                                               
+
+	`
+	
+	pink := color.New(color.FgHiMagenta)
+	cyan := color.New(color.FgHiCyan)
+	
+	pink.Print(logo)
+	cyan.Println("                    AUTO-UPDATER")
+	fmt.Println()
 }
 
 // Version info structure to match the JSON response
@@ -196,24 +221,72 @@ func Update() {
         data, _ := io.ReadAll(resp.Body)
 
         execPath, _ := os.Executable()
-        execPath, _ = filepath.EvalSymlinks(execPath)
-
-        if runtime.GOOS == "windows" {
+        execPath, _ = filepath.EvalSymlinks(execPath)        
+		if runtime.GOOS == "windows" {
+                exec.Command("cmd", "/c", "cls").Run()
+                displayUpdateLogo()
+                
+                green := color.New(color.FgHiGreen)
+                yellow := color.New(color.FgHiYellow)
+                cyan := color.New(color.FgHiCyan)
+                
+                fmt.Println("┌─────────────────────────────────────────────────────────┐")
+                fmt.Printf("│ %-55s │\n", fmt.Sprintf("Updating CLI-TOP to version %s", vi.Version))
+                fmt.Println("├─────────────────────────────────────────────────────────┤")
+                fmt.Printf("│ Current Version: %-38s │\n", debug.Version)
+                fmt.Printf("│ New Version:     %-38s │\n", vi.Version)
+                fmt.Println("└─────────────────────────────────────────────────────────┘")
+                fmt.Println()
+                  yellow.Println("WARNING: Please do not close this window during the update!")
+                fmt.Println()
+                
+                cyan.Print("[*] Preparing installer... ")
                 installer := filepath.Join(os.TempDir(), fmt.Sprintf("cli-top_update_%s.exe", vi.Version))
                 os.WriteFile(installer, data, 0755)
-
-                bat := filepath.Join(os.TempDir(), "cli-top_update.bat")
+                green.Println("[DONE]")
+                  cyan.Print("[*] Creating update script... ")                bat := filepath.Join(os.TempDir(), "cli-top_update.bat")
                 script := fmt.Sprintf(`@echo off
+title CLI-TOP Auto-Updater
+echo.
+echo ========================================================
+echo                CLI-TOP AUTO-UPDATER
+echo ========================================================
+echo.
+echo [*] Stopping CLI-TOP processes...
 taskkill /IM cli-top.exe /F >nul 2>&1
-echo Installing update…
+timeout /t 2 /nobreak >nul
+echo.
+echo [*] Installing update v%s...
 start /wait "" "%s" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
-echo Restarting cli-top…
+echo.
+echo [+] Update completed successfully!
+echo.
+echo [*] Restarting CLI-TOP...
+timeout /t 2 /nobreak >nul
 start "" "%s"
-del "%s"
-del "%%~f0"`, installer, execPath, installer)
-                os.WriteFile(bat, []byte(script), 0644)
+echo.
+echo [*] Cleaning up temporary files...
+del "%s" 2>nul
+echo.
+echo [+] Update process completed! Enjoy the new version!
+timeout /t 2 /nobreak >nul
+echo.
+echo This window will close automatically in 3 seconds...
+timeout /t 3 /nobreak >nul`, vi.Version, installer, execPath, installer)
+				os.WriteFile(bat, []byte(script), 0644)
+                green.Println("[DONE]")
+                
+                fmt.Println()
+                green.Println("[*] Starting update process...")
+                yellow.Println("    The application will close and restart automatically.")
+                fmt.Println()
+                
+                time.Sleep(2 * time.Second)
+                
                 exec.Command("cmd", "/C", "start", "", bat).Start()
-                fmt.Println("Update is in progress. The application will restart automatically.")
+                
+                cyan.Println("[+] Update is in progress. CLI-TOP will restart automatically.")
+                fmt.Println()
                 os.Exit(0)
         }
 
@@ -261,6 +334,38 @@ func extractBinaryFromZip(zipPath string) ([]byte, error) {
 			continue
 		}
 		// Found a file; assume it is the binary.
+		break
+	}
+
+	if len(binaryData) == 0 {
+		return nil, fmt.Errorf("no binary file found in zip")
+	}
+	return binaryData, nil
+}
+
+// extractBinaryFromZipToBytes extracts the binary file from zip data in memory.
+// It assumes that the archive contains a single binary.
+func extractBinaryFromZipToBytes(zipData []byte) ([]byte, error) {
+	reader := strings.NewReader(string(zipData))
+	r, err := zip.NewReader(reader, int64(len(zipData)))
+	if err != nil {
+		return nil, err
+	}
+
+	var binaryData []byte
+	for _, f := range r.File {
+		if f.FileInfo().IsDir() {
+			continue
+		}
+		rc, err := f.Open()
+		if err != nil {
+			continue
+		}
+		binaryData, err = io.ReadAll(rc)
+		rc.Close()
+		if err != nil {
+			continue
+		}
 		break
 	}
 
