@@ -4,7 +4,6 @@ import (
 	"cli-top/debug"
 	"cli-top/helpers"
 	types "cli-top/types"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,10 +11,7 @@ import (
 )
 
 func getSessionServer() types.Cookies {
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
+	client := helpers.GetHTTPClient()
 	req, err := http.NewRequest("GET", "https://vtop.vit.ac.in/", nil)
 	if err != nil && debug.Debug {
 		fmt.Println(err)
@@ -50,10 +46,7 @@ func getLoginPage() (types.Cookies, string) {
 
 	cookies := getSessionServer()
 
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
+	client := helpers.GetHTTPClient()
 	var data = strings.NewReader(fmt.Sprintf(`_csrf=%s&flag=VTOP`, cookies.CSRF))
 	req, err := http.NewRequest("POST", "https://vtop.vit.ac.in/vtop/prelogin/setup", data)
 	if err != nil && debug.Debug {
