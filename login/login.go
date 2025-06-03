@@ -4,7 +4,6 @@ import (
 	"cli-top/debug"
 	"cli-top/helpers"
 	types "cli-top/types"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,15 +13,11 @@ import (
 
 func performLogin(userInfo types.LogIn, cookies types.Cookies, captcha string) types.Cookies {
 
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	client := helpers.GetHTTPClient()
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
 	}
-	client := &http.Client{
-		Transport: tr,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			// Returning an error prevents automatic redirection
-			return http.ErrUseLastResponse
-		}}
+	defer func() { client.CheckRedirect = nil }()
 	var data = strings.NewReader(fmt.Sprintf(`_csrf=%s&username=%s&password=%s&captchaStr=%s`, cookies.CSRF, userInfo.Username, userInfo.Password, captcha))
 	req, err := http.NewRequest("POST", "https://vtop.vit.ac.in/vtop/login", data)
 	if err != nil && debug.Debug {
@@ -64,10 +59,7 @@ func performLogin(userInfo types.LogIn, cookies types.Cookies, captcha string) t
 }
 
 func errorCheck(cookies types.Cookies) bool {
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
+	client := helpers.GetHTTPClient()
 	req, err := http.NewRequest("GET", "https://vtop.vit.ac.in/vtop/login/error", nil)
 	if err != nil && debug.Debug {
 		fmt.Println(err)
@@ -137,10 +129,7 @@ func Login(regNo string, password string) types.Cookies {
 }
 
 func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
+	client := helpers.GetHTTPClient()
 	req, err := http.NewRequest("GET", "https://vtop.vit.ac.in/vtop/init/page", nil)
 	if err != nil && debug.Debug {
 		fmt.Println(err)
