@@ -6,7 +6,6 @@ import (
 	"cli-top/helpers"
 	types "cli-top/types"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -31,41 +30,6 @@ type WorkingSaturday struct {
 	DayOrder string
 }
 
-func FetchReqClient(client *http.Client, regNo string, cookies types.Cookies, urlStr string, referer string, formData []byte, method string, contentType string) ([]byte, http.Header, error) {
-	req, err := http.NewRequest(method, urlStr, bytes.NewBuffer(formData))
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create HTTP request: %w", err)
-	}
-	req.Header.Set("Content-Type", contentType)
-	if referer != "" {
-		req.Header.Set("Referer", referer)
-	}
-	if cookies.JSESSIONID != "" {
-		req.AddCookie(&http.Cookie{
-			Name:  "JSESSIONID",
-			Value: cookies.JSESSIONID,
-			Path:  "/",
-		})
-	}
-	if cookies.SERVERID != "" {
-		req.AddCookie(&http.Cookie{
-			Name:  "SERVERID",
-			Value: cookies.SERVERID,
-			Path:  "/",
-		})
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to perform HTTP request: %w", err)
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-	return body, resp.Header, nil
-}
-
 func fetchWorkingSaturdays(regNo string, cookies types.Cookies, semSubID, classGroupID string) []WorkingSaturday {
 	var result []WorkingSaturday
 
@@ -81,7 +45,7 @@ func fetchWorkingSaturdays(regNo string, cookies types.Cookies, semSubID, classG
 	}
 	form0 := helpers.FormatBodyData(payload0)
 	_ = form0
-	body0, _, err0 := FetchReqClient(client, regNo, cookies, calendarPreviewURL, "https://vtop.vit.ac.in/vtop/content", []byte(form0), "POST", "application/x-www-form-urlencoded")
+	body0, _, err0 := helpers.FetchReqClient(client, regNo, cookies, calendarPreviewURL, "https://vtop.vit.ac.in/vtop/content", []byte(form0), "POST", "application/x-www-form-urlencoded")
 	_ = body0
 	_ = err0
 
@@ -93,7 +57,7 @@ func fetchWorkingSaturdays(regNo string, cookies types.Cookies, semSubID, classG
 	}
 	formVerify := helpers.FormatBodyData(payloadVerify)
 	_ = formVerify
-	bodyVerify, _, errVerify := FetchReqClient(client, regNo, cookies, calendarPreviewURL, "https://vtop.vit.ac.in/vtop/content", []byte(formVerify), "POST", "application/x-www-form-urlencoded")
+	bodyVerify, _, errVerify := helpers.FetchReqClient(client, regNo, cookies, calendarPreviewURL, "https://vtop.vit.ac.in/vtop/content", []byte(formVerify), "POST", "application/x-www-form-urlencoded")
 	_ = bodyVerify
 	_ = errVerify
 
@@ -106,7 +70,7 @@ func fetchWorkingSaturdays(regNo string, cookies types.Cookies, semSubID, classG
 	}
 	form1 := helpers.FormatBodyData(payload1)
 	_ = form1
-	body1, _, err1 := FetchReqClient(client, regNo, cookies, getDateForSemPreviewURL, "", []byte(form1), "POST", "application/x-www-form-urlencoded")
+	body1, _, err1 := helpers.FetchReqClient(client, regNo, cookies, getDateForSemPreviewURL, "", []byte(form1), "POST", "application/x-www-form-urlencoded")
 	_ = body1
 	_ = err1
 
@@ -121,7 +85,7 @@ func fetchWorkingSaturdays(regNo string, cookies types.Cookies, semSubID, classG
 		"x":            fmt.Sprintf("%d", time.Now().Unix()),
 	}
 	form2 := helpers.FormatBodyData(payload2)
-	body3, _, err3 := FetchReqClient(client, regNo, cookies, processViewCalendarURL, "", []byte(form2), "POST", "application/x-www-form-urlencoded")
+	body3, _, err3 := helpers.FetchReqClient(client, regNo, cookies, processViewCalendarURL, "", []byte(form2), "POST", "application/x-www-form-urlencoded")
 	if err3 != nil {
 		return result
 	}
