@@ -12,7 +12,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-
 const maxRetries = 3
 
 func RegisterUUID(uuid string) error {
@@ -26,7 +25,7 @@ func RegisterUUID(uuid string) error {
 	}
 
 	for i := 0; i < maxRetries; i++ {
-		req, err := http.NewRequest("POST", "https://cli-calendar.acmvit.in/register", bytes.NewBuffer(jsonData))
+		req, err := http.NewRequest("POST", CalendarServerURL+"/register", bytes.NewBuffer(jsonData))
 		if err != nil {
 			if debug.Debug {
 				fmt.Println("Error creating registration request:", err)
