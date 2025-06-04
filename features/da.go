@@ -344,11 +344,11 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 			}
 
 			defaultName := "downloadedFile.pdf"
-			ext := helpers.GetFileExtension(defaultName, body, headers)			
+			ext := helpers.GetFileExtension(defaultName, body, headers)
 			if debug.Debug {
 				fmt.Printf("Determined file extension: %s\n", ext)
 			}
-			
+
 			var selectedSubjectName string
 			var selectedSubjectCode string
 			for _, detail := range listOfSubjects {

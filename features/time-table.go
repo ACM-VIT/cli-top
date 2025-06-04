@@ -18,12 +18,12 @@ import (
 )
 
 const (
-	calendarPreviewURL       = "https://vtop.vit.ac.in/vtop/academics/common/CalendarPreview"
-	getDateForSemPreviewURL  = "https://vtop.vit.ac.in/vtop/getDateForSemesterPreview"
-	processViewCalendarURL   = "https://vtop.vit.ac.in/vtop/processViewCalendar"
-	classGroupID             = "COMB"
-	calendarTableSelector    = "table.calendar-table"
-	saturdayIndex            = 6
+	calendarPreviewURL      = "https://vtop.vit.ac.in/vtop/academics/common/CalendarPreview"
+	getDateForSemPreviewURL = "https://vtop.vit.ac.in/vtop/getDateForSemesterPreview"
+	processViewCalendarURL  = "https://vtop.vit.ac.in/vtop/processViewCalendar"
+	classGroupID            = "COMB"
+	calendarTableSelector   = "table.calendar-table"
+	saturdayIndex           = 6
 )
 
 type WorkingSaturday struct {
@@ -86,10 +86,10 @@ func fetchWorkingSaturdays(regNo string, cookies types.Cookies, semSubID, classG
 	_ = err0
 
 	payloadVerify := map[string]string{
-		"menuCode":      "CalendarPreview",
-		"authorizedID":  regNo,
-		"_csrf":         cookies.CSRF,
-		"nocache":       fmt.Sprintf("%d", time.Now().Unix()),
+		"menuCode":     "CalendarPreview",
+		"authorizedID": regNo,
+		"_csrf":        cookies.CSRF,
+		"nocache":      fmt.Sprintf("%d", time.Now().Unix()),
 	}
 	formVerify := helpers.FormatBodyData(payloadVerify)
 	_ = formVerify
@@ -98,7 +98,7 @@ func fetchWorkingSaturdays(regNo string, cookies types.Cookies, semSubID, classG
 	_ = errVerify
 
 	payload1 := map[string]string{
-		"_csrf":        cookies.CSRF,
+		"_csrf":         cookies.CSRF,
 		"paramReturnId": "getDateForSemesterPreview",
 		"semSubId":      semSubID,
 		"authorizedID":  regNo,
@@ -118,7 +118,7 @@ func fetchWorkingSaturdays(regNo string, cookies types.Cookies, semSubID, classG
 		"semSubId":     semSubID,
 		"classGroupId": classGroupID,
 		"authorizedID": regNo,
-		"x":             fmt.Sprintf("%d", time.Now().Unix()),
+		"x":            fmt.Sprintf("%d", time.Now().Unix()),
 	}
 	form2 := helpers.FormatBodyData(payload2)
 	body3, _, err3 := FetchReqClient(client, regNo, cookies, processViewCalendarURL, "", []byte(form2), "POST", "application/x-www-form-urlencoded")
