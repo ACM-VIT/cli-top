@@ -324,8 +324,7 @@ func generateICSFile(exams []types.ExamEvent) {
 	if err != nil {
 		fmt.Println("Error generating ICS file:", err)
 	} else {
-		serverURL := "https://cli-calendar.acmvit.in"
-		uploadedFileURL, err := helpers.UploadICSFile(icsFilePath, serverURL)
+		uploadedFileURL, err := helpers.UploadICSFile(icsFilePath, helpers.CalendarServerURL)
 		if err != nil {
 			fmt.Println("Error uploading ICS file:", err)
 			fmt.Println("Please import the 'Exam_Schedule.ics' file manually from your Downloads folder.")
