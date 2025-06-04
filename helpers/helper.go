@@ -577,12 +577,11 @@ func OpenFolder(path string) {
 	}
 }
 func ParseFloat(s string) float64 {
-    f, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
-    if err != nil {
-        return 0
-    }
-    return f
+	f, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
+	if err != nil {
+		return 0
+	}
+	return f
 }
 
 var VtopLoginGlobal func() (types.Cookies, string)
-

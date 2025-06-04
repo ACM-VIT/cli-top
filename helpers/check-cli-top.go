@@ -45,10 +45,10 @@ func displayUpdateLogo() {
 	░                                               
 
 	`
-	
+
 	pink := color.New(color.FgHiMagenta)
 	cyan := color.New(color.FgHiCyan)
-	
+
 	pink.Print(logo)
 	cyan.Println("                    AUTO-UPDATER")
 	fmt.Println()
@@ -178,75 +178,75 @@ func CheckKillSwitch() int {
 
 // Update checks for a new version and auto-updates the current binary.
 func Update() {
-        fmt.Println("Checking for updates...")
-        resp, err := http.Get("https://cli-top.acmvit.in/latest.json")
-        if err != nil {
-                fmt.Println("Error checking for update:", err)
-                return
-        }
-        defer resp.Body.Close()
+	fmt.Println("Checking for updates...")
+	resp, err := http.Get("https://cli-top.acmvit.in/latest.json")
+	if err != nil {
+		fmt.Println("Error checking for update:", err)
+		return
+	}
+	defer resp.Body.Close()
 
-        body, _ := io.ReadAll(resp.Body)
-        var vi types.VersionInfo
-        if json.Unmarshal(body, &vi) != nil || vi.Version == debug.Version {
-                fmt.Println("You are using the latest stable version of cli-top.")
-                return
-        }
+	body, _ := io.ReadAll(resp.Body)
+	var vi types.VersionInfo
+	if json.Unmarshal(body, &vi) != nil || vi.Version == debug.Version {
+		fmt.Println("You are using the latest stable version of cli-top.")
+		return
+	}
 
-        fmt.Printf("A new version %s is available. Downloading update…\n", vi.Version)
+	fmt.Printf("A new version %s is available. Downloading update…\n", vi.Version)
 
-        base := "https://github.com/technical-director-acmvit/cli-top-website/raw/main/buildFiles"
-        var dl string
-        switch runtime.GOOS {
-        case "windows":
-                dl = fmt.Sprintf("%s/v%s/cli-top-windows-installer_v%s.exe", base, vi.Version, vi.Version)
-        case "linux":
-                dl = fmt.Sprintf("%s/v%s/cli-top-linux_v%s.zip", base, vi.Version, vi.Version)
-        case "android":
-                dl = fmt.Sprintf("%s/v%s/cli-top-android_v%s.zip", base, vi.Version, vi.Version)
-        case "darwin":
-                dl = fmt.Sprintf("%s/v%s/cli-top-macos_v%s.zip", base, vi.Version, vi.Version)
-        default:
-                fmt.Println("Auto-update not supported on", runtime.GOOS)
-                return
-        }
+	base := "https://github.com/technical-director-acmvit/cli-top-website/raw/main/buildFiles"
+	var dl string
+	switch runtime.GOOS {
+	case "windows":
+		dl = fmt.Sprintf("%s/v%s/cli-top-windows-installer_v%s.exe", base, vi.Version, vi.Version)
+	case "linux":
+		dl = fmt.Sprintf("%s/v%s/cli-top-linux_v%s.zip", base, vi.Version, vi.Version)
+	case "android":
+		dl = fmt.Sprintf("%s/v%s/cli-top-android_v%s.zip", base, vi.Version, vi.Version)
+	case "darwin":
+		dl = fmt.Sprintf("%s/v%s/cli-top-macos_v%s.zip", base, vi.Version, vi.Version)
+	default:
+		fmt.Println("Auto-update not supported on", runtime.GOOS)
+		return
+	}
 
-        resp, err = http.Get(dl)
-        if err != nil {
-                fmt.Println("Error downloading update:", err)
-                return
-        }
-        defer resp.Body.Close()
+	resp, err = http.Get(dl)
+	if err != nil {
+		fmt.Println("Error downloading update:", err)
+		return
+	}
+	defer resp.Body.Close()
 
-        data, _ := io.ReadAll(resp.Body)
+	data, _ := io.ReadAll(resp.Body)
 
-        execPath, _ := os.Executable()
-        execPath, _ = filepath.EvalSymlinks(execPath)        
-		if runtime.GOOS == "windows" {
-                exec.Command("cmd", "/c", "cls").Run()
-                displayUpdateLogo()
-                
-                green := color.New(color.FgHiGreen)
-                yellow := color.New(color.FgHiYellow)
-                cyan := color.New(color.FgHiCyan)
-                
-                fmt.Println("┌─────────────────────────────────────────────────────────┐")
-                fmt.Printf("│ %-55s │\n", fmt.Sprintf("Updating CLI-TOP to version %s", vi.Version))
-                fmt.Println("├─────────────────────────────────────────────────────────┤")
-                fmt.Printf("│ Current Version: %-38s │\n", debug.Version)
-                fmt.Printf("│ New Version:     %-38s │\n", vi.Version)
-                fmt.Println("└─────────────────────────────────────────────────────────┘")
-                fmt.Println()
-                  yellow.Println("WARNING: Please do not close this window during the update!")
-                fmt.Println()
-                
-                cyan.Print("[*] Preparing installer... ")
-                installer := filepath.Join(os.TempDir(), fmt.Sprintf("cli-top_update_%s.exe", vi.Version))
-                os.WriteFile(installer, data, 0755)
-                green.Println("[DONE]")
-                  cyan.Print("[*] Creating update script... ")                
-				  bat := filepath.Join(os.TempDir(), "cli-top_update.bat")
-                script := fmt.Sprintf(`@echo off
+	execPath, _ := os.Executable()
+	execPath, _ = filepath.EvalSymlinks(execPath)
+	if runtime.GOOS == "windows" {
+		exec.Command("cmd", "/c", "cls").Run()
+		displayUpdateLogo()
+
+		green := color.New(color.FgHiGreen)
+		yellow := color.New(color.FgHiYellow)
+		cyan := color.New(color.FgHiCyan)
+
+		fmt.Println("┌─────────────────────────────────────────────────────────┐")
+		fmt.Printf("│ %-55s │\n", fmt.Sprintf("Updating CLI-TOP to version %s", vi.Version))
+		fmt.Println("├─────────────────────────────────────────────────────────┤")
+		fmt.Printf("│ Current Version: %-38s │\n", debug.Version)
+		fmt.Printf("│ New Version:     %-38s │\n", vi.Version)
+		fmt.Println("└─────────────────────────────────────────────────────────┘")
+		fmt.Println()
+		yellow.Println("WARNING: Please do not close this window during the update!")
+		fmt.Println()
+
+		cyan.Print("[*] Preparing installer... ")
+		installer := filepath.Join(os.TempDir(), fmt.Sprintf("cli-top_update_%s.exe", vi.Version))
+		os.WriteFile(installer, data, 0755)
+		green.Println("[DONE]")
+		cyan.Print("[*] Creating update script... ")
+		bat := filepath.Join(os.TempDir(), "cli-top_update.bat")
+		script := fmt.Sprintf(`@echo off
 title CLI-TOP Auto-Updater
 echo.
 echo ========================================================
@@ -274,42 +274,43 @@ timeout /t 2 /nobreak >nul
 echo.
 echo This window will close automatically in 3 seconds...
 timeout /t 3 /nobreak >nul`, vi.Version, installer, execPath, installer)
-				os.WriteFile(bat, []byte(script), 0644)
-                green.Println("[DONE]")
-                
-                fmt.Println()
-                green.Println("[*] Starting update process...")
-                yellow.Println("    The application will close and restart automatically.")
-                fmt.Println()
-                
-                time.Sleep(2 * time.Second)
-                
-                exec.Command("cmd", "/C", "start", "", bat).Start()
-                
-                cyan.Println("[+] Update is in progress. CLI-TOP will restart automatically.")
-                fmt.Println()
-                os.Exit(0)
-        }
+		os.WriteFile(bat, []byte(script), 0644)
+		green.Println("[DONE]")
 
-        /* ---------- non-Windows path unchanged: download ZIP, replace binary ---------- */
-        if strings.HasSuffix(dl, ".zip") {
-                if b, err := extractBinaryFromZipToBytes(data); err == nil {
-                        data = b
-                } else {
-                        fmt.Println("Error extracting binary:", err)
-                        return
-                }
-        }
-        backup := execPath + ".bak"
-        os.Remove(backup)
-        os.Rename(execPath, backup)
-        if os.WriteFile(execPath, data, 0755) != nil {
-                os.Rename(backup, execPath)
-                fmt.Println("Update failed; restored previous version.")
-                return
-        }
-        fmt.Printf("Successfully updated to %s. Restart the application to use the new version.\n", vi.Version)
+		fmt.Println()
+		green.Println("[*] Starting update process...")
+		yellow.Println("    The application will close and restart automatically.")
+		fmt.Println()
+
+		time.Sleep(2 * time.Second)
+
+		exec.Command("cmd", "/C", "start", "", bat).Start()
+
+		cyan.Println("[+] Update is in progress. CLI-TOP will restart automatically.")
+		fmt.Println()
+		os.Exit(0)
+	}
+
+	/* ---------- non-Windows path unchanged: download ZIP, replace binary ---------- */
+	if strings.HasSuffix(dl, ".zip") {
+		if b, err := extractBinaryFromZipToBytes(data); err == nil {
+			data = b
+		} else {
+			fmt.Println("Error extracting binary:", err)
+			return
+		}
+	}
+	backup := execPath + ".bak"
+	os.Remove(backup)
+	os.Rename(execPath, backup)
+	if os.WriteFile(execPath, data, 0755) != nil {
+		os.Rename(backup, execPath)
+		fmt.Println("Update failed; restored previous version.")
+		return
+	}
+	fmt.Printf("Successfully updated to %s. Restart the application to use the new version.\n", vi.Version)
 }
+
 // extractBinaryFromZip extracts the binary file from a zip archive.
 // It assumes that the archive contains a single binary.
 func extractBinaryFromZip(zipPath string) ([]byte, error) {
