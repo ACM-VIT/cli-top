@@ -974,7 +974,7 @@ const maxRetries = 3  // Maximum registration attempts
 
 #### HTTP Configuration
 - Method: POST
-- Endpoint: https://cli-calendar.acmvit.in/register
+- Endpoint: `helpers.CalendarServerURL` + `/register`
 - Content-Type: application/json
 - Timeout: 5 seconds
 
