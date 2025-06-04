@@ -104,7 +104,7 @@ func findAndSaveGrade(doc *goquery.Document) {
 
 		if courseType == "ONLINE COURSE" || courseType == "PROJECT" || courseType == "EXTRA CURRICULAR ACTIVITY" {
 			for idx := range selectedRow {
-				if selectedRow[0][0:4]!="CFOC" {
+				if selectedRow[0][0:4] != "CFOC" {
 					selectedRow[idx] = fmt.Sprintf("\x1b[32m%s\x1b[0m", selectedRow[idx]) // Green
 				}
 			}

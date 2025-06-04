@@ -12,7 +12,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-
 const maxRetries = 3
 
 func RegisterUUID(uuid string) error {
