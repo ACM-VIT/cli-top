@@ -16,13 +16,13 @@
 
 ---
 
-## 🚀 Overview
+## Overview
 
 **cli-top** is an easy-to-use tool for VIT students that helps them quickly access important information from the VTOP student portal. Whether it's checking grades, viewing the timetable, or handling assignments, cli-top makes it simple to get what you need.
 
 
 
-## 🌟 Features
+## Features
 
 - **Login**: Secure login to the VTOP portal
 - **Mark View**: Check your marks for various courses
@@ -47,13 +47,13 @@
 
 
 
-## 💻 Tech Stack
+## Tech Stack
 
 - **GoLang** : Core programming language
 - **Cobra** : Go library for creating the terminal CLI
 
 
-## ⚙️ Installation
+## Installation
 
 To install **cli-top**, you can download the binary directly from [cli-top.acmvit.in](https://cli-top.acmvit.in/).
 
@@ -79,7 +79,7 @@ CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o cli-top .
 Using `-trimpath` removes local file paths from the executable and, together with `-ldflags "-s -w"`, helps reduce binary size.
 
 
-## 🔧 Usage
+## Usage
 
 After installation, you can access various features of **cli-top** by running specific commands:
 
@@ -105,7 +105,7 @@ After installation, you can access various features of **cli-top** by running sp
 ```
 
 
-## ⚙️ Project Management
+## Project Management
 
 - Use **Git** for version control and code management
 - Take up issues and request assignment before starting work
@@ -113,14 +113,14 @@ After installation, you can access various features of **cli-top** by running sp
 - Main and dev branch pushes require approval from designated maintainers
 
 
-## 👨‍💻 Authors
+## Authors
 
 - [Saharsh Bhansali](https://github.com/saharshbhansali)
 - [Manav Muthanna](https://github.com/ManavMuthanna)
 - [Sarthak Gupta](https://github.com/gptsarthak)
 
 
-## 🔧 Maintainers
+## Maintainers
 
 - [Garv Jain](https://github.com/notcoolgarv)
 - [Tanmay Paturu](https://github.com/Tintedfireglass)
@@ -130,7 +130,7 @@ After installation, you can access various features of **cli-top** by running sp
 - [Ishaan S](https://github.com/theg1239)
 
 
-## 🤝 Contributors
+## Contributors
 
 - [Prateek Srivastava](https://github.com/prateek-srivastava001)
 - [Kaustav Patro](https://github.com/icky-kp)
