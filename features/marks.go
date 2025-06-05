@@ -13,22 +13,22 @@ import (
 )
 
 const (
-	MarksTableContentSelector    = "tr.tableContent"
-	MarksCustomTableSelector     = "customTable-level1"
-	MarksRowsSelector            = "tbody tr"
-	MarksCellSelector            = "td"
-	MarksGPASpanSelector         = "span[style='font-size: 18px; font-weight: bold;']"
-	MarksTitleCellIndex          = 1
-	MarksMaxMarkCellIndex        = 2
-	MarksWeightageCellIndex      = 3
-	MarksStatusCellIndex         = 4
-	MarksScoredMarkCellIndex     = 5
-	MarksWeightageMarkCellIndex  = 6
-	CourseCodeCellIndex          = 2
-	CourseTitleCellIndex         = 3
-	CourseTypeCellIndex          = 4
-	CourseFacultyCellIndex       = 6
-	CourseSlotCellIndex          = 7
+	MarksTableContentSelector   = "tr.tableContent"
+	MarksCustomTableSelector    = "customTable-level1"
+	MarksRowsSelector           = "tbody tr"
+	MarksCellSelector           = "td"
+	MarksGPASpanSelector        = "span[style='font-size: 18px; font-weight: bold;']"
+	MarksTitleCellIndex         = 1
+	MarksMaxMarkCellIndex       = 2
+	MarksWeightageCellIndex     = 3
+	MarksStatusCellIndex        = 4
+	MarksScoredMarkCellIndex    = 5
+	MarksWeightageMarkCellIndex = 6
+	CourseCodeCellIndex         = 2
+	CourseTitleCellIndex        = 3
+	CourseTypeCellIndex         = 4
+	CourseFacultyCellIndex      = 6
+	CourseSlotCellIndex         = 7
 )
 
 func GetMarks(regNo string, cookies types.Cookies, semID string, semChoice int) {

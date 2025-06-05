@@ -9,8 +9,10 @@ const MaxDownloads = 100
 const RateLimitWindow = 10 * time.Minute
 
 var (
-	mu                 sync.Mutex
-	downloadTimestamps []time.Time
+	mu       sync.Mutex
+	tsBuffer [MaxDownloads]time.Time
+	start    int
+	count    int
 )
 
 func IsRateLimitExceeded() bool {
@@ -19,15 +21,25 @@ func IsRateLimitExceeded() bool {
 
 	now := time.Now()
 
-	for len(downloadTimestamps) > 0 && now.Sub(downloadTimestamps[0]) > RateLimitWindow {
-		downloadTimestamps = downloadTimestamps[1:]
+	// drop all timestamps outside the rate limit window
+	for count > 0 {
+		oldest := tsBuffer[start]
+		if now.Sub(oldest) <= RateLimitWindow {
+			break
+		}
+		start = (start + 1) % MaxDownloads
+		count--
 	}
 
-	if len(downloadTimestamps) >= MaxDownloads {
+	if count >= MaxDownloads {
 		return true
 	}
 
-	downloadTimestamps = append(downloadTimestamps, now)
+	insertIdx := (start + count) % MaxDownloads
+	tsBuffer[insertIdx] = now
+	if count < MaxDownloads {
+		count++
+	}
 
 	return false
 }

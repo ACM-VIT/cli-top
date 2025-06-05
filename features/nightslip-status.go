@@ -13,7 +13,7 @@ import (
 
 const (
 	NightSlipTableSelector = "table#LateHourStatusTable"
-	NightSlipRowsSelector  = "tbody tr" 
+	NightSlipRowsSelector  = "tbody tr"
 	NightSlipCellSelector  = "td"
 )
 

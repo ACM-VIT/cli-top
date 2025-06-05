@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	ReceiptTableSelector = "table.table-bordered"
-	ReceiptRowsSelector  = "tbody tr"
-	ReceiptCellSelector  = "td"
+	ReceiptTableSelector  = "table.table-bordered"
+	ReceiptRowsSelector   = "tbody tr"
+	ReceiptCellSelector   = "td"
 	ReceiptHeaderSelector = "th"
 )
 

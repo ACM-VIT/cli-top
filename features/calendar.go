@@ -13,9 +13,9 @@ import (
 )
 
 func PrintCal(regNo string, cookies types.Cookies, sem_choice int, classGrpFlag int) {
-    if !helpers.ValidateLogin(cookies) {
-        return
-    }
+	if !helpers.ValidateLogin(cookies) {
+		return
+	}
 
 	semester, err := helpers.SelectSemester(regNo, cookies, sem_choice)
 	if err != nil {
@@ -282,8 +282,8 @@ func renderMonths(months []string, year string, nestedColour [][]int) {
 func generateCalendarLines(month string, colour []int) []string {
 	var lines []string
 	now := time.Now()
-    todayMonth := strings.ToUpper(now.Month().String()[:3])
-    todayDay := now.Day()
+	todayMonth := strings.ToUpper(now.Month().String()[:3])
+	todayDay := now.Day()
 	monthHeader := month
 	maxLength := 20
 	padding := (maxLength - len(monthHeader)/2) / 2
@@ -302,8 +302,8 @@ func generateCalendarLines(month string, colour []int) []string {
 		} else {
 			var color string
 			if month == todayMonth && dayOfMonth == todayDay {
-                color = helpers.Yellow
-            } else {
+				color = helpers.Yellow
+			} else {
 				color = helpers.Reset
 				switch day {
 				case 1:
