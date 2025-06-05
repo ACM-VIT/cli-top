@@ -33,7 +33,7 @@ jobs:
 
       - name: Build
         run: |
-          go build -o ./build/linux/ -v ./...
+          CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o ./build/linux/ -v ./...
           chmod +x ./build/linux/cli-top
 
       - name: Upload Linux Binary
@@ -63,7 +63,8 @@ jobs:
           mkdir build\windows
           $env:GOOS = "windows"
           $env:GOARCH = "amd64"
-          go build -o build\windows\cli-top.exe .
+          $env:CGO_ENABLED = "0"
+          go build -trimpath -ldflags "-s -w" -o build\windows\cli-top.exe .
 
       - name: Install Inno Setup
         run: |
@@ -251,7 +252,7 @@ jobs:
       - name: Build MacOS Binary
         run: |
           mkdir -p build/macos
-          GOOS=darwin GOARCH=amd64 go build -o build/macos/cli-top . 
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "-s -w" -o build/macos/cli-top .
           chmod +x build/macos/cli-top
 
       - name: Upload MacOS Binary
@@ -279,7 +280,7 @@ jobs:
       - name: Build Android Binary
         run: |
           mkdir -p build/android
-          GOOS=linux GOARCH=arm64 go build -o build/android/cli-top .
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w" -o build/android/cli-top .
           chmod +x build/android/cli-top
 
       - name: Upload Android Binary

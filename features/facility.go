@@ -1,26 +1,26 @@
 package features
 
 import (
+	"bufio"
+	"bytes"
 	"cli-top/debug"
 	"cli-top/helpers"
 	"cli-top/types"
 	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
-	"bytes"
-	"bufio"
-	"os"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
 const (
-	FacilityTableSelector         = "table.table-bordered.table-hover.table-stripped.dataTable"
-	FacilityRowsSelector          = "tr"
-	FacilityCellSelector          = "td"
-	FacilityPanelHeadingSelector  = "div.panel-heading.panel-head-custom"
+	FacilityTableSelector        = "table.table-bordered.table-hover.table-stripped.dataTable"
+	FacilityRowsSelector         = "tr"
+	FacilityCellSelector         = "td"
+	FacilityPanelHeadingSelector = "div.panel-heading.panel-head-custom"
 )
 
 // RegisterPhyFacility fetches and displays physical education facilities available for registration.
@@ -86,7 +86,7 @@ func RegisterPhyFacility(regNo string, cookies types.Cookies) {
 			})
 		}
 	}
-	
+
 	displayFacilities(facilities, registrations)
 
 	if killSwitch == 4 {
@@ -100,30 +100,31 @@ func RegisterPhyFacility(regNo string, cookies types.Cookies) {
 		return
 	}
 
-		err = performRegistration(regNo, cookies, selectedFacility)
-		if err != nil {
-			fmt.Println("Error during registration:", err)
-			return
+	err = performRegistration(regNo, cookies, selectedFacility)
+	if err != nil {
+		fmt.Println("Error during registration:", err)
+		return
+	}
+
+	fmt.Println("Registration completed successfully.")
+
+	updatedRegistrations, err := ListRegistrations(regNo, cookies)
+	if err != nil {
+		fmt.Println("Error fetching updated registrations:", err)
+		return
+	}
+
+	for _, reg := range updatedRegistrations {
+		for idx, fac := range facilities {
+			if strings.EqualFold(strings.TrimSpace(fac.Name), strings.TrimSpace(reg.FacilityName)) {
+				facilities[idx].Registered = true
+				break
+			}
 		}
+	}
 
-		fmt.Println("Registration completed successfully.")
-
-		updatedRegistrations, err := ListRegistrations(regNo, cookies)
-		if err != nil {
-			fmt.Println("Error fetching updated registrations:", err)
-			return
-		}
-
-		for _, reg := range updatedRegistrations {
-			for idx, fac := range facilities {
-				if strings.EqualFold(strings.TrimSpace(fac.Name), strings.TrimSpace(reg.FacilityName)) {
-					facilities[idx].Registered = true
-					break
-				}
-			}		}
-
-		fmt.Println("\nYour Current Registrations:")
-		displayFacilities(facilities, updatedRegistrations)
+	fmt.Println("\nYour Current Registrations:")
+	displayFacilities(facilities, updatedRegistrations)
 }
 
 func fetchAvailableFacilities(regNo string, cookies types.Cookies) ([]types.Facility, error) {
@@ -317,7 +318,7 @@ func displayFacilities(facilities []types.Facility, registrations []types.Regist
 		nestedList := [][]string{
 			{"No.", "Facility Name", "Status"},
 		}
-		
+
 		for i, reg := range registrations {
 			statusStr := ""
 			if reg.IsPaid {
@@ -325,14 +326,14 @@ func displayFacilities(facilities []types.Facility, registrations []types.Regist
 			} else {
 				statusStr = Colorize("Registered (Not Paid)", "yellow")
 			}
-			
+
 			nestedList = append(nestedList, []string{
 				strconv.Itoa(i + 1),
 				reg.FacilityName,
 				statusStr,
 			})
 		}
-		
+
 		fmt.Println()
 		helpers.PrintTable(nestedList, 2)
 		fmt.Println()
@@ -343,7 +344,7 @@ func displayFacilities(facilities []types.Facility, registrations []types.Regist
 		{"No.", "Facility Name", "Fees (Including GST)", "Status"},
 	}
 	for i, facility := range facilities {
-		var statusStr string		
+		var statusStr string
 		if facility.Registered {
 			var isPaid bool
 			for _, reg := range registrations {
@@ -352,7 +353,7 @@ func displayFacilities(facilities []types.Facility, registrations []types.Regist
 					break
 				}
 			}
-			
+
 			if isPaid {
 				statusStr = Colorize("Registered (Paid)", "green")
 			} else {
@@ -378,7 +379,6 @@ func displayFacilities(facilities []types.Facility, registrations []types.Regist
 	helpers.PrintTable(nestedList, 2)
 	fmt.Println()
 }
-
 
 func promptFacilitySelection(facilities []types.Facility, registrationsMap map[string]bool) (types.Facility, error) {
 	reader := bufio.NewReader(os.Stdin)
@@ -435,8 +435,6 @@ func promptFacilitySelection(facilities []types.Facility, registrationsMap map[s
 		}
 	}
 }
-
-
 
 func performRegistration(regNo string, cookies types.Cookies, facility types.Facility) error {
 	if facility.ID == "" || facility.MiscID == "" {
@@ -514,7 +512,6 @@ func performRegistration(regNo string, cookies types.Cookies, facility types.Fac
 		return fmt.Errorf("registration confirmation not found for facility: %s", facility.Name)
 	}
 }
-
 
 func Colorize(text string, color string) string {
 	colorCodes := map[string]string{

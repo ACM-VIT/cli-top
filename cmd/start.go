@@ -88,7 +88,7 @@ func trackCommand(command string) {
 		return
 	}
 
-	serverURL := "https://cli-calendar.acmvit.in/track"
+	serverURL := helpers.CalendarServerURL + "/track"
 
 	req, err := http.NewRequest("POST", serverURL, bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -299,7 +299,7 @@ var rootCmd = &cobra.Command{
 		// 			return
 		// 		}
 		//
-		// 		serverURL := "https://cli-calendar.acmvit.in/version-track"
+		// 		serverURL := helpers.CalendarServerURL + "/version-track"
 		//
 		// 		req, err := http.NewRequest("POST", serverURL, bytes.NewBuffer(jsonData))
 		// 		if err != nil {

@@ -648,6 +648,8 @@ Creates calendar import links for major platforms.
 #### `FetchReqClient(client *http.Client, ...) ([]byte, http.Header, error)`
 Advanced HTTP request handling.
 
+Use `helpers.GetHTTPClient()` to obtain the shared client when making requests.
+
 **Features:**
 - Cookie management
 - Custom headers
@@ -972,7 +974,7 @@ const maxRetries = 3  // Maximum registration attempts
 
 #### HTTP Configuration
 - Method: POST
-- Endpoint: https://cli-calendar.acmvit.in/register
+- Endpoint: `helpers.CalendarServerURL` + `/register`
 - Content-Type: application/json
 - Timeout: 5 seconds
 
@@ -1102,8 +1104,10 @@ const RateLimitWindow = 10 * time.Minute  // Time window size
 #### Global State
 ```go
 var (
-    mu                 sync.Mutex    // Thread synchronization
-    downloadTimestamps []time.Time   // Operation tracking
+    mu       sync.Mutex              // Thread synchronization
+    tsBuffer [MaxDownloads]time.Time // Circular buffer of timestamps
+    start    int                     // Start index
+    count    int                     // Number of stored timestamps
 )
 ```
 
@@ -1140,7 +1144,7 @@ Thread-safe rate limit checker with sliding window implementation.
 
 #### Timestamp Management
 - Ordered timestamp storage
-- FIFO queue behavior
+- Circular buffer design
 - Automatic expiration
 - Memory optimization
 
@@ -1210,7 +1214,7 @@ go func() {
 - Race condition prevention
 
 ### Timestamp Management
-- Slice-based storage
+- Circular buffer storage
 - FIFO queue behavior
 - Automatic cleanup
 - Memory efficiency
