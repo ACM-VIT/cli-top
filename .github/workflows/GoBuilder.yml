@@ -27,7 +27,7 @@ jobs:
       - name: Extract Version
         id: extract_version
         run: |
-          VERSION=$(grep 'var Version string = ' debug/debug.go | sed 's/.*= \"\(.*\)\".*/\1/')
+          VERSION=$(grep 'var Version string = ' debug/debug.go | sed 's/.*= "\(.*\)"/\1/')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Install dependencies
@@ -38,15 +38,15 @@ jobs:
       - name: Build and Rename Linux Binary
         run: |
           mkdir -p build/linux
-          CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o ./build/linux/cli-top ./...
-          chmod +x ./build/linux/cli-top
-          mv ./build/linux/cli-top ./build/linux/cli-top-linux_v${VERSION}
+          CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o build/linux/cli-top .
+          chmod +x build/linux/cli-top
+          mv build/linux/cli-top build/linux/cli-top-linux_v${VERSION}
 
       - name: Upload Linux Artifact
         uses: actions/upload-artifact@v4
         with:
           name: cli-top-linux_v${{ env.VERSION }}
-          path: ./build/linux/cli-top-linux_v${{ env.VERSION }}
+          path: build/linux/cli-top-linux_v${{ env.VERSION }}
 
   build-windows:
     if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev'
@@ -224,7 +224,7 @@ jobs:
         run: |
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer.iss"
 
-      - name: Rename Installer Output (Verify and Rename if Needed)
+      - name: Rename Installer Output
         shell: pwsh
         run: |
           $expectedName = "cli-top-windows-installer_v${{ steps.extract_version.outputs.version }}.exe"
