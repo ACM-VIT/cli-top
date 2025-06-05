@@ -81,7 +81,7 @@ Shows exam schedule for a particular semester.
 ```bash
 cli-top facility
 ```
-Register for physical facilities.
+View or register for physical facilities.
 
 #### Hostel
 ```bash

@@ -179,8 +179,7 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 			if err != nil {
 				fmt.Println("Error generating ICS file:", err)
 			} else {
-				serverURL := "https://cli-calendar.acmvit.in"
-				uploadedFileURL, err = helpers.UploadICSFile(icsFilePath, serverURL)
+				uploadedFileURL, err = helpers.UploadICSFile(icsFilePath, helpers.CalendarServerURL)
 				if err != nil {
 					fmt.Println("Error uploading ICS file:", err)
 					fmt.Println("Please import the 'All_DA_Deadlines.ics' file manually from your Downloads folder.")
@@ -344,11 +343,11 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 			}
 
 			defaultName := "downloadedFile.pdf"
-			ext := helpers.GetFileExtension(defaultName, body, headers)			
+			ext := helpers.GetFileExtension(defaultName, body, headers)
 			if debug.Debug {
 				fmt.Printf("Determined file extension: %s\n", ext)
 			}
-			
+
 			var selectedSubjectName string
 			var selectedSubjectCode string
 			for _, detail := range listOfSubjects {

@@ -14,8 +14,7 @@ import (
 )
 
 func FetchReq(regNo string, cookies types.Cookies, url string, semID string, payload string, method string, header string) ([]byte, error) {
-	// Create a new HTTP client
-	client := &http.Client{}
+	client := GetHTTPClient()
 
 	var req *http.Request
 	var err error
@@ -41,6 +40,9 @@ func FetchReq(regNo string, cookies types.Cookies, url string, semID string, pay
 		return nil, fmt.Errorf("invalid method: %s", method)
 	}
 
+	// Add default VTOP headers
+	SetVtopHeaders(req)
+
 	// Set headers or cookies for specific features if needed
 	if header == "marks" {
 		req.Header.Set("Content-Type", "multipart/form-data; boundary=----WebKitFormBoundary9yjNZXu7BBjgQK7J")
@@ -48,7 +50,7 @@ func FetchReq(regNo string, cookies types.Cookies, url string, semID string, pay
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}
 
-	// Set common headers
+	// Set common cookies
 	req.Header.Set("Cookie", fmt.Sprintf("SERVERID=%s; JSESSIONID=%s", cookies.SERVERID, cookies.JSESSIONID))
 
 	retry := false
@@ -74,6 +76,7 @@ RETRY:
 			} else {
 				req, err = http.NewRequest("GET", url, nil)
 			}
+			SetVtopHeaders(req)
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			req.Header.Set("Cookie", fmt.Sprintf("SERVERID=%s; JSESSIONID=%s", cookies.SERVERID, cookies.JSESSIONID))
 			goto RETRY

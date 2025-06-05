@@ -502,7 +502,7 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 				topicVal := ""
 				if topicContentVal != "" {
 					// Use the topic content instead of module title
-					topicVal = fmt.Sprintf("%s - %s", moduleNumberVal, topicContentVal)				
+					topicVal = fmt.Sprintf("%s - %s", moduleNumberVal, topicContentVal)
 				} else {
 					mNoCell := cells.Eq(topicGroupStart + mNoIndex)
 					topicContentCell := cells.Eq(topicGroupStart + topicContentIndex)
@@ -852,7 +852,6 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 	facultyFolderName = helpers.SanitizeFilename(facultyFolderName)
 
 	fullDirPath := filepath.Join(coursePageDir, courseFolderName, facultyFolderName)
-
 
 	err = os.MkdirAll(fullDirPath, os.ModePerm)
 	if err != nil {
