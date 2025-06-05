@@ -53,7 +53,7 @@
 - **Cobra** : Go library for creating the terminal CLI
 
 
-## ⚙Installation
+## Installation
 
 To install **cli-top**, you can download the binary directly from [cli-top.acmvit.in](https://cli-top.acmvit.in/).
 
@@ -105,7 +105,7 @@ After installation, you can access various features of **cli-top** by running sp
 ```
 
 
-## ⚙Project Management
+## Project Management
 
 - Use **Git** for version control and code management
 - Take up issues and request assignment before starting work
