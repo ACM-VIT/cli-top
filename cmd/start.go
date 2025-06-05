@@ -271,60 +271,65 @@ func readCookiesFromFile() (types.Cookies, string) {
 var rootCmd = &cobra.Command{
 	Use:   "cli-top",
 	Short: "A simple CLI tool for vtop",
-
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		if cmd.Name() != "login" && cmd.Name() != "logout" && cmd.Name() != "cli-top" {
 			go trackCommand(cmd.Name())
 		}
 
-		// if cmd.Name() != "login" && cmd.Name() != "logout" && cmd.Name() != "cli-top" {
-		// 	go func() {
-		// 		userUUID := viper.GetString("UUID")
-		// 		if userUUID == "" {
-		// 			return
-		// 		}
-		//
-		// 		data := types.VersionTrackingData{
-		// 			UUID:      userUUID,
-		// 			Command:   cmd.Name(),
-		// 			Version:   debug.Version,
-		// 			Timestamp: time.Now().Format(time.RFC3339),
-		// 		}
-		//
-		// 		jsonData, err := json.Marshal(data)
-		// 		if err != nil {
-		// 			if debug.Debug {
-		// 				log.Println("Error marshaling version tracking data:", err)
-		// 			}
-		// 			return
-		// 		}
-		//
-		// 		serverURL := helpers.CalendarServerURL + "/version-track"
-		//
-		// 		req, err := http.NewRequest("POST", serverURL, bytes.NewBuffer(jsonData))
-		// 		if err != nil {
-		// 			if debug.Debug {
-		// 				log.Println("Error creating version tracking request:", err)
-		// 			}
-		// 			return
-		// 		}
-		//
-		// 		req.Header.Set("Content-Type", "application/json")
-		// 		req.Header.Set("x-api-key", userUUID)
-		//
-		// 		client := &http.Client{Timeout: 10 * time.Second}
-		// 		resp, err := client.Do(req)
-		// 		if err != nil {
-		// 			if debug.Debug {
-		// 				log.Println("Error sending version tracking data:", err)
-		// 			}
-		// 			return
-		// 		}
-		// 		defer resp.Body.Close()
-		//
-		// 		io.Copy(io.Discard, resp.Body)
-		// 	}()
-		// }
+		if cmd.Name() != "login" && cmd.Name() != "logout" {
+			go func() {
+				userUUID := viper.GetString("UUID")
+				if userUUID == "" {
+					return
+				}
+
+				data := types.VersionTrackingData{
+					UUID:      userUUID,
+					Command:   cmd.Name(),
+					Version:   debug.Version,
+					Timestamp: time.Now().Format(time.RFC3339),
+				}
+
+				jsonData, err := json.Marshal(data)
+				if err != nil {
+					if debug.Debug {
+						log.Println("Error marshaling version tracking data:", err)
+					}
+					return
+				}
+
+				serverURL := helpers.CalendarServerURL + "/version-track"
+
+				req, err := http.NewRequest("POST", serverURL, bytes.NewBuffer(jsonData))
+				if err != nil {
+					if debug.Debug {
+						log.Println("Error creating version tracking request:", err)
+					}
+					return
+				}				
+				req.Header.Set("Content-Type", "application/json")
+				req.Header.Set("x-api-key", userUUID)
+
+				client := &http.Client{
+					Timeout: 5 * time.Second,
+					Transport: &http.Transport{
+						DisableKeepAlives: true,
+					},
+				}
+				
+				go func() {
+					resp, err := client.Do(req)
+					if err != nil {
+						if debug.Debug {
+							log.Println("Error sending version tracking data:", err)
+						}
+						return
+					}
+					defer resp.Body.Close()
+					io.Copy(io.Discard, resp.Body)
+				}()
+			}()
+		}
 	},
 
 	Run: func(cmd *cobra.Command, args []string) {
