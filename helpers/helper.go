@@ -248,6 +248,9 @@ func FetchReqClient(client *http.Client, regNo string, cookies types.Cookies, ur
 		return nil, nil, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 
+	// Apply default headers for VTOP requests
+	SetVtopHeaders(req)
+
 	req.Header.Set("Content-Type", contentType)
 	if referer != "" {
 		req.Header.Set("Referer", referer)
