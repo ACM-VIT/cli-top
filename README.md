@@ -42,6 +42,7 @@
 - **Hostel Info**: Check hostel details 
 - **CGPA View**: Track your cumulative GPA over semesters
 - **Syllabus**: Easily download syllabus files
+- **Facility**: View hostel facilities
 - **Logout**: Securely logout from the CLI
 
 
@@ -62,10 +63,20 @@ To install **cli-top**, you can download the binary directly from [cli-top.acmvi
 
 2. **Run the Binary:**
 
-   After downloading, navigate to the folder where the binary is saved and run it from your terminal:
+After downloading, navigate to the folder where the binary is saved and run it from your terminal:
 ```bash
 ./cli-top
 ```
+
+### Build from Source
+
+To compile **cli-top** yourself:
+
+```bash
+CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o cli-top .
+```
+
+Using `-trimpath` removes local file paths from the executable and, together with `-ldflags "-s -w"`, helps reduce binary size.
 
 
 ## 🔧 Usage
