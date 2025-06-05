@@ -6,20 +6,26 @@ import (
 	"cli-top/helpers"
 	types "cli-top/types"
 	"fmt"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"math"
 	"regexp"
 	"strconv"
 	"strings"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
 const (
-	AttendanceTableSelector  = "table#AttendanceDetailDataTable"
-	AttendanceRowsSelector   = "tbody tr"
-	AttendanceCellSelector   = "td"
+	AttendanceTableSelector = "table#AttendanceDetailDataTable"
+	AttendanceRowsSelector  = "tbody tr"
+	AttendanceCellSelector  = "td"
+)
+
+var (
+	reSubjectName = regexp.MustCompile(`-\s*(.*?)\s*-`)
+	reSubjectType = regexp.MustCompile(`[^-]*$`)
+	reProfessor   = regexp.MustCompile(`^(.*?)\s*-\s*`)
 )
 
 func GetAttendance(regNo string, cookies types.Cookies, sem_choice int) {
@@ -108,20 +114,17 @@ func findAndSaveAttendance(doc *goquery.Document) [][]string {
 			percent := rowSelection.Find(AttendanceCellSelector).Eq(7).Find("span").Find("span").Text()
 
 			// Extract Subject Name
-			reSub := regexp.MustCompile(`-\s*(.*?)\s*-`)
-			match := reSub.FindStringSubmatch(sub_name_and_type)
+			match := reSubjectName.FindStringSubmatch(sub_name_and_type)
 			if len(match) > 1 {
 				sub_name = strings.TrimSpace(match[1])
 			}
 
 			// Extract Subject Type
-			reSubType := regexp.MustCompile(`[^-]*$`)
-			matchType := reSubType.FindString(sub_name_and_type)
+			matchType := reSubjectType.FindString(sub_name_and_type)
 			sub_type = strings.TrimSpace(matchType)
 
 			// Normalize Faculty Name
-			reProf := regexp.MustCompile(`^(.*?)\s*-\s*`)
-			matchProf := reProf.FindStringSubmatch(proff)
+			matchProf := reProfessor.FindStringSubmatch(proff)
 
 			if len(matchProf) > 1 {
 				caser := cases.Title(language.English)

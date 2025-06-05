@@ -170,7 +170,7 @@ func VenueAdd(events []types.ICSWithLocation, filePath string, calName string) e
 			fmt.Sprintf("DTEND;%s", event.Event.DtEnd),
 			fmt.Sprintf("SUMMARY:%s", EscapeString(event.Event.Summary)),
 			fmt.Sprintf("DESCRIPTION:%s", EscapeString(event.Event.Description)),
-			fmt.Sprintf("DTSTAMP:%s", time.Now().UTC().Format("20060102T150405Z")), 
+			fmt.Sprintf("DTSTAMP:%s", time.Now().UTC().Format("20060102T150405Z")),
 			"END:VEVENT",
 		}
 

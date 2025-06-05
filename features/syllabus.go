@@ -19,14 +19,14 @@ import (
 )
 
 const (
-	SyllabusCategorySelector = "div.row[style*='cursor: pointer']"
+	SyllabusCategorySelector     = "div.row[style*='cursor: pointer']"
 	SyllabusCategoryNameSelector = "div.col-6"
-	SyllabusTableSelector = "table.example"
-	SyllabusTableAltSelector = "table[id^='tableData']"
-	SyllabusRowsSelector = "tbody tr"
-	SyllabusCellSelector = "td"
-	SyllabusCourseCodeIndex = 1
-	SyllabusCourseTitleIndex = 2
+	SyllabusTableSelector        = "table.example"
+	SyllabusTableAltSelector     = "table[id^='tableData']"
+	SyllabusRowsSelector         = "tbody tr"
+	SyllabusCellSelector         = "td"
+	SyllabusCourseCodeIndex      = 1
+	SyllabusCourseTitleIndex     = 2
 )
 
 type Category struct {
