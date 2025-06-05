@@ -195,12 +195,12 @@ type TrackingData struct {
 	Timestamp string `json:"timestamp"`
 }
 
-// type VersionTrackingData struct {
-// 	UUID      string `json:"uuid"`
-// 	Command   string `json:"command"`
-// 	Version   string `json:"version"`
-// 	Timestamp string `json:"timestamp"`
-// }
+type VersionTrackingData struct {
+	UUID      string `json:"uuid"`
+	Command   string `json:"command"`
+	Version   string `json:"version"`
+	Timestamp string `json:"timestamp"`
+}
 
 type RegisterData struct {
 	UUID string `json:"uuid"`
