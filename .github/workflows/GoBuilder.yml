@@ -1,3 +1,6 @@
+# This workflow builds a Go project
+# For more information, see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
 name: Build CLI-TOP Binary
 
 on:
@@ -16,51 +19,60 @@ jobs:
     if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: "1.21"
-
-      - name: Extract Version
-        id: extract_version
-        run: |
-          VERSION=$(grep 'var Version string = ' debug/debug.go | sed 's/.*= "\(.*\)"/\1/')
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: |
           go mod tidy
           go get .
 
-      - name: Build and Rename Linux Binary
+      - name: Build
         run: |
-          mkdir -p build/linux
-          CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o build/linux/cli-top .
-          chmod +x build/linux/cli-top
-          mv build/linux/cli-top build/linux/cli-top-linux_v${VERSION}
+          CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o ./build/linux/ -v ./...
+          chmod +x ./build/linux/cli-top
 
-      - name: Upload Linux Artifact
+      - name: Upload Linux Binary
         uses: actions/upload-artifact@v4
         with:
-          name: cli-top-linux_v${{ env.VERSION }}
-          path: build/linux/cli-top-linux_v${{ env.VERSION }}
+          name: cli-top-linux
+          path: ./build/linux/cli-top
 
   build-windows:
     if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev'
     runs-on: windows-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: "1.21"
 
-      - name: Extract Version
+      - name: Install dependencies
+        run: |
+          go mod tidy
+          go get .
+
+      - name: Build Windows Executable
+        run: |
+          mkdir build\windows
+          $env:GOOS = "windows"
+          $env:GOARCH = "amd64"
+          $env:CGO_ENABLED = "0"
+          go build -trimpath -ldflags "-s -w" -o build\windows\cli-top.exe .
+
+      - name: Install Inno Setup
+        run: |
+          Invoke-WebRequest -Uri https://jrsoftware.org/download.php/is.exe -OutFile is.exe
+          Start-Process -FilePath is.exe -Args '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /LOG="install.log"' -Wait
+          Remove-Item is.exe -Force
+
+      - name: Extract Version for Installer
         id: extract_version
         shell: pwsh
         run: |
@@ -73,34 +85,7 @@ jobs:
               exit 1
           }
 
-      - name: Install dependencies
-        run: |
-          go mod tidy
-          go get .
-
-      - name: Build Windows Executable
-        shell: pwsh
-        run: |
-          mkdir build\windows
-          $env:GOOS = "windows"
-          $env:GOARCH = "amd64"
-          $env:CGO_ENABLED = "0"
-          go build -trimpath -ldflags "-s -w" -o build\windows\cli-top.exe .
-          
-      - name: Rename Windows Binary
-        shell: pwsh
-        run: |
-          Rename-Item -Path build\windows\cli-top.exe -NewName "cli-top-windows_v${{ steps.extract_version.outputs.version }}.exe"
-
-      - name: Install Inno Setup
-        shell: pwsh
-        run: |
-          Invoke-WebRequest -Uri https://jrsoftware.org/download.php/is.exe -OutFile is.exe
-          Start-Process -FilePath is.exe -Args '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /LOG="install.log"' -Wait
-          Remove-Item is.exe -Force
-
       - name: Create Inno Setup Script
-        shell: pwsh
         run: |
           $installerScript = @'
           [Setup]
@@ -108,13 +93,13 @@ jobs:
           AppVersion=${{ steps.extract_version.outputs.version }}
           DefaultDirName={localappdata}\CLI-TOP
           DefaultGroupName=CLI-TOP
-          OutputBaseFilename=cli-top-windows-installer_v${{ steps.extract_version.outputs.version }}
+          OutputBaseFilename=cli-top-installer-${{ steps.extract_version.outputs.version }}
           Compression=lzma
           SolidCompression=yes
           PrivilegesRequired=lowest
 
           [Files]
-          Source: "build\windows\cli-top-windows_v${{ steps.extract_version.outputs.version }}.exe"; DestDir: "{app}"; Flags: ignoreversion
+          Source: "build\windows\cli-top.exe"; DestDir: "{app}"; Flags: ignoreversion
 
           [Code]
           function SplitString(const S: string; const Delimiter: char): TArrayOfString;
@@ -219,100 +204,87 @@ jobs:
           '@
           Set-Content -Path installer.iss -Value $installerScript -Encoding UTF8NoBOM
 
+      - name: Show Inno Setup Script (Debugging)
+        shell: pwsh
+        run: Get-Content installer.iss
+
       - name: Compile Installer
         shell: pwsh
         run: |
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer.iss"
 
-      - name: Rename Installer Output
+      - name: Verify Installer Generation
         shell: pwsh
         run: |
-          $expectedName = "cli-top-windows-installer_v${{ steps.extract_version.outputs.version }}.exe"
-          if (!(Test-Path -Path "./Output/$expectedName")) {
-              Write-Error "Installer file not found: ./Output/$expectedName"
+          if (!(Test-Path -Path "./Output/cli-top-installer-${{ steps.extract_version.outputs.version }}.exe")) {
+              Write-Error "Installer file not found: ./Output/cli-top-installer-${{ steps.extract_version.outputs.version }}.exe"
               exit 1
           }
 
-      - name: Upload Windows Binary Artifact
+      - name: Upload Windows Executable
         uses: actions/upload-artifact@v4
         with:
-          name: cli-top-windows_v${{ steps.extract_version.outputs.version }}
-          path: build/windows/cli-top-windows_v${{ steps.extract_version.outputs.version }}.exe
+          name: cli-top-windows
+          path: ./build/windows/cli-top.exe
 
-      - name: Upload Windows Installer Artifact
+      - name: Upload Windows Installer
         uses: actions/upload-artifact@v4
         with:
-          name: cli-top-windows-installer_v${{ steps.extract_version.outputs.version }}
-          path: Output/cli-top-windows-installer_v${{ steps.extract_version.outputs.version }}.exe
+          name: cli-top-windows-installer
+          path: ./Output/cli-top-installer-${{ steps.extract_version.outputs.version }}.exe
 
   build-mac:
     if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev'
     runs-on: macos-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: "1.21"
 
-      - name: Extract Version
-        id: extract_version
-        run: |
-          VERSION=$(grep 'var Version string = ' debug/debug.go | sed 's/.*= \"\(.*\)\".*/\1/')
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-
       - name: Install dependencies
         run: |
           go mod tidy
           go get .
 
-      - name: Build and Rename MacOS Binary
+      - name: Build MacOS Binary
         run: |
           mkdir -p build/macos
           CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "-s -w" -o build/macos/cli-top .
           chmod +x build/macos/cli-top
-          mv build/macos/cli-top build/macos/cli-top-macos_v${VERSION}
 
-      - name: Upload MacOS Artifact
+      - name: Upload MacOS Binary
         uses: actions/upload-artifact@v4
         with:
-          name: cli-top-macos_v${{ env.VERSION }}
-          path: ./build/macos/cli-top-macos_v${{ env.VERSION }}
+          name: cli-top-macos
+          path: ./build/macos/cli-top
 
   build-android:
     if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: "1.21"
 
-      - name: Extract Version
-        id: extract_version
-        run: |
-          VERSION=$(grep 'var Version string = ' debug/debug.go | sed 's/.*= \"\(.*\)\".*/\1/')
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-
       - name: Install dependencies
         run: |
           go mod tidy
           go get .
 
-      - name: Build and Rename Android Binary
+      - name: Build Android Binary
         run: |
           mkdir -p build/android
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w" -o build/android/cli-top .
           chmod +x build/android/cli-top
-          mv build/android/cli-top build/android/cli-top-android_v${VERSION}
 
-      - name: Upload Android Artifact
+      - name: Upload Android Binary
         uses: actions/upload-artifact@v4
         with:
-          name: cli-top-android_v${{ env.VERSION }}
-          path: ./build/android/cli-top-android_v${{ env.VERSION }}
+          name: cli-top-android
+          path: ./build/android/cli-top
