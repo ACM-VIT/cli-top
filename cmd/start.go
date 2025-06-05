@@ -306,7 +306,7 @@ var rootCmd = &cobra.Command{
 						log.Println("Error creating version tracking request:", err)
 					}
 					return
-				}				
+				}
 				req.Header.Set("Content-Type", "application/json")
 				req.Header.Set("x-api-key", userUUID)
 
@@ -316,7 +316,7 @@ var rootCmd = &cobra.Command{
 						DisableKeepAlives: true,
 					},
 				}
-				
+
 				go func() {
 					resp, err := client.Do(req)
 					if err != nil {
