@@ -140,7 +140,7 @@ case "${1:-help}" in
         
         cd "$(dirname "$0")/.."
         
-        go build -ldflags "-s -w -X cli-top/debug.Version=$(get_current_version)" -o cli-top .
+        go build -trimpath -ldflags "-s -w -X cli-top/debug.Version=$(get_current_version)" -o cli-top .
         print_status "Built cli-top binary"
         ;;
     
