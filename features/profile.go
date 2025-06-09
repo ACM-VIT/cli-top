@@ -78,6 +78,16 @@ func Profile(cookies types.Cookies, regNo string) {
 		{"School Name", studentDetails.SchoolName},
 	}
 	fmt.Println()
-	helpers.PrintTable(tableData, 0)
+
+	// Use global gradColors from cmd package
+	if !helpers.CompareStringSlices(helpers.GradColors, []string{"#ffffff", "#ffffff", "#ffffff"}) {
+		var tableStr string
+		for _, row := range tableData {
+			tableStr += fmt.Sprintf("%-18s : %s\n", row[0], row[1])
+		}
+		helpers.PrintGradientText(tableStr, helpers.GradColors)
+	} else {
+		helpers.PrintTable(tableData, 0)
+	}
 	fmt.Println()
 }
