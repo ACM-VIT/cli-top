@@ -420,13 +420,22 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
 
 	// Add subcommands to root command
-	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd, facilityCmd, syllabusCmd)
+	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd, facilityCmd, syllabusCmd, courseAllocationCmd)
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+}
+
+var courseAllocationCmd = &cobra.Command{
+	Use:   "course-allocation",
+	Short: "View course allocation",
+	Run: func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.ExecuteInteractiveCourseAllocationView(regNo, cookies, "")
+	},
 }
 
 var profileCmd = &cobra.Command{
