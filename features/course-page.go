@@ -33,10 +33,10 @@ const (
 	CourseCellSelector   = "td"
 )
 
-var httpClient *http.Client
+var newHttpClient *http.Client
 
 func init() {
-	httpClient = &http.Client{
+	newHttpClient = &http.Client{
 		Timeout: time.Duration(60) * time.Second,
 	}
 }

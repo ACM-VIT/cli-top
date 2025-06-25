@@ -14,6 +14,15 @@ type LogIn struct {
 	RegNo    string `json:"RegNo"`
 }
 
+type Category struct {
+	ID   string
+	Name string
+ }
+ type Course struct {
+	ID   string
+	Name string
+ }
+
 type Request struct {
 	URL     string
 	Referer string
@@ -30,11 +39,6 @@ type StudentDetails struct {
 	ProgramBranch  string
 	VITEmail       string
 	SchoolName     string
-}
-
-type Course struct {
-	ID   string
-	Name string
 }
 
 type Faculty struct {

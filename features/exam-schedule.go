@@ -109,6 +109,12 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 		}
 	}
 
+	totalExams := len(cat1Exams) + len(cat2Exams) + len(mtExams) + len(fatExams)
+	if totalExams == 0 {
+		fmt.Println("No exams scheduled yet. Try checking VTOP.")
+		return
+	}
+
 	// Display the grouped exams
 	if len(cat1Exams) > 0 {
 		fmt.Println("\nCAT1 EXAMS")
@@ -139,6 +145,13 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 	}
 }
 
+func safeGetCellText(cells *goquery.Selection, index int) string {
+	if index < cells.Length() {
+		return strings.TrimSpace(cells.Eq(index).Text())
+	}
+	return "-"
+}
+
 func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
 	var allExams []types.ExamEvent
 
@@ -158,60 +171,67 @@ func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
 		}
 
 		cells := s.Find(ExamCellSelector)
-		if cells.Length() >= 13 {
-			serialNo := strings.TrimSpace(cells.Eq(0).Text())
-			if _, err := strconv.Atoi(serialNo); err != nil {
-				if debug.Debug {
-					fmt.Printf("Skipping non-data row %d with serial '%s'.\n", i+1, serialNo)
-				}
-				return
+		if cells.Length() < 8 {
+			if debug.Debug {
+				fmt.Printf("Skipping row %d with insufficient cells (%d)\n", i+1, cells.Length())
 			}
-
-			courseCode := strings.TrimSpace(cells.Eq(1).Text())
-			courseTitle := strings.TrimSpace(cells.Eq(2).Text())
-			slot := strings.TrimSpace(cells.Eq(5).Text())
-			examDateStr := strings.TrimSpace(cells.Eq(6).Text())
-			examTime := strings.TrimSpace(cells.Eq(9).Text())
-			venue := strings.TrimSpace(cells.Eq(10).Text())
-			seat := strings.TrimSpace(cells.Eq(11).Text())
-			seatNo := strings.TrimSpace(cells.Eq(12).Text())
-
-			if examDateStr == "" || strings.ToLower(examDateStr) == "exam date" {
-				return
-			}
-
-			examDate, err := time.ParseInLocation("02-Jan-2006", examDateStr, now.Location())
-			if err != nil {
-				if debug.Debug {
-					fmt.Printf("Error parsing exam date '%s': %v\n", examDateStr, err)
-				}
-				return
-			}
-
-			daysLeft := int(examDate.Sub(todayDate).Hours() / 24)
-
-			if examDate.After(todayDate) && examDate.Sub(todayDate).Hours()/24 > float64(daysLeft) {
-				daysLeft += 1
-			}
-
-			examEvent := types.ExamEvent{
-				CourseCode:  courseCode,
-				CourseTitle: courseTitle,
-				Slot:        slot,
-				ExamDate:    examDate,
-				ExamTime:    examTime,
-				Venue:       venue,
-				Seat:        seat,
-				SeatNo:      seatNo,
-				DaysLeft:    daysLeft,
-				Category:    strings.ToUpper(currentExamType),
-			}
-
-			allExams = append(allExams, examEvent)
-		} else if debug.Debug {
-			fmt.Printf("Unexpected number of cells (%d) in row %d. Expected at least 13.\n", cells.Length(), i+1)
+			return
 		}
+
+		serialNo := safeGetCellText(cells, 0)
+		if _, err := strconv.Atoi(serialNo); err != nil {
+			if debug.Debug {
+				fmt.Printf("Skipping non-data row %d with serial '%s'\n", i+1, serialNo)
+			}
+			return
+		}
+
+		courseCode := safeGetCellText(cells, 1)
+		courseTitle := safeGetCellText(cells, 2)
+		slot := safeGetCellText(cells, 5)
+		examDateStr := safeGetCellText(cells, 6)
+		reportingTime := safeGetCellText(cells, 8)
+		examTime := safeGetCellText(cells, 9)
+		venue := safeGetCellText(cells, 10)
+		seat := safeGetCellText(cells, 11)
+		seatNo := safeGetCellText(cells, 12)
+
+		if examDateStr == "" || strings.ToLower(examDateStr) == "exam date" || examDateStr == "-" {
+			return
+		}
+
+		examDate, err := time.ParseInLocation("02-Jan-2006", examDateStr, now.Location())
+		if err != nil {
+			if debug.Debug {
+				fmt.Printf("Error parsing exam date '%s': %v\n", examDateStr, err)
+			}
+			return
+		}
+
+		daysLeft := int(examDate.Sub(todayDate).Hours() / 24)
+		if examDate.After(todayDate) && examDate.Sub(todayDate).Hours()/24 > float64(daysLeft) {
+			daysLeft++
+		}
+		if reportingTime != "" && reportingTime != "-" {
+			examTime = fmt.Sprintf("%s (Report by: %s)", examTime, reportingTime)
+		}
+
+		examEvent := types.ExamEvent{
+			CourseCode:  courseCode,
+			CourseTitle: courseTitle,
+			Slot:        slot,
+			ExamDate:    examDate,
+			ExamTime:    examTime,
+			Venue:       venue,
+			Seat:        seat,
+			SeatNo:      seatNo,
+			DaysLeft:    daysLeft,
+			Category:    strings.ToUpper(currentExamType),
+		}
+
+		allExams = append(allExams, examEvent)
 	})
+
 	if debug.Debug {
 		var cat1Count, cat2Count, mtCount, fatCount int
 		for _, exam := range allExams {
