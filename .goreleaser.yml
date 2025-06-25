@@ -81,7 +81,7 @@ snapshot:
 
 changelog:
   sort: asc
-  use: github
+  use: git
   filters:
     exclude:
       - '^docs:'
