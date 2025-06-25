@@ -34,7 +34,6 @@ var fuzzyIndexFlag int
 var courseNameFlag string
 var syllabusCourseFlag string
 
-
 func getOrCreateUUID() string {
 	registeredUUID := viper.GetString("UUID")
 	if registeredUUID != "" {
@@ -146,35 +145,23 @@ func trackCommand(command string) {
 }
 
 func startfn() {
-	helpers.GradColors, _ = helpers.ReadConfigJSON()
+	red := color.New(color.FgHiRed)
+	//blue := color.New(color.FgHiBlue)
+	pink := color.New(color.FgHiMagenta)
+
 	contentStr := logo()
-
-	welcomeMsg := "\nWelcome to CLI-TOP!\n " +
-		"Use \"cli-top help\" or \"cli-top --list\" to show available commands\n" +
-		"Use \"cli-top [command] --help\" for more information about a command.\n "
-
-	fmt.Println(helpers.GradColors)
-
-	if !helpers.CompareStringSlices(helpers.GradColors, []string{"#ffffff", "#ffffff", "#ffffff"}) {
-		helpers.PrintGradientText(contentStr, helpers.GradColors)
-		helpers.PrintGradientText(welcomeMsg, helpers.GradColors)
-	} else {
-		red := color.New(color.FgHiRed)
-		pink := color.New(color.FgHiMagenta)
-		contentStr := logo()
-		for _, char := range contentStr {
-			switch char {
-			// Dripping elements (blue)
-			case '█', '▀', '▄', '▓':
-				pink.Print(string(char))
-			// Regular characters (red)
-			default:
-				pink.Print(string(char))
-			}
+	for _, char := range contentStr {
+		switch char {
+		// Dripping elements (blue)
+		case '█', '▀', '▄', '▓':
+			pink.Print(string(char))
+		// Regular characters (red)
+		default:
+			pink.Print(string(char))
 		}
-		red.Println(welcomeMsg)
 	}
-
+	red.Println("\nWelcome to CLI-TOP!\n ")
+	red.Println("Use \"cli-top help\" or \"cli-top --list\" to show available commands\nUse \"cli-top [command] --help\" for more information about a command.\n ")
 	fileName := "cli-top-config.env"
 
 	currentDir, err := os.Getwd()
@@ -285,8 +272,6 @@ var rootCmd = &cobra.Command{
 	Use:   "cli-top",
 	Short: "A simple CLI tool for vtop",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		checkAndLoadGradientConfig()
-
 		if cmd.Name() != "login" && cmd.Name() != "logout" && cmd.Name() != "cli-top" {
 			go trackCommand(cmd.Name())
 		}
@@ -646,12 +631,4 @@ var daDetailsCmd = &cobra.Command{
 		cookies, regNo := readCookiesFromFile()
 		features.PrintAllDAs(regNo, cookies, courseNameFlag)
 	},
-}
-
-// add this function to call ReadConfigJSON and print warning if needed
-func checkAndLoadGradientConfig() {
-	_, err := helpers.ReadConfigJSON()
-	if err != nil {
-		fmt.Println("Error reading config.json:", err)
-	}
 }
