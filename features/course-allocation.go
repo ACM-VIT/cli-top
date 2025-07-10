@@ -108,7 +108,7 @@ func ExecuteInteractiveCourseAllocationView(regNo string, cookies types.Cookies,
 	}
 
 	if initialDoc.Find(curriculumDropdownSelector).Length() == 0 {
-		fmt.Printf("ERROR: The curriculum category dropdown was NOT FOUND on the page fetched from '%s'.\n", courseAllocationPageURL)
+		fmt.Printf("The activity is inactive")
 		return
 	}
 
