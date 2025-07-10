@@ -15,7 +15,7 @@ import (
 
 var credCmd = &cobra.Command{
 	Use:   "login",
-	Short: "VTOP username and password to be entered",
+	Short: "Login to VTOP",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("NOTE: Your password will be visible.")
 		username := promptInput("Enter your username: ")
