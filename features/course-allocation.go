@@ -157,18 +157,28 @@ func extractScriptParams(htmlContent string) (csrfToken string, authID string) {
 	scripts := scriptRegex.FindAllStringSubmatch(htmlContent, -1)
 	foundCsrf, foundAuthID := false, false
 	for _, scriptMatch := range scripts {
-		if len(scriptMatch) < 2 { continue }
+		if len(scriptMatch) < 2 {
+			continue
+		}
 		scriptContent := scriptMatch[1]
 		isRelevant := strings.Contains(scriptContent, associatedFunctionHintCourses) || strings.Contains(scriptContent, associatedFunctionHintDetails)
 		if !foundCsrf {
 			m := csrfRegex.FindStringSubmatch(scriptContent)
-			if len(m) > 1 && (isRelevant || csrfToken == "") { csrfToken = m[1]; foundCsrf = true }
+			if len(m) > 1 && (isRelevant || csrfToken == "") {
+				csrfToken = m[1]
+				foundCsrf = true
+			}
 		}
 		if !foundAuthID {
 			m := authIDRegex.FindStringSubmatch(scriptContent)
-			if len(m) > 1 && (isRelevant || authID == "") { authID = m[1]; foundAuthID = true }
+			if len(m) > 1 && (isRelevant || authID == "") {
+				authID = m[1]
+				foundAuthID = true
+			}
 		}
-		if foundCsrf && foundAuthID && isRelevant { break }
+		if foundCsrf && foundAuthID && isRelevant {
+			break
+		}
 	}
 	return
 }
@@ -189,7 +199,9 @@ func selectCurriculumCategory(initialDoc *goquery.Document, csrfToken, authID, b
 		tableData = append(tableData, []string{cat.Name})
 	}
 	selectionResult := helpers.TableSelector("Category", tableData, "")
-	if selectionResult.ExitRequest { return types.Category{}, actionExitApp }
+	if selectionResult.ExitRequest {
+		return types.Category{}, actionExitApp
+	}
 	if !selectionResult.Selected || selectionResult.Index < 1 || selectionResult.Index > len(categories) {
 		fmt.Println("Invalid selection.")
 		return types.Category{}, actionError
@@ -236,7 +248,9 @@ func selectCourseFromCategory(category types.Category, csrfToken, authID, baseUR
 		tableData = append(tableData, []string{c.Name})
 	}
 	selectionResult := helpers.TableSelector("Course", tableData, "")
-	if selectionResult.ExitRequest { return types.Course{}, actionExitApp }
+	if selectionResult.ExitRequest {
+		return types.Course{}, actionExitApp
+	}
 	if !selectionResult.Selected || selectionResult.Index < 1 || selectionResult.Index > len(courses) {
 		return types.Course{}, actionGoBack
 	}
@@ -276,7 +290,11 @@ func displayCourseAllocationDetails(course types.Course, csrfToken, authID, base
 			if cells.Length() == 4 {
 				titleParts := strings.SplitN(course.Name, " - ", 2)
 				actualTitle := course.ID
-				if len(titleParts) == 2 { actualTitle = titleParts[1] } else { actualTitle = course.Name }
+				if len(titleParts) == 2 {
+					actualTitle = titleParts[1]
+				} else {
+					actualTitle = course.Name
+				}
 				detailsList = append(detailsList, CourseAllocationDetail{
 					Code: course.ID, Title: actualTitle,
 					Slot: strings.TrimSpace(cells.Eq(0).Text()), Venue: strings.TrimSpace(cells.Eq(1).Text()),
@@ -300,8 +318,12 @@ func displayCourseAllocationDetails(course types.Course, csrfToken, authID, base
 		fmt.Print("> ")
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(strings.ToLower(input))
-		if input == "b" { return actionGoBack }
-		if input == "q" { return actionExitApp }
+		if input == "b" {
+			return actionGoBack
+		}
+		if input == "q" {
+			return actionExitApp
+		}
 		fmt.Println("Invalid input. 'b' for back, 'q' for quit.")
 	}
 }
