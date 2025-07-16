@@ -17,11 +17,11 @@ type LogIn struct {
 type Category struct {
 	ID   string
 	Name string
- }
- type Course struct {
+}
+type Course struct {
 	ID   string
 	Name string
- }
+}
 
 type Request struct {
 	URL     string
