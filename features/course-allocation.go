@@ -2,17 +2,20 @@ package features
 
 import (
 	"bufio"
-	"bytes"
 	"cli-top/helpers"
 	"cli-top/types"
 	"fmt"
+	"math/rand"
 	"net/http"
+	"net/http/cookiejar"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"golang.org/x/net/publicsuffix"
 )
 
 const (
@@ -25,14 +28,18 @@ const (
 
 const (
 	DefaultCourseAllocationPageURL = "https://vtop.vit.ac.in/vtop/academics/common/StudentRegistrationScheduleAllocation"
-	getCategoriesEndpoint          = "https://vtop.vit.ac.in/vtop/academics/common/getCoursesListForCurriculmCategory"
-	getCourseDetailsEndpoint       = "https://vtop.vit.ac.in/vtop/academics/common/getCoursesDetailForRegistration"
+	getCoursesListEndpoint         = "academics/common/getCoursesListForCurriculmCategory"
+	getCoursesDetailEndpoint       = "academics/common/getCoursesDetailForRegistration"
 	curriculumCategorySelector     = "select#curriculumCategory option"
 	curriculumDropdownSelector     = "select#curriculumCategory"
 	courseListSelector             = "select#courseId option"
 	courseDetailTableSelector      = "div#courseDetailFragement table.table-bordered"
 	courseDetailRowSelector        = "tbody tr"
 	courseDetailCellSelector       = "td"
+	csrfVarRegexPattern            = `var csrfValue = "([^"]+)"`
+	authIDVarRegexPattern          = `var id="([^"]+)"`
+	associatedFunctionHintCourses  = "getCoursesListForCurriculmCategory"
+	associatedFunctionHintDetails  = "getCoursesDetail"
 )
 
 type CourseAllocationDetail struct {
@@ -44,11 +51,16 @@ type CourseAllocationDetail struct {
 	Faculty string
 }
 
-var courseAllocationHttpClient *http.Client
+var httpClient *http.Client
 
 func init() {
-	courseAllocationHttpClient = &http.Client{
+	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+	if err != nil {
+		panic(fmt.Sprintf("features: failed to create cookie jar: %v", err))
+	}
+	httpClient = &http.Client{
 		Timeout: time.Duration(60) * time.Second,
+		Jar:     jar,
 	}
 }
 
@@ -62,7 +74,6 @@ func ExecuteInteractiveCourseAllocationView(regNo string, cookies types.Cookies,
 		courseAllocationPageURL = DefaultCourseAllocationPageURL
 	}
 
-	// Fetch initial page to get categories
 	initialPayloadMap := map[string]string{
 		"verifyMenu":   "true",
 		"authorizedID": regNo,
@@ -70,50 +81,72 @@ func ExecuteInteractiveCourseAllocationView(regNo string, cookies types.Cookies,
 		"nocache":      strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10),
 	}
 	initialFormData := helpers.FormatBodyDataClient(initialPayloadMap)
-	initialPageHTMLBytes, _, err := helpers.FetchReqClient(courseAllocationHttpClient, regNo, cookies, courseAllocationPageURL, "", initialFormData, "POST", "application/x-www-form-urlencoded")
+	initialPageHTMLBytes, _, err := helpers.FetchReqClient(httpClient, regNo, cookies, courseAllocationPageURL, "", initialFormData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
-		fmt.Println("Error fetching course allocation page:", err)
+		return
+	}
+	initialPageHTML := string(initialPageHTMLBytes)
+
+	if len(initialPageHTML) < 500 || strings.Contains(initialPageHTML, "Session Timed Out") || strings.Contains(strings.ToLower(initialPageHTML), "login") {
 		return
 	}
 
-	initialDoc, err := goquery.NewDocumentFromReader(bytes.NewReader(initialPageHTMLBytes))
+	pageCsrfToken, pageAuthID := extractScriptParams(initialPageHTML)
+	currentAjaxCsrfToken := cookies.CSRF
+	if pageCsrfToken != "" {
+		currentAjaxCsrfToken = pageCsrfToken
+	}
+	currentAjaxAuthID := regNo
+	if pageAuthID != "" {
+		currentAjaxAuthID = pageAuthID
+	}
+
+	initialDoc, err := goquery.NewDocumentFromReader(strings.NewReader(initialPageHTML))
 	if err != nil {
 		fmt.Printf("Error parsing initial page HTML: %v\n", err)
 		return
 	}
 
 	if initialDoc.Find(curriculumDropdownSelector).Length() == 0 {
-		fmt.Printf("The course allocation activity is inactive\n")
+		fmt.Printf("ERROR: The curriculum category dropdown was NOT FOUND on the page fetched from '%s'.\n", courseAllocationPageURL)
 		return
 	}
 
-	// Get categories and let user select
-	selectedCategory, err := fetchAndSelectCategory(initialDoc)
-	if err != nil {
-		if err.Error() == "selection canceled by user" {
-			fmt.Println("Selection canceled")
+	ajaxBaseURL := ""
+	if strings.Contains(courseAllocationPageURL, "/vtop/") {
+		ajaxBaseURL = strings.Split(courseAllocationPageURL, "/vtop/")[0] + "/vtop/"
+	} else {
+		ajaxBaseURL = "https://vtop.vit.ac.in/vtop/"
+	}
+
+	for {
+		selectedCategory, categoryAction := selectCurriculumCategory(initialDoc, currentAjaxCsrfToken, currentAjaxAuthID, ajaxBaseURL, regNo, cookies)
+		switch categoryAction {
+		case actionExitApp:
 			return
-		}
-		fmt.Println("Error selecting category:", err)
-		return
-	}
-
-	// Get courses for selected category
-	selectedCourse, err := fetchAndSelectCourseAllocation(regNo, cookies, selectedCategory)
-	if err != nil {
-		if err.Error() == "selection canceled by user" {
-			fmt.Println("Selection canceled")
+		case actionSetupFailed:
 			return
+		case actionError:
+			continue
+		case actionSelected:
+		CourseLoop:
+			for {
+				selectedCourse, courseAction := selectCourseFromCategory(selectedCategory, currentAjaxCsrfToken, currentAjaxAuthID, ajaxBaseURL, regNo, cookies)
+				switch courseAction {
+				case actionExitApp:
+					return
+				case actionGoBack:
+					break CourseLoop
+				case actionError:
+					continue
+				case actionSelected:
+					detailsAction := displayCourseAllocationDetails(selectedCourse, currentAjaxCsrfToken, currentAjaxAuthID, ajaxBaseURL, regNo, cookies)
+					if detailsAction == actionExitApp {
+						return
+					}
+				}
+			}
 		}
-		fmt.Println("Error selecting course:", err)
-		return
-	}
-
-	// Display course allocation details
-	err = displayCourseDetails(regNo, cookies, selectedCourse)
-	if err != nil {
-		fmt.Println("Error displaying course details:", err)
-		return
 	}
 }
 
@@ -158,11 +191,9 @@ func selectCurriculumCategory(initialDoc *goquery.Document, csrfToken, authID, b
 			categories = append(categories, types.Category{ID: val, Name: strings.TrimSpace(s.Text())})
 		}
 	})
-
 	if len(categories) == 0 {
-		return types.Category{}, fmt.Errorf("no categories found")
+		return types.Category{}, actionSetupFailed
 	}
-
 	tableData := [][]string{{"CATEGORY NAME"}}
 	for _, cat := range categories {
 		tableData = append(tableData, []string{cat.Name})
@@ -175,45 +206,43 @@ func selectCurriculumCategory(initialDoc *goquery.Document, csrfToken, authID, b
 		fmt.Println("Invalid selection.")
 		return types.Category{}, actionError
 	}
-
-	if !result.Selected || result.Index < 1 || result.Index > len(categories) {
-		return types.Category{}, fmt.Errorf("invalid category selection")
-	}
-
-	return categories[result.Index-1], nil
+	return categories[selectionResult.Index-1], actionSelected
 }
 
-func fetchAndSelectCourseAllocation(regNo string, cookies types.Cookies, category types.Category) (types.Course, error) {
-	payloadMap := map[string]string{
-		"_csrf":        cookies.CSRF,
-		"cccategory":   category.ID,
-		"authorizedID": regNo,
-		"x":            time.Now().UTC().Format(time.RFC1123),
+func selectCourseFromCategory(category types.Category, csrfToken, authID, baseURL, regNo string, cookies types.Cookies) (types.Course, string) {
+	courseListParams := map[string]string{
+		"_csrf": csrfToken, "cccategory": category.ID,
+		"authorizedID": authID, "x": time.Now().UTC().Format(time.RFC1123),
 	}
-
-	formData := helpers.FormatBodyDataClient(payloadMap)
-	body, _, err := helpers.FetchReqClient(courseAllocationHttpClient, regNo, cookies, getCategoriesEndpoint, "", formData, "POST", "application/x-www-form-urlencoded")
+	formDataCourses := helpers.FormatBodyDataClient(courseListParams)
+	courseListHTMLBytes, _, err := helpers.FetchReqClient(httpClient, regNo, cookies, baseURL+getCoursesListEndpoint, "", formDataCourses, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
-		return types.Course{}, err
+		fmt.Printf("Error fetching course list for category %s: %v\n", category.Name, err)
+		return types.Course{}, actionError
+	}
+	courseListHTML := string(courseListHTMLBytes)
+	if len(courseListHTML) < 10 && (strings.Contains(strings.ToLower(courseListHTML), "error")) ||
+		strings.Contains(courseListHTML, "Session Timed Out") || strings.Contains(strings.ToLower(courseListHTML), "login required") {
+		fmt.Printf("Error or session issue fetching courses for %s.\n", category.Name)
+		return types.Course{}, actionError
 	}
 
-	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
+	courseListDoc, err := goquery.NewDocumentFromReader(strings.NewReader(courseListHTML))
 	if err != nil {
-		return types.Course{}, err
+		fmt.Printf("Error parsing course list for category %s: %v\n", category.Name, err)
+		return types.Course{}, actionError
 	}
-
 	var courses []types.Course
-	doc.Find(courseListSelector).Each(func(_ int, s *goquery.Selection) {
+	courseListDoc.Find(courseListSelector).Each(func(_ int, s *goquery.Selection) {
 		code, exists := s.Attr("value")
 		if exists && code != "" {
 			courses = append(courses, types.Course{ID: code, Name: strings.TrimSpace(s.Text())})
 		}
 	})
-
 	if len(courses) == 0 {
-		return types.Course{}, fmt.Errorf("no courses found for category: %s", category.Name)
+		fmt.Printf("No courses found for category: %s.\n", category.Name)
+		return types.Course{}, actionGoBack
 	}
-
 	tableData := [][]string{{"COURSE (CODE - TITLE)"}}
 	for _, c := range courses {
 		tableData = append(tableData, []string{c.Name})
@@ -225,35 +254,34 @@ func fetchAndSelectCourseAllocation(regNo string, cookies types.Cookies, categor
 	if !selectionResult.Selected || selectionResult.Index < 1 || selectionResult.Index > len(courses) {
 		return types.Course{}, actionGoBack
 	}
-
-	if !result.Selected || result.Index < 1 || result.Index > len(courses) {
-		return types.Course{}, fmt.Errorf("invalid course selection")
-	}
-
-	return courses[result.Index-1], nil
+	return courses[selectionResult.Index-1], actionSelected
 }
 
-func displayCourseDetails(regNo string, cookies types.Cookies, course types.Course) error {
-	payloadMap := map[string]string{
-		"_csrf":        cookies.CSRF,
-		"courseCode":   course.ID,
-		"authorizedID": regNo,
-		"x":            time.Now().UTC().Format(time.RFC1123),
+func displayCourseAllocationDetails(course types.Course, csrfToken, authID, baseURL, regNo string, cookies types.Cookies) string {
+	time.Sleep(time.Duration(100+rand.Intn(150)) * time.Millisecond)
+	courseDetailParams := map[string]string{
+		"_csrf": csrfToken, "courseCode": course.ID,
+		"authorizedID": authID, "x": time.Now().UTC().Format(time.RFC1123),
 	}
-
-	formData := helpers.FormatBodyDataClient(payloadMap)
-	body, _, err := helpers.FetchReqClient(courseAllocationHttpClient, regNo, cookies, getCourseDetailsEndpoint, "", formData, "POST", "application/x-www-form-urlencoded")
+	formDataDetails := helpers.FormatBodyDataClient(courseDetailParams)
+	courseDetailHTMLBytes, _, err := helpers.FetchReqClient(httpClient, regNo, cookies, baseURL+getCoursesDetailEndpoint, "", formDataDetails, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
-		return err
+		fmt.Printf("Error fetching course details for %s: %v\n", course.Name, err)
+		return actionError
+	}
+	courseDetailHTML := string(courseDetailHTMLBytes)
+	if len(courseDetailHTML) < 10 && (strings.Contains(strings.ToLower(courseDetailHTML), "error")) ||
+		strings.Contains(courseDetailHTML, "Session Timed Out") || strings.Contains(strings.ToLower(courseDetailHTML), "login required") {
+		fmt.Printf("Error or session issue fetching details for %s.\n", course.Name)
+		return actionError
 	}
 
-	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
+	courseDetailDoc, err := goquery.NewDocumentFromReader(strings.NewReader(courseDetailHTML))
 	if err != nil {
-		return err
+		return actionError
 	}
-
 	var detailsList []CourseAllocationDetail
-	table := doc.Find(courseDetailTableSelector)
+	table := courseDetailDoc.Find(courseDetailTableSelector)
 	if table.Length() == 0 {
 		return actionGoBack
 	} else {
@@ -273,28 +301,18 @@ func displayCourseDetails(regNo string, cookies types.Cookies, course types.Cour
 					Faculty: strings.TrimSpace(cells.Eq(2).Text()), Type: strings.TrimSpace(cells.Eq(3).Text()),
 				})
 			}
-			detailsList = append(detailsList, CourseAllocationDetail{
-				Code:    course.ID,
-				Title:   actualTitle,
-				Slot:    strings.TrimSpace(cells.Eq(0).Text()),
-				Venue:   strings.TrimSpace(cells.Eq(1).Text()),
-				Faculty: strings.TrimSpace(cells.Eq(2).Text()),
-				Type:    strings.TrimSpace(cells.Eq(3).Text()),
-			})
+		})
+		if len(detailsList) > 0 {
+			tableData := [][]string{{"FACULTY", "VENUE", "SLOT", "TYPE"}}
+			for _, d := range detailsList {
+				tableData = append(tableData, []string{d.Faculty, d.Venue, d.Slot, d.Type})
+			}
+			helpers.PrintTable(tableData, 0)
+		} else {
+			//fmt.Println("Details table found, but no rows matched expected structure (4 cells).")
 		}
-	})
-
-	if len(detailsList) > 0 {
-		tableData := [][]string{{"FACULTY", "VENUE", "SLOT", "TYPE"}}
-		for _, d := range detailsList {
-			tableData = append(tableData, []string{d.Faculty, d.Venue, d.Slot, d.Type})
-		}
-		helpers.PrintTable(tableData, 0)
-	} else {
-		fmt.Println("No allocation details found for this course")
 	}
-
-	fmt.Println("\nPress Enter to continue...")
+	fmt.Println("\nPress 'b' to go back to course list, or 'q' to exit.")
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Print("> ")
