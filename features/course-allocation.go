@@ -117,7 +117,40 @@ func ExecuteInteractiveCourseAllocationView(regNo string, cookies types.Cookies,
 	}
 }
 
-func fetchAndSelectCategory(initialDoc *goquery.Document) (types.Category, error) {
+func extractScriptParams(htmlContent string) (csrfToken string, authID string) {
+	scriptRegex := regexp.MustCompile(`(?s)<script.*?>(.*?)</script>`)
+	csrfRegex := regexp.MustCompile(csrfVarRegexPattern)
+	authIDRegex := regexp.MustCompile(authIDVarRegexPattern)
+	scripts := scriptRegex.FindAllStringSubmatch(htmlContent, -1)
+	foundCsrf, foundAuthID := false, false
+	for _, scriptMatch := range scripts {
+		if len(scriptMatch) < 2 {
+			continue
+		}
+		scriptContent := scriptMatch[1]
+		isRelevant := strings.Contains(scriptContent, associatedFunctionHintCourses) || strings.Contains(scriptContent, associatedFunctionHintDetails)
+		if !foundCsrf {
+			m := csrfRegex.FindStringSubmatch(scriptContent)
+			if len(m) > 1 && (isRelevant || csrfToken == "") {
+				csrfToken = m[1]
+				foundCsrf = true
+			}
+		}
+		if !foundAuthID {
+			m := authIDRegex.FindStringSubmatch(scriptContent)
+			if len(m) > 1 && (isRelevant || authID == "") {
+				authID = m[1]
+				foundAuthID = true
+			}
+		}
+		if foundCsrf && foundAuthID && isRelevant {
+			break
+		}
+	}
+	return
+}
+
+func selectCurriculumCategory(initialDoc *goquery.Document, csrfToken, authID, baseURL, regNo string, cookies types.Cookies) (types.Category, string) {
 	var categories []types.Category
 	initialDoc.Find(curriculumCategorySelector).Each(func(_ int, s *goquery.Selection) {
 		val, exists := s.Attr("value")
@@ -134,10 +167,13 @@ func fetchAndSelectCategory(initialDoc *goquery.Document) (types.Category, error
 	for _, cat := range categories {
 		tableData = append(tableData, []string{cat.Name})
 	}
-
-	result := helpers.TableSelector("Category", tableData, "")
-	if result.ExitRequest {
-		return types.Category{}, fmt.Errorf("selection canceled by user")
+	selectionResult := helpers.TableSelector("Category", tableData, "")
+	if selectionResult.ExitRequest {
+		return types.Category{}, actionExitApp
+	}
+	if !selectionResult.Selected || selectionResult.Index < 1 || selectionResult.Index > len(categories) {
+		fmt.Println("Invalid selection.")
+		return types.Category{}, actionError
 	}
 
 	if !result.Selected || result.Index < 1 || result.Index > len(categories) {
@@ -182,10 +218,12 @@ func fetchAndSelectCourseAllocation(regNo string, cookies types.Cookies, categor
 	for _, c := range courses {
 		tableData = append(tableData, []string{c.Name})
 	}
-
-	result := helpers.TableSelector("Course", tableData, "")
-	if result.ExitRequest {
-		return types.Course{}, fmt.Errorf("selection canceled by user")
+	selectionResult := helpers.TableSelector("Course", tableData, "")
+	if selectionResult.ExitRequest {
+		return types.Course{}, actionExitApp
+	}
+	if !selectionResult.Selected || selectionResult.Index < 1 || selectionResult.Index > len(courses) {
+		return types.Course{}, actionGoBack
 	}
 
 	if !result.Selected || result.Index < 1 || result.Index > len(courses) {
@@ -217,19 +255,23 @@ func displayCourseDetails(regNo string, cookies types.Cookies, course types.Cour
 	var detailsList []CourseAllocationDetail
 	table := doc.Find(courseDetailTableSelector)
 	if table.Length() == 0 {
-		fmt.Println("No course details found")
-		return nil
-	}
-
-	table.Find(courseDetailRowSelector).Each(func(_ int, row *goquery.Selection) {
-		cells := row.Find(courseDetailCellSelector)
-		if cells.Length() == 4 {
-			titleParts := strings.SplitN(course.Name, " - ", 2)
-			actualTitle := course.ID
-			if len(titleParts) == 2 {
-				actualTitle = titleParts[1]
-			} else {
-				actualTitle = course.Name
+		return actionGoBack
+	} else {
+		table.Find(courseDetailRowSelector).Each(func(_ int, row *goquery.Selection) {
+			cells := row.Find(courseDetailCellSelector)
+			if cells.Length() == 4 {
+				titleParts := strings.SplitN(course.Name, " - ", 2)
+				actualTitle := course.ID
+				if len(titleParts) == 2 {
+					actualTitle = titleParts[1]
+				} else {
+					actualTitle = course.Name
+				}
+				detailsList = append(detailsList, CourseAllocationDetail{
+					Code: course.ID, Title: actualTitle,
+					Slot: strings.TrimSpace(cells.Eq(0).Text()), Venue: strings.TrimSpace(cells.Eq(1).Text()),
+					Faculty: strings.TrimSpace(cells.Eq(2).Text()), Type: strings.TrimSpace(cells.Eq(3).Text()),
+				})
 			}
 			detailsList = append(detailsList, CourseAllocationDetail{
 				Code:    course.ID,
@@ -254,7 +296,16 @@ func displayCourseDetails(regNo string, cookies types.Cookies, course types.Cour
 
 	fmt.Println("\nPress Enter to continue...")
 	reader := bufio.NewReader(os.Stdin)
-	reader.ReadString('\n')
-
-	return nil
+	for {
+		fmt.Print("> ")
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(strings.ToLower(input))
+		if input == "b" {
+			return actionGoBack
+		}
+		if input == "q" {
+			return actionExitApp
+		}
+		fmt.Println("Invalid input. 'b' for back, 'q' for quit.")
+	}
 }
