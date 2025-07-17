@@ -1,6 +1,7 @@
 package features
 
 import (
+	"archive/zip"
 	"bufio"
 	"bytes"
 	"cli-top/debug"
@@ -14,12 +15,11 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"archive/zip"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/schollz/progressbar/v3"
@@ -899,9 +899,28 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 		Error         string
 		MNo           string
 		TNo           string
+		OrderKey      int // Add order key for sorting
 	}
+
+	type DownloadResult struct {
+		IndexNo       int
+		TopicName     string
+		RefMaterialNo int
+		RefMat        types.ReferenceMaterial
+		Topic         string
+		MNo           string
+		TNo           string
+		OrderKey      int
+		Body          []byte
+		Headers       http.Header
+		FilePath      string
+		Success       bool
+	}
+
 	var failedDownloads []FailedDownload
+	var downloadResults []DownloadResult
 	var failedMu sync.Mutex
+	var resultsMu sync.Mutex
 
 	type DownloadKey struct {
 		MaterialID   string
@@ -909,6 +928,8 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 	}
 	successfulDownloads := make(map[DownloadKey]bool)
 	var successMu sync.Mutex
+
+	orderKey := 0
 
 	for _, material := range selectedMaterials {
 		if material.WebLink != "" {
@@ -933,8 +954,10 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 			currentTopic := material.Topic
 			currentMNo := material.MNo
 			currentTNo := material.TNo
+			currentOrderKey := orderKey
+			orderKey++
 
-			go func(indexNo int, topicName string, refMaterialNo int, refMat types.ReferenceMaterial, topic, mNo, tNo string) {
+			go func(indexNo int, topicName string, refMaterialNo int, refMat types.ReferenceMaterial, topic, mNo, tNo string, orderKey int) {
 				defer wg.Done()
 				defer func() { <-sem }()
 
@@ -1025,6 +1048,7 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 						Error:         lastError,
 						MNo:           mNo,
 						TNo:           tNo,
+						OrderKey:      orderKey,
 					})
 					failedMu.Unlock()
 
@@ -1045,40 +1069,72 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 
 				filePath := generateFilePath(fullDirPath, indexNo, mNo, tNo, topicName, refMaterialNo, ext)
 
-				err = helpers.SaveFile(body, filePath)
-				if err != nil {
-					if debug.Debug {
-						fmt.Printf("Error saving file: %v\n", err)
-					}
+				// Store result for ordered saving
+				resultsMu.Lock()
+				downloadResults = append(downloadResults, DownloadResult{
+					IndexNo:       indexNo,
+					TopicName:     topicName,
+					RefMaterialNo: refMaterialNo,
+					RefMat:        refMat,
+					Topic:         topic,
+					MNo:           mNo,
+					TNo:           tNo,
+					OrderKey:      orderKey,
+					Body:          body,
+					Headers:       headers,
+					FilePath:      filePath,
+					Success:       true,
+				})
+				resultsMu.Unlock()
 
-					failedMu.Lock()
-					failedDownloads = append(failedDownloads, FailedDownload{
-						IndexNo:       indexNo,
-						TopicName:     topicName,
-						RefMaterialNo: refMaterialNo,
-						RefMat:        refMat,
-						Topic:         topic,
-						Error:         err.Error(),
-						MNo:           mNo,
-						TNo:           tNo,
-					})
-					failedMu.Unlock()
-				} else {
-					successMu.Lock()
-					successfulDownloads[key] = true
-					successMu.Unlock()
-				}
+				successMu.Lock()
+				successfulDownloads[key] = true
+				successMu.Unlock()
 
 				mu.Lock()
 				bar.Add(1)
 				mu.Unlock()
-			}(currentIndexNo, currentTopicName, currentRefMaterialNo, currentRefMat, currentTopic, currentMNo, currentTNo)
+			}(currentIndexNo, currentTopicName, currentRefMaterialNo, currentRefMat, currentTopic, currentMNo, currentTNo, currentOrderKey)
 			refMaterialNo++
 		}
 	}
 
 	wg.Wait()
 
+	// Sort download results by order key
+	sort.Slice(downloadResults, func(i, j int) bool {
+		return downloadResults[i].OrderKey < downloadResults[j].OrderKey
+	})
+
+	// Save files in order
+	for _, result := range downloadResults {
+		err := helpers.SaveFile(result.Body, result.FilePath)
+		if err != nil {
+			if debug.Debug {
+				fmt.Printf("Error saving file: %v\n", err)
+			}
+			failedMu.Lock()
+			failedDownloads = append(failedDownloads, FailedDownload{
+				IndexNo:       result.IndexNo,
+				TopicName:     result.TopicName,
+				RefMaterialNo: result.RefMaterialNo,
+				RefMat:        result.RefMat,
+				Topic:         result.Topic,
+				Error:         err.Error(),
+				MNo:           result.MNo,
+				TNo:           result.TNo,
+				OrderKey:      result.OrderKey,
+			})
+			failedMu.Unlock()
+		} else {
+			successMu.Lock()
+			key := DownloadKey{MaterialID: result.RefMat.MaterialID, MaterialDate: result.RefMat.MaterialDate}
+			successfulDownloads[key] = true
+			successMu.Unlock()
+		}
+	}
+
+	// Retry logic for failed downloads
 	var permanentlyFailedDownloads []FailedDownload
 
 	if len(failedDownloads) > 0 {
