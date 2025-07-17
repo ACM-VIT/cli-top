@@ -241,7 +241,7 @@ var schedule = map[string]map[string][]string{
 		"Tuesday": []string{"17:00", "17:50"},
 	},
 	"TD2": {
-		"Friday": []string{"18:00", "18:50"},
+		"Wednesday": []string{"17:00", "17:50"},
 	},
 	"TE2": {
 		"Thursday": []string{"17:00", "17:50"},
