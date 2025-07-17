@@ -461,29 +461,29 @@ var schedule = map[string]map[string][]string{
 	},
 }
 
-func updateTimetableWithWorkingSaturdays(timetable map[string][]types.Class, workingSaturdays []WorkingSaturday) {
-	for _, ws := range workingSaturdays {
-		classes, ok := timetable[ws.DayOrder]
-		if !ok {
-			continue
-		}
-		for _, c := range classes {
-			timetable["Saturday"] = append(timetable["Saturday"], types.Class{
-				Subject:   c.Subject,
-				Slot:      c.Slot,
-				Venue:     c.Venue,
-				StartTime: c.StartTime,
-				EndTime:   c.EndTime,
-				DayOrder:  ws.DayOrder,
-			})
-		}
-	}
-	if _, exists := timetable["Saturday"]; exists {
-		sort.Slice(timetable["Saturday"], func(i, j int) bool {
-			return timetable["Saturday"][i].StartTime < timetable["Saturday"][j].StartTime
-		})
-	}
-}
+// func updateTimetableWithWorkingSaturdays(timetable map[string][]types.Class, workingSaturdays []WorkingSaturday) {
+// 	for _, ws := range workingSaturdays {
+// 		classes, ok := timetable[ws.DayOrder]
+// 		if !ok {
+// 			continue
+// 		}
+// 		for _, c := range classes {
+// 			timetable["Saturday"] = append(timetable["Saturday"], types.Class{
+// 				Subject:   c.Subject,
+// 				Slot:      c.Slot,
+// 				Venue:     c.Venue,
+// 				StartTime: c.StartTime,
+// 				EndTime:   c.EndTime,
+// 				DayOrder:  ws.DayOrder,
+// 			})
+// 		}
+// 	}
+// 	if _, exists := timetable["Saturday"]; exists {
+// 		sort.Slice(timetable["Saturday"], func(i, j int) bool {
+// 			return timetable["Saturday"][i].StartTime < timetable["Saturday"][j].StartTime
+// 		})
+// 	}
+// }
 
 func GetTimeTable(regNo string, cookies types.Cookies, sem_choice int) {
 	if !helpers.ValidateLogin(cookies) {
@@ -748,6 +748,44 @@ func getCourseName(doc *goquery.Document) map[string]types.SubjectTime {
 	return courseMap
 }
 
+func updateTimetableWithWorkingSaturdays(timetable map[string][]types.Class, workingSaturdays []WorkingSaturday) {
+	for _, ws := range workingSaturdays {
+		classes, ok := timetable[ws.DayOrder]
+		if !ok {
+			continue
+		}
+		for _, c := range classes {
+			duplicate := false
+			for _, existing := range timetable["Saturday"] {
+				if existing.Subject == c.Subject &&
+					existing.Slot == c.Slot &&
+					existing.StartTime == c.StartTime &&
+					existing.EndTime == c.EndTime &&
+					existing.Venue == c.Venue &&
+					existing.DayOrder == ws.DayOrder {
+					duplicate = true
+					break
+				}
+			}
+			if !duplicate {
+				timetable["Saturday"] = append(timetable["Saturday"], types.Class{
+					Subject:   c.Subject,
+					Slot:      c.Slot,
+					Venue:     c.Venue,
+					StartTime: c.StartTime,
+					EndTime:   c.EndTime,
+					DayOrder:  ws.DayOrder,
+				})
+			}
+		}
+	}
+	if _, exists := timetable["Saturday"]; exists {
+		sort.Slice(timetable["Saturday"], func(i, j int) bool {
+			return timetable["Saturday"][i].StartTime < timetable["Saturday"][j].StartTime
+		})
+	}
+}
+
 func printTT(timetable map[string][]types.Class, workingSaturdays []WorkingSaturday) {
 	daysOfWeek := []string{"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"}
 
@@ -804,6 +842,7 @@ func printTT(timetable map[string][]types.Class, workingSaturdays []WorkingSatur
 		}
 	}
 
+	updateTimetableWithWorkingSaturdays(timetable, workingSaturdays)
 	for _, day := range daysOfWeek {
 		if day != "Saturday" {
 			classes, exists := timetable[day]

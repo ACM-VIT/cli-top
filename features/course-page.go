@@ -143,7 +143,7 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semSubId string, 
 	}
 
 	formData := helpers.FormatBodyDataClient(payloadMap)
-	body, _, err := helpers.FetchReqClient(httpClient, regNo, cookies, getCourseURL, "", formData, "POST", "application/x-www-form-urlencoded")
+	body, _, err := helpers.FetchReqClient(newHttpClient, regNo, cookies, getCourseURL, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		return types.Course{}, err
 	}
@@ -197,7 +197,7 @@ func fetchSlotIds(regNo string, cookies types.Cookies, semSubId string, classId 
 	}
 
 	formData := helpers.FormatBodyDataClient(payloadMap)
-	body, _, err := helpers.FetchReqClient(httpClient, regNo, cookies, getSlotURL, "", formData, "POST", "application/x-www-form-urlencoded")
+	body, _, err := helpers.FetchReqClient(newHttpClient, regNo, cookies, getSlotURL, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +237,7 @@ func fetchFacultiesForAllSlotsConcurrently(regNo string, cookies types.Cookies, 
 		go func(i int, slotId string) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			faculties, err := fetchFaculties(httpClient, regNo, cookies, semSubId, classId, slotId)
+			faculties, err := fetchFaculties(newHttpClient, regNo, cookies, semSubId, classId, slotId)
 			if err != nil {
 				if debug.Debug {
 					fmt.Printf("Error fetching faculties for slot %s: %v\n", slotId, err)
@@ -390,7 +390,7 @@ func fetchCourseMaterialsPage(regNo string, cookies types.Cookies, selectedFacul
 		"x":            time.Now().UTC().Format(time.RFC1123),
 	}
 	formData := helpers.FormatBodyDataClient(payloadMap)
-	body, _, err := helpers.FetchReqClient(httpClient, regNo, cookies, url, "", formData, "POST", "application/x-www-form-urlencoded")
+	body, _, err := helpers.FetchReqClient(newHttpClient, regNo, cookies, url, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		return "", err
 	}
