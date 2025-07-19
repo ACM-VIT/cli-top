@@ -14,7 +14,7 @@ on:
 
 jobs:
   build-linux:
-    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev')
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,7 +41,7 @@ jobs:
           path: ./build/linux/cli-top
 
   build-windows:
-    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev')
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev')
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -232,7 +232,7 @@ jobs:
           path: ./Output/cli-top-installer-${{ steps.extract_version.outputs.version }}.exe
 
   build-mac:
-    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev')
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev')
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -260,7 +260,7 @@ jobs:
           path: ./build/macos/cli-top
 
   build-android:
-    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev')
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
