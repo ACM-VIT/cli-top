@@ -36,29 +36,24 @@ func GetReceipt(regNo string, cookies types.Cookies) {
 		return
 	}
 
-	// Initialize the nested list for receipts
-	var receipts [][]string
-	// Add the header row
-	receipts = append(receipts, []string{"INVOICE NUMBER", "RECEIPT NUMBER", "DATE", "AMOUNT"})
+	   var receipts [][]string
+	   receipts = append(receipts, []string{"INVOICE NUMBER", "RECEIPT NUMBER", "DATE", "AMOUNT"})
 
-	// Iterate through the table rows and extract data
-	doc.Find(ReceiptTableSelector + " " + ReceiptRowsSelector).Each(func(i int, rowSelection *goquery.Selection) {
-		if i == 0 && strings.TrimSpace(rowSelection.Find(ReceiptHeaderSelector).First().Text()) != "SERIAL" {
-			return
-		}
+	   doc.Find(ReceiptTableSelector + " " + ReceiptRowsSelector).Each(func(i int, rowSelection *goquery.Selection) {
+			   if rowSelection.Find(ReceiptHeaderSelector).Length() > 0 {
+					   return
+			   }
+			   var row []string
+			   rowSelection.Find(ReceiptCellSelector).Each(func(j int, cellSelection *goquery.Selection) {
+					   if j < 4 { // Exclude the "VIEW" column
+							   cellText := strings.TrimSpace(cellSelection.Text())
+							   row = append(row, cellText)
+					   }
+			   })
+			   if len(row) == 4 {
+					   receipts = append(receipts, row)
+			   }
+	   })
 
-		// Extract data from each cell in the row
-		var row []string
-		rowSelection.Find(ReceiptCellSelector).Each(func(j int, cellSelection *goquery.Selection) {
-			if j < 4 { // Exclude the "VIEW" column
-				cellText := strings.TrimSpace(cellSelection.Text())
-				row = append(row, cellText)
-			}
-		})
-		// Append the row to the receipts list
-		receipts = append(receipts, row)
-	})
-
-	// Print the table using the helpers.PrintTable function
-	helpers.PrintTable(receipts, 1)
+	   helpers.PrintTable(receipts, 1)
 }
