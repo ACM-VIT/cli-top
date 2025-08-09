@@ -1,10 +1,10 @@
 package features
 
-import (
-	"cli-top/helpers"
-	"fmt"
-	"path/filepath"
-)
+// import (
+// 	"cli-top/helpers"
+// 	"fmt"
+// 	"path/filepath"
+// )
 
 // import (
 // 	"archive/zip"
@@ -810,560 +810,560 @@ import (
 // 	return uniqueIndices, invalid
 // }
 
-func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selectedCourse types.Course, selectedFaculty types.Faculty, allMaterials []types.CourseMaterial, selectedMaterials []types.CourseMaterial) error {
-	// Create the Course Page directory
-	coursePageDir, err := helpers.GetOrCreateDownloadDir("Course Page")
-	if err != nil {
-		return fmt.Errorf("failed to create course page directory: %w", err)
-	}
-
-	courseParts := helpers.SplitCourseNameFull(selectedCourse.Name)
-	var courseFolderName string
-	if len(courseParts) >= 3 {
-		// Extract the course code from the course name (typically the first part)
-		courseCode := courseParts[0]
-		// Extract the course name parts (typically everything after the first part)
-		courseName := strings.Join(courseParts[1:], "_")
-		courseFolderName = fmt.Sprintf("%s_%s", courseName, courseCode)
-	} else if len(courseParts) == 2 {
-		courseFolderName = fmt.Sprintf("%s_%s", courseParts[1], courseParts[0])
-	} else if len(courseParts) == 1 {
-		courseFolderName = courseParts[0]
-	} else {
-		courseFolderName = "Unknown_Course"
-	}
-	courseFolderName = helpers.SanitizeFilename(courseFolderName)
-
-	slotID := func() string {
-		if len(selectedFaculty.Slot) >= 3 && strings.HasPrefix(selectedFaculty.Slot, "L") {
-			return selectedFaculty.Slot[:3]
-		} else if len(selectedFaculty.Slot) >= 2 {
-			return selectedFaculty.Slot[:2]
-		}
-		return selectedFaculty.Slot
-	}()
-
-	facultyNameNoERP := helpers.RedactERPID(selectedFaculty.Name)
-	facultyParts := helpers.SplitFacultyNameFull(facultyNameNoERP)
-	var facultyFolderName string
-	if len(facultyParts) >= 2 {
-		facultyNamePart := strings.ReplaceAll(facultyParts[0], " ", "-")
-		facultyFolderName = fmt.Sprintf("%s_%s_%s", slotID, facultyNamePart, facultyParts[1])
-	} else if len(facultyParts) == 1 {
-		facultyNamePart := strings.ReplaceAll(facultyParts[0], " ", "-")
-		facultyFolderName = fmt.Sprintf("%s_%s", slotID, facultyNamePart)
-	} else {
-		facultyFolderName = "Unknown_Faculty"
-	}
-	facultyFolderName = helpers.SanitizeFilename(facultyFolderName)
-
-	fullDirPath := filepath.Join(coursePageDir, courseFolderName, facultyFolderName)
-
-	err = os.MkdirAll(fullDirPath, os.ModePerm)
-	if err != nil {
-		return err
-	}
-
-	if selectedMaterials == nil {
-		selectedMaterials = allMaterials
-	}
-
-	if helpers.IsRateLimitExceeded() {
-		fmt.Println("Rate limit exceeded. Please try again later.")
-		return fmt.Errorf("rate limit exceeded")
-	}
-
-	if _, err := os.Stat(fullDirPath); os.IsNotExist(err) {
-		return fmt.Errorf("download directory does not exist: %s", fullDirPath)
-	}
-
-	totalRefMaterials := 0
-	for _, material := range selectedMaterials {
-		totalRefMaterials += len(material.ReferenceMaterials)
-	}
-
-	bar := progressbar.NewOptions(totalRefMaterials,
-		progressbar.OptionSetDescription("Downloading materials..."),
-		progressbar.OptionSetElapsedTime(true),
-		progressbar.OptionSetWidth(15),
-		progressbar.OptionThrottle(100*time.Millisecond),
-		progressbar.OptionClearOnFinish(),
-	)
-
-	concurrency := 2
-
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, concurrency)
-	var mu sync.Mutex
-
-	type FailedDownload struct {
-		IndexNo       int
-		TopicName     string
-		RefMaterialNo int
-		RefMat        types.ReferenceMaterial
-		Topic         string
-		Error         string
-		MNo           string
-		TNo           string
-		OrderKey      int // Add order key for sorting
-	}
-
-	type DownloadResult struct {
-		IndexNo       int
-		TopicName     string
-		RefMaterialNo int
-		RefMat        types.ReferenceMaterial
-		Topic         string
-		MNo           string
-		TNo           string
-		OrderKey      int
-		Body          []byte
-		Headers       http.Header
-		FilePath      string
-		Success       bool
-	}
-
-	var failedDownloads []FailedDownload
-	var downloadResults []DownloadResult
-	var failedMu sync.Mutex
-	var resultsMu sync.Mutex
-
-	type DownloadKey struct {
-		MaterialID   string
-		MaterialDate string
-	}
-	successfulDownloads := make(map[DownloadKey]bool)
-	var successMu sync.Mutex
-
-	orderKey := 0
-
-	for _, material := range selectedMaterials {
-		if material.WebLink != "" {
-			fmt.Printf("Web Material available for '%s'\n", material.Topic)
-			fmt.Printf("Link: %s\n", material.WebLink)
-		}
-
-		topicName := helpers.SanitizeFilename(material.Topic)
-		// Ensure the topic name isn't too long to avoid path length issues
-		if len(topicName) > 50 {
-			topicName = topicName[:50]
-		}
-		refMaterialNo := 1
-
-		for _, refMat := range material.ReferenceMaterials {
-			wg.Add(1)
-			sem <- struct{}{}
-			currentIndexNo := material.Index
-			currentTopicName := topicName
-			currentRefMaterialNo := refMaterialNo
-			currentRefMat := refMat
-			currentTopic := material.Topic
-			currentMNo := material.MNo
-			currentTNo := material.TNo
-			currentOrderKey := orderKey
-			orderKey++
-
-			go func(indexNo int, topicName string, refMaterialNo int, refMat types.ReferenceMaterial, topic, mNo, tNo string, orderKey int) {
-				defer wg.Done()
-				defer func() { <-sem }()
-
-				key := DownloadKey{MaterialID: refMat.MaterialID, MaterialDate: refMat.MaterialDate}
-				successMu.Lock()
-				alreadyDownloaded := successfulDownloads[key]
-				successMu.Unlock()
-
-				if alreadyDownloaded {
-					mu.Lock()
-					bar.Add(1)
-					mu.Unlock()
-					return
-				}
-
-				isPotentialPptx := strings.Contains(strings.ToLower(refMat.Name), "ppt") ||
-					strings.Contains(strings.ToLower(refMat.Name), "presentation") ||
-					strings.Contains(strings.ToLower(refMat.Name), "slide")
-
-				downloadURL := "https://vtop.vit.ac.in/vtop/downloadPdf"
-				payloadMap := map[string]string{
-					"_csrf":        cookies.CSRF,
-					"authorizedID": regNo,
-					"semSubId":     selectedFaculty.SemSubID,
-					"classId":      selectedFaculty.ClassID,
-					"materialId":   refMat.MaterialID,
-					"materialDate": refMat.MaterialDate,
-					"x":            time.Now().UTC().Format(time.RFC1123),
-				}
-				formData := helpers.FormatBodyDataClient(payloadMap)
-
-				var body []byte
-				var headers http.Header
-				retries := 5
-				var downloadErr error
-				var lastError string
-
-				for attempt := 1; attempt <= retries; attempt++ {
-					attemptClient := &http.Client{
-						Timeout: time.Minute * 2,
-						Transport: &http.Transport{
-							MaxIdleConns:        10,
-							MaxIdleConnsPerHost: 5,
-							IdleConnTimeout:     30 * time.Second,
-							DisableKeepAlives:   true,
-						},
-					}
-
-					if isPotentialPptx {
-						attemptClient.Timeout = time.Minute * 5
-					}
-
-					body, headers, downloadErr = helpers.FetchReqClient(attemptClient, regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
-					if downloadErr == nil && len(body) > 0 {
-						if (isPotentialPptx && len(body) > 4096) || isSuccessfulDownload(body) {
-							break
-						} else {
-							downloadErr = fmt.Errorf("invalid file content")
-							lastError = "Invalid file content"
-						}
-					} else if downloadErr != nil {
-						lastError = downloadErr.Error()
-					} else {
-						lastError = "Empty response"
-					}
-
-					if debug.Debug {
-						fmt.Printf("Attempt %d: Error downloading material ID %s: %v\n", attempt, refMat.MaterialID, downloadErr)
-					}
-
-					backoffTime := time.Duration(attempt*attempt) * 500 * time.Millisecond
-					jitter := time.Duration(rand.Intn(1000)) * time.Millisecond
-					time.Sleep(backoffTime + jitter)
-				}
-
-				if downloadErr != nil || !isSuccessfulDownload(body) {
-					if debug.Debug {
-						fmt.Printf("Failed to download material ID %s after %d attempts: %v\n", refMat.MaterialID, retries, downloadErr)
-					}
-
-					failedMu.Lock()
-					failedDownloads = append(failedDownloads, FailedDownload{
-						IndexNo:       indexNo,
-						TopicName:     topicName,
-						RefMaterialNo: refMaterialNo,
-						RefMat:        refMat,
-						Topic:         topic,
-						Error:         lastError,
-						MNo:           mNo,
-						TNo:           tNo,
-						OrderKey:      orderKey,
-					})
-					failedMu.Unlock()
-
-					mu.Lock()
-					bar.Add(1)
-					mu.Unlock()
-					return
-				}
-
-				ext := helpers.GetFileExtension(refMat.Name, body, headers)
-				if ext == "" {
-					if isPotentialPptx {
-						ext = ".pptx"
-					} else {
-						ext = ".bin"
-					}
-				}
-
-				filePath := generateFilePath(fullDirPath, indexNo, mNo, tNo, topicName, refMaterialNo, ext)
-
-				// Store result for ordered saving
-				resultsMu.Lock()
-				downloadResults = append(downloadResults, DownloadResult{
-					IndexNo:       indexNo,
-					TopicName:     topicName,
-					RefMaterialNo: refMaterialNo,
-					RefMat:        refMat,
-					Topic:         topic,
-					MNo:           mNo,
-					TNo:           tNo,
-					OrderKey:      orderKey,
-					Body:          body,
-					Headers:       headers,
-					FilePath:      filePath,
-					Success:       true,
-				})
-				resultsMu.Unlock()
-
-				successMu.Lock()
-				successfulDownloads[key] = true
-				successMu.Unlock()
-
-				mu.Lock()
-				bar.Add(1)
-				mu.Unlock()
-			}(currentIndexNo, currentTopicName, currentRefMaterialNo, currentRefMat, currentTopic, currentMNo, currentTNo, currentOrderKey)
-			refMaterialNo++
-		}
-	}
-
-	wg.Wait()
-
-	// Sort download results by order key
-	sort.Slice(downloadResults, func(i, j int) bool {
-		return downloadResults[i].OrderKey < downloadResults[j].OrderKey
-	})
-
-	// Save files in order
-	for _, result := range downloadResults {
-		err := helpers.SaveFile(result.Body, result.FilePath)
-		if err != nil {
-			if debug.Debug {
-				fmt.Printf("Error saving file: %v\n", err)
-			}
-			failedMu.Lock()
-			failedDownloads = append(failedDownloads, FailedDownload{
-				IndexNo:       result.IndexNo,
-				TopicName:     result.TopicName,
-				RefMaterialNo: result.RefMaterialNo,
-				RefMat:        result.RefMat,
-				Topic:         result.Topic,
-				Error:         err.Error(),
-				MNo:           result.MNo,
-				TNo:           result.TNo,
-				OrderKey:      result.OrderKey,
-			})
-			failedMu.Unlock()
-		} else {
-			successMu.Lock()
-			key := DownloadKey{MaterialID: result.RefMat.MaterialID, MaterialDate: result.RefMat.MaterialDate}
-			successfulDownloads[key] = true
-			successMu.Unlock()
-		}
-	}
-
-	// Retry logic for failed downloads
-	var permanentlyFailedDownloads []FailedDownload
-
-	if len(failedDownloads) > 0 {
-		fmt.Printf("\nRetrying %d failed downloads...\n", len(failedDownloads))
-		retryBar := progressbar.NewOptions(len(failedDownloads),
-			progressbar.OptionSetDescription("Retrying failed downloads..."),
-			progressbar.OptionSetElapsedTime(true),
-			progressbar.OptionSetWidth(15),
-			progressbar.OptionThrottle(100*time.Millisecond),
-			progressbar.OptionClearOnFinish(),
-		)
-
-		for i, fd := range failedDownloads {
-			// Check if this file has already been successfully downloaded in a previous retry
-			key := DownloadKey{MaterialID: fd.RefMat.MaterialID, MaterialDate: fd.RefMat.MaterialDate}
-			if successfulDownloads[key] {
-				retryBar.Add(1)
-				continue
-			}
-
-			isPotentialPptx := strings.Contains(strings.ToLower(fd.RefMat.Name), "ppt") ||
-				strings.Contains(strings.ToLower(fd.RefMat.Name), "presentation") ||
-				strings.Contains(strings.ToLower(fd.RefMat.Name), "slide")
-
-			downloadURL := "https://vtop.vit.ac.in/vtop/downloadPdf"
-			payloadMap := map[string]string{
-				"_csrf":        cookies.CSRF,
-				"authorizedID": regNo,
-				"semSubId":     selectedFaculty.SemSubID,
-				"classId":      selectedFaculty.ClassID,
-				"materialId":   fd.RefMat.MaterialID,
-				"materialDate": fd.RefMat.MaterialDate,
-				"x":            time.Now().UTC().Format(time.RFC1123),
-			}
-			formData := helpers.FormatBodyDataClient(payloadMap)
-
-			var body []byte
-			var headers http.Header
-			var downloadErr error
-			var lastError string
-
-			retryClient := &http.Client{
-				Timeout: time.Minute * 5,
-				Transport: &http.Transport{
-					MaxIdleConns:        5,
-					MaxIdleConnsPerHost: 2,
-					IdleConnTimeout:     90 * time.Second,
-					DisableKeepAlives:   true,
-				},
-			}
-
-			if isPotentialPptx {
-				retryClient.Timeout = time.Minute * 10
-			}
-
-			success := false
-
-			for attempt := 1; attempt <= 5; attempt++ {
-				if attempt > 1 {
-					sleepTime := time.Duration(attempt*3) * time.Second
-					time.Sleep(sleepTime)
-				}
-
-				body, headers, downloadErr = helpers.FetchReqClient(retryClient, regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
-
-				if downloadErr == nil && len(body) > 0 {
-					if (isPotentialPptx && len(body) > 4096) || isSuccessfulDownload(body) {
-						ext := helpers.GetFileExtension(fd.RefMat.Name, body, headers)
-						if ext == "" {
-							if isPotentialPptx {
-								ext = ".pptx"
-							} else {
-								ext = ".bin"
-							}
-						}
-
-						filePath := generateFilePath(fullDirPath, fd.IndexNo, fd.MNo, fd.TNo, fd.TopicName, fd.RefMaterialNo, ext)
-
-						err = helpers.SaveFile(body, filePath)
-						if err == nil {
-							success = true
-							successfulDownloads[key] = true
-							break
-						} else {
-							lastError = err.Error()
-						}
-					} else {
-						lastError = "Invalid file content"
-					}
-				} else if downloadErr != nil {
-					lastError = downloadErr.Error()
-				} else {
-					lastError = "Invalid or empty file content"
-				}
-
-				if attempt == 5 {
-					time.Sleep(5 * time.Second)
-
-					var timeout time.Duration
-					if isPotentialPptx {
-						timeout = time.Minute * 15
-					} else {
-						timeout = time.Minute * 10
-					}
-
-					freshClient := &http.Client{
-						Timeout: timeout,
-						Transport: &http.Transport{
-							DisableKeepAlives: true,
-						},
-					}
-
-					randomParam := fmt.Sprintf("&nocache=%d", time.Now().UnixNano())
-					body, headers, downloadErr = helpers.FetchReqClient(freshClient, regNo, cookies, downloadURL+randomParam, "", formData, "POST", "application/x-www-form-urlencoded")
-
-					if downloadErr == nil && len(body) > 0 {
-						if (isPotentialPptx && len(body) > 4096) || isSuccessfulDownload(body) {
-							ext := helpers.GetFileExtension(fd.RefMat.Name, body, headers)
-							if ext == "" {
-								if isPotentialPptx {
-									ext = ".pptx"
-								} else {
-									ext = ".bin"
-								}
-							}
-
-							filePath := generateFilePath(fullDirPath, fd.IndexNo, fd.MNo, fd.TNo, fd.TopicName, fd.RefMaterialNo, ext)
-
-							err = helpers.SaveFile(body, filePath)
-							if err == nil {
-								success = true
-								successfulDownloads[key] = true
-							} else {
-								lastError = err.Error()
-							}
-						} else {
-							lastError = "Invalid file content"
-						}
-					}
-				}
-			}
-
-			if !success {
-				permanentlyFailedDownloads = append(permanentlyFailedDownloads, FailedDownload{
-					IndexNo:       fd.IndexNo,
-					TopicName:     fd.TopicName,
-					RefMaterialNo: fd.RefMaterialNo,
-					RefMat:        fd.RefMat,
-					Topic:         fd.Topic,
-					Error:         lastError,
-					MNo:           fd.MNo,
-					TNo:           fd.TNo,
-				})
-			}
-
-			retryBar.Add(1)
-
-			if i < len(failedDownloads)-1 {
-				time.Sleep(1 * time.Second)
-			}
-		}
-		retryBar.Finish()
-	}
-
-	bar.Finish()
-
-	totalFiles := totalRefMaterials
-	successfulFiles := totalFiles - len(permanentlyFailedDownloads)
-
-	fmt.Printf("\n\nDownload Summary:\n")
-	fmt.Printf("Total files: %d\n", totalFiles)
-	fmt.Printf("Successfully downloaded: %d\n", successfulFiles)
-
-	if len(permanentlyFailedDownloads) > 0 {
-		fmt.Printf("Failed to download: %d\n\n", len(permanentlyFailedDownloads))
-		fmt.Println("The following files could not be downloaded:")
-
-		for i, fd := range permanentlyFailedDownloads {
-			fmt.Printf("%d. Topic: %s\n", i+1, fd.Topic)
-			fmt.Printf("   File: %s\n", fd.RefMat.Name)
-			fmt.Printf("   Error: %s\n", fd.Error)
-			fmt.Println()
-		}
-
-		fmt.Println("\nYou can try downloading these files individually later.")
-	} else {
-		fmt.Println("All files were downloaded successfully!")
-	}
-
-	fmt.Printf("Files have been saved to: %s\n", fullDirPath)
-	helpers.OpenFolder(fullDirPath)
-	return nil
-}
-
-func generateFilePath(dirPath string, indexNo int, moduleNo, topicNo, topicName string, refMatNo int, ext string) string {
-	var filename string
-
-	if moduleNo != "" && topicNo != "" {
-		topicContent := extractTopicContent(topicName)
-		filename = fmt.Sprintf("M%s_T%s_%s_%d%s", moduleNo, topicNo, helpers.SanitizeFilename(topicContent), refMatNo, ext)
-	} else {
-		filename = fmt.Sprintf("%d_%s_%d%s", indexNo, topicName, refMatNo, ext)
-	}
-
-	filename = helpers.SanitizeFilename(filename)
-	filePath := filepath.Join(dirPath, filename)
-
-	// Handle long path names
-	if len(filePath) > 250 {
-		ext := filepath.Ext(filename)
-		baseFilename := filename[:len(filename)-len(ext)]
-		excessLength := len(filePath) - 250
-		if excessLength >= len(baseFilename) {
-			baseFilename = fmt.Sprintf("file_%d_%d", indexNo, refMatNo)
-		} else {
-			baseFilename = baseFilename[:len(baseFilename)-excessLength-1]
-		}
-		filename = baseFilename + ext
-		filePath = filepath.Join(dirPath, filename)
-	}
-
-	return filePath
-}
+// func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selectedCourse types.Course, selectedFaculty types.Faculty, allMaterials []types.CourseMaterial, selectedMaterials []types.CourseMaterial) error {
+// 	// Create the Course Page directory
+// 	coursePageDir, err := helpers.GetOrCreateDownloadDir("Course Page")
+// 	if err != nil {
+// 		return fmt.Errorf("failed to create course page directory: %w", err)
+// 	}
+
+// 	courseParts := helpers.SplitCourseNameFull(selectedCourse.Name)
+// 	var courseFolderName string
+// 	if len(courseParts) >= 3 {
+// 		// Extract the course code from the course name (typically the first part)
+// 		courseCode := courseParts[0]
+// 		// Extract the course name parts (typically everything after the first part)
+// 		courseName := strings.Join(courseParts[1:], "_")
+// 		courseFolderName = fmt.Sprintf("%s_%s", courseName, courseCode)
+// 	} else if len(courseParts) == 2 {
+// 		courseFolderName = fmt.Sprintf("%s_%s", courseParts[1], courseParts[0])
+// 	} else if len(courseParts) == 1 {
+// 		courseFolderName = courseParts[0]
+// 	} else {
+// 		courseFolderName = "Unknown_Course"
+// 	}
+// 	courseFolderName = helpers.SanitizeFilename(courseFolderName)
+
+// 	slotID := func() string {
+// 		if len(selectedFaculty.Slot) >= 3 && strings.HasPrefix(selectedFaculty.Slot, "L") {
+// 			return selectedFaculty.Slot[:3]
+// 		} else if len(selectedFaculty.Slot) >= 2 {
+// 			return selectedFaculty.Slot[:2]
+// 		}
+// 		return selectedFaculty.Slot
+// 	}()
+
+// 	facultyNameNoERP := helpers.RedactERPID(selectedFaculty.Name)
+// 	facultyParts := helpers.SplitFacultyNameFull(facultyNameNoERP)
+// 	var facultyFolderName string
+// 	if len(facultyParts) >= 2 {
+// 		facultyNamePart := strings.ReplaceAll(facultyParts[0], " ", "-")
+// 		facultyFolderName = fmt.Sprintf("%s_%s_%s", slotID, facultyNamePart, facultyParts[1])
+// 	} else if len(facultyParts) == 1 {
+// 		facultyNamePart := strings.ReplaceAll(facultyParts[0], " ", "-")
+// 		facultyFolderName = fmt.Sprintf("%s_%s", slotID, facultyNamePart)
+// 	} else {
+// 		facultyFolderName = "Unknown_Faculty"
+// 	}
+// 	facultyFolderName = helpers.SanitizeFilename(facultyFolderName)
+
+// 	fullDirPath := filepath.Join(coursePageDir, courseFolderName, facultyFolderName)
+
+// 	err = os.MkdirAll(fullDirPath, os.ModePerm)
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	if selectedMaterials == nil {
+// 		selectedMaterials = allMaterials
+// 	}
+
+// 	if helpers.IsRateLimitExceeded() {
+// 		fmt.Println("Rate limit exceeded. Please try again later.")
+// 		return fmt.Errorf("rate limit exceeded")
+// 	}
+
+// 	if _, err := os.Stat(fullDirPath); os.IsNotExist(err) {
+// 		return fmt.Errorf("download directory does not exist: %s", fullDirPath)
+// 	}
+
+// 	totalRefMaterials := 0
+// 	for _, material := range selectedMaterials {
+// 		totalRefMaterials += len(material.ReferenceMaterials)
+// 	}
+
+// 	bar := progressbar.NewOptions(totalRefMaterials,
+// 		progressbar.OptionSetDescription("Downloading materials..."),
+// 		progressbar.OptionSetElapsedTime(true),
+// 		progressbar.OptionSetWidth(15),
+// 		progressbar.OptionThrottle(100*time.Millisecond),
+// 		progressbar.OptionClearOnFinish(),
+// 	)
+
+// 	concurrency := 2
+
+// 	var wg sync.WaitGroup
+// 	sem := make(chan struct{}, concurrency)
+// 	var mu sync.Mutex
+
+// 	type FailedDownload struct {
+// 		IndexNo       int
+// 		TopicName     string
+// 		RefMaterialNo int
+// 		RefMat        types.ReferenceMaterial
+// 		Topic         string
+// 		Error         string
+// 		MNo           string
+// 		TNo           string
+// 		OrderKey      int // Add order key for sorting
+// 	}
+
+// 	type DownloadResult struct {
+// 		IndexNo       int
+// 		TopicName     string
+// 		RefMaterialNo int
+// 		RefMat        types.ReferenceMaterial
+// 		Topic         string
+// 		MNo           string
+// 		TNo           string
+// 		OrderKey      int
+// 		Body          []byte
+// 		Headers       http.Header
+// 		FilePath      string
+// 		Success       bool
+// 	}
+
+// 	var failedDownloads []FailedDownload
+// 	var downloadResults []DownloadResult
+// 	var failedMu sync.Mutex
+// 	var resultsMu sync.Mutex
+
+// 	type DownloadKey struct {
+// 		MaterialID   string
+// 		MaterialDate string
+// 	}
+// 	successfulDownloads := make(map[DownloadKey]bool)
+// 	var successMu sync.Mutex
+
+// 	orderKey := 0
+
+// 	for _, material := range selectedMaterials {
+// 		if material.WebLink != "" {
+// 			fmt.Printf("Web Material available for '%s'\n", material.Topic)
+// 			fmt.Printf("Link: %s\n", material.WebLink)
+// 		}
+
+// 		topicName := helpers.SanitizeFilename(material.Topic)
+// 		// Ensure the topic name isn't too long to avoid path length issues
+// 		if len(topicName) > 50 {
+// 			topicName = topicName[:50]
+// 		}
+// 		refMaterialNo := 1
+
+// 		for _, refMat := range material.ReferenceMaterials {
+// 			wg.Add(1)
+// 			sem <- struct{}{}
+// 			currentIndexNo := material.Index
+// 			currentTopicName := topicName
+// 			currentRefMaterialNo := refMaterialNo
+// 			currentRefMat := refMat
+// 			currentTopic := material.Topic
+// 			currentMNo := material.MNo
+// 			currentTNo := material.TNo
+// 			currentOrderKey := orderKey
+// 			orderKey++
+
+// 			go func(indexNo int, topicName string, refMaterialNo int, refMat types.ReferenceMaterial, topic, mNo, tNo string, orderKey int) {
+// 				defer wg.Done()
+// 				defer func() { <-sem }()
+
+// 				key := DownloadKey{MaterialID: refMat.MaterialID, MaterialDate: refMat.MaterialDate}
+// 				successMu.Lock()
+// 				alreadyDownloaded := successfulDownloads[key]
+// 				successMu.Unlock()
+
+// 				if alreadyDownloaded {
+// 					mu.Lock()
+// 					bar.Add(1)
+// 					mu.Unlock()
+// 					return
+// 				}
+
+// 				isPotentialPptx := strings.Contains(strings.ToLower(refMat.Name), "ppt") ||
+// 					strings.Contains(strings.ToLower(refMat.Name), "presentation") ||
+// 					strings.Contains(strings.ToLower(refMat.Name), "slide")
+
+// 				downloadURL := "https://vtop.vit.ac.in/vtop/downloadPdf"
+// 				payloadMap := map[string]string{
+// 					"_csrf":        cookies.CSRF,
+// 					"authorizedID": regNo,
+// 					"semSubId":     selectedFaculty.SemSubID,
+// 					"classId":      selectedFaculty.ClassID,
+// 					"materialId":   refMat.MaterialID,
+// 					"materialDate": refMat.MaterialDate,
+// 					"x":            time.Now().UTC().Format(time.RFC1123),
+// 				}
+// 				formData := helpers.FormatBodyDataClient(payloadMap)
+
+// 				var body []byte
+// 				var headers http.Header
+// 				retries := 5
+// 				var downloadErr error
+// 				var lastError string
+
+// 				for attempt := 1; attempt <= retries; attempt++ {
+// 					attemptClient := &http.Client{
+// 						Timeout: time.Minute * 2,
+// 						Transport: &http.Transport{
+// 							MaxIdleConns:        10,
+// 							MaxIdleConnsPerHost: 5,
+// 							IdleConnTimeout:     30 * time.Second,
+// 							DisableKeepAlives:   true,
+// 						},
+// 					}
+
+// 					if isPotentialPptx {
+// 						attemptClient.Timeout = time.Minute * 5
+// 					}
+
+// 					body, headers, downloadErr = helpers.FetchReqClient(attemptClient, regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
+// 					if downloadErr == nil && len(body) > 0 {
+// 						if (isPotentialPptx && len(body) > 4096) || isSuccessfulDownload(body) {
+// 							break
+// 						} else {
+// 							downloadErr = fmt.Errorf("invalid file content")
+// 							lastError = "Invalid file content"
+// 						}
+// 					} else if downloadErr != nil {
+// 						lastError = downloadErr.Error()
+// 					} else {
+// 						lastError = "Empty response"
+// 					}
+
+// 					if debug.Debug {
+// 						fmt.Printf("Attempt %d: Error downloading material ID %s: %v\n", attempt, refMat.MaterialID, downloadErr)
+// 					}
+
+// 					backoffTime := time.Duration(attempt*attempt) * 500 * time.Millisecond
+// 					jitter := time.Duration(rand.Intn(1000)) * time.Millisecond
+// 					time.Sleep(backoffTime + jitter)
+// 				}
+
+// 				if downloadErr != nil || !isSuccessfulDownload(body) {
+// 					if debug.Debug {
+// 						fmt.Printf("Failed to download material ID %s after %d attempts: %v\n", refMat.MaterialID, retries, downloadErr)
+// 					}
+
+// 					failedMu.Lock()
+// 					failedDownloads = append(failedDownloads, FailedDownload{
+// 						IndexNo:       indexNo,
+// 						TopicName:     topicName,
+// 						RefMaterialNo: refMaterialNo,
+// 						RefMat:        refMat,
+// 						Topic:         topic,
+// 						Error:         lastError,
+// 						MNo:           mNo,
+// 						TNo:           tNo,
+// 						OrderKey:      orderKey,
+// 					})
+// 					failedMu.Unlock()
+
+// 					mu.Lock()
+// 					bar.Add(1)
+// 					mu.Unlock()
+// 					return
+// 				}
+
+// 				ext := helpers.GetFileExtension(refMat.Name, body, headers)
+// 				if ext == "" {
+// 					if isPotentialPptx {
+// 						ext = ".pptx"
+// 					} else {
+// 						ext = ".bin"
+// 					}
+// 				}
+
+// 				filePath := generateFilePath(fullDirPath, indexNo, mNo, tNo, topicName, refMaterialNo, ext)
+
+// 				// Store result for ordered saving
+// 				resultsMu.Lock()
+// 				downloadResults = append(downloadResults, DownloadResult{
+// 					IndexNo:       indexNo,
+// 					TopicName:     topicName,
+// 					RefMaterialNo: refMaterialNo,
+// 					RefMat:        refMat,
+// 					Topic:         topic,
+// 					MNo:           mNo,
+// 					TNo:           tNo,
+// 					OrderKey:      orderKey,
+// 					Body:          body,
+// 					Headers:       headers,
+// 					FilePath:      filePath,
+// 					Success:       true,
+// 				})
+// 				resultsMu.Unlock()
+
+// 				successMu.Lock()
+// 				successfulDownloads[key] = true
+// 				successMu.Unlock()
+
+// 				mu.Lock()
+// 				bar.Add(1)
+// 				mu.Unlock()
+// 			}(currentIndexNo, currentTopicName, currentRefMaterialNo, currentRefMat, currentTopic, currentMNo, currentTNo, currentOrderKey)
+// 			refMaterialNo++
+// 		}
+// 	}
+
+// 	wg.Wait()
+
+// 	// Sort download results by order key
+// 	sort.Slice(downloadResults, func(i, j int) bool {
+// 		return downloadResults[i].OrderKey < downloadResults[j].OrderKey
+// 	})
+
+// 	// Save files in order
+// 	for _, result := range downloadResults {
+// 		err := helpers.SaveFile(result.Body, result.FilePath)
+// 		if err != nil {
+// 			if debug.Debug {
+// 				fmt.Printf("Error saving file: %v\n", err)
+// 			}
+// 			failedMu.Lock()
+// 			failedDownloads = append(failedDownloads, FailedDownload{
+// 				IndexNo:       result.IndexNo,
+// 				TopicName:     result.TopicName,
+// 				RefMaterialNo: result.RefMaterialNo,
+// 				RefMat:        result.RefMat,
+// 				Topic:         result.Topic,
+// 				Error:         err.Error(),
+// 				MNo:           result.MNo,
+// 				TNo:           result.TNo,
+// 				OrderKey:      result.OrderKey,
+// 			})
+// 			failedMu.Unlock()
+// 		} else {
+// 			successMu.Lock()
+// 			key := DownloadKey{MaterialID: result.RefMat.MaterialID, MaterialDate: result.RefMat.MaterialDate}
+// 			successfulDownloads[key] = true
+// 			successMu.Unlock()
+// 		}
+// 	}
+
+// 	// Retry logic for failed downloads
+// 	var permanentlyFailedDownloads []FailedDownload
+
+// 	if len(failedDownloads) > 0 {
+// 		fmt.Printf("\nRetrying %d failed downloads...\n", len(failedDownloads))
+// 		retryBar := progressbar.NewOptions(len(failedDownloads),
+// 			progressbar.OptionSetDescription("Retrying failed downloads..."),
+// 			progressbar.OptionSetElapsedTime(true),
+// 			progressbar.OptionSetWidth(15),
+// 			progressbar.OptionThrottle(100*time.Millisecond),
+// 			progressbar.OptionClearOnFinish(),
+// 		)
+
+// 		for i, fd := range failedDownloads {
+// 			// Check if this file has already been successfully downloaded in a previous retry
+// 			key := DownloadKey{MaterialID: fd.RefMat.MaterialID, MaterialDate: fd.RefMat.MaterialDate}
+// 			if successfulDownloads[key] {
+// 				retryBar.Add(1)
+// 				continue
+// 			}
+
+// 			isPotentialPptx := strings.Contains(strings.ToLower(fd.RefMat.Name), "ppt") ||
+// 				strings.Contains(strings.ToLower(fd.RefMat.Name), "presentation") ||
+// 				strings.Contains(strings.ToLower(fd.RefMat.Name), "slide")
+
+// 			downloadURL := "https://vtop.vit.ac.in/vtop/downloadPdf"
+// 			payloadMap := map[string]string{
+// 				"_csrf":        cookies.CSRF,
+// 				"authorizedID": regNo,
+// 				"semSubId":     selectedFaculty.SemSubID,
+// 				"classId":      selectedFaculty.ClassID,
+// 				"materialId":   fd.RefMat.MaterialID,
+// 				"materialDate": fd.RefMat.MaterialDate,
+// 				"x":            time.Now().UTC().Format(time.RFC1123),
+// 			}
+// 			formData := helpers.FormatBodyDataClient(payloadMap)
+
+// 			var body []byte
+// 			var headers http.Header
+// 			var downloadErr error
+// 			var lastError string
+
+// 			retryClient := &http.Client{
+// 				Timeout: time.Minute * 5,
+// 				Transport: &http.Transport{
+// 					MaxIdleConns:        5,
+// 					MaxIdleConnsPerHost: 2,
+// 					IdleConnTimeout:     90 * time.Second,
+// 					DisableKeepAlives:   true,
+// 				},
+// 			}
+
+// 			if isPotentialPptx {
+// 				retryClient.Timeout = time.Minute * 10
+// 			}
+
+// 			success := false
+
+// 			for attempt := 1; attempt <= 5; attempt++ {
+// 				if attempt > 1 {
+// 					sleepTime := time.Duration(attempt*3) * time.Second
+// 					time.Sleep(sleepTime)
+// 				}
+
+// 				body, headers, downloadErr = helpers.FetchReqClient(retryClient, regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
+
+// 				if downloadErr == nil && len(body) > 0 {
+// 					if (isPotentialPptx && len(body) > 4096) || isSuccessfulDownload(body) {
+// 						ext := helpers.GetFileExtension(fd.RefMat.Name, body, headers)
+// 						if ext == "" {
+// 							if isPotentialPptx {
+// 								ext = ".pptx"
+// 							} else {
+// 								ext = ".bin"
+// 							}
+// 						}
+
+// 						filePath := generateFilePath(fullDirPath, fd.IndexNo, fd.MNo, fd.TNo, fd.TopicName, fd.RefMaterialNo, ext)
+
+// 						err = helpers.SaveFile(body, filePath)
+// 						if err == nil {
+// 							success = true
+// 							successfulDownloads[key] = true
+// 							break
+// 						} else {
+// 							lastError = err.Error()
+// 						}
+// 					} else {
+// 						lastError = "Invalid file content"
+// 					}
+// 				} else if downloadErr != nil {
+// 					lastError = downloadErr.Error()
+// 				} else {
+// 					lastError = "Invalid or empty file content"
+// 				}
+
+// 				if attempt == 5 {
+// 					time.Sleep(5 * time.Second)
+
+// 					var timeout time.Duration
+// 					if isPotentialPptx {
+// 						timeout = time.Minute * 15
+// 					} else {
+// 						timeout = time.Minute * 10
+// 					}
+
+// 					freshClient := &http.Client{
+// 						Timeout: timeout,
+// 						Transport: &http.Transport{
+// 							DisableKeepAlives: true,
+// 						},
+// 					}
+
+// 					randomParam := fmt.Sprintf("&nocache=%d", time.Now().UnixNano())
+// 					body, headers, downloadErr = helpers.FetchReqClient(freshClient, regNo, cookies, downloadURL+randomParam, "", formData, "POST", "application/x-www-form-urlencoded")
+
+// 					if downloadErr == nil && len(body) > 0 {
+// 						if (isPotentialPptx && len(body) > 4096) || isSuccessfulDownload(body) {
+// 							ext := helpers.GetFileExtension(fd.RefMat.Name, body, headers)
+// 							if ext == "" {
+// 								if isPotentialPptx {
+// 									ext = ".pptx"
+// 								} else {
+// 									ext = ".bin"
+// 								}
+// 							}
+
+// 							filePath := generateFilePath(fullDirPath, fd.IndexNo, fd.MNo, fd.TNo, fd.TopicName, fd.RefMaterialNo, ext)
+
+// 							err = helpers.SaveFile(body, filePath)
+// 							if err == nil {
+// 								success = true
+// 								successfulDownloads[key] = true
+// 							} else {
+// 								lastError = err.Error()
+// 							}
+// 						} else {
+// 							lastError = "Invalid file content"
+// 						}
+// 					}
+// 				}
+// 			}
+
+// 			if !success {
+// 				permanentlyFailedDownloads = append(permanentlyFailedDownloads, FailedDownload{
+// 					IndexNo:       fd.IndexNo,
+// 					TopicName:     fd.TopicName,
+// 					RefMaterialNo: fd.RefMaterialNo,
+// 					RefMat:        fd.RefMat,
+// 					Topic:         fd.Topic,
+// 					Error:         lastError,
+// 					MNo:           fd.MNo,
+// 					TNo:           fd.TNo,
+// 				})
+// 			}
+
+// 			retryBar.Add(1)
+
+// 			if i < len(failedDownloads)-1 {
+// 				time.Sleep(1 * time.Second)
+// 			}
+// 		}
+// 		retryBar.Finish()
+// 	}
+
+// 	bar.Finish()
+
+// 	totalFiles := totalRefMaterials
+// 	successfulFiles := totalFiles - len(permanentlyFailedDownloads)
+
+// 	fmt.Printf("\n\nDownload Summary:\n")
+// 	fmt.Printf("Total files: %d\n", totalFiles)
+// 	fmt.Printf("Successfully downloaded: %d\n", successfulFiles)
+
+// 	if len(permanentlyFailedDownloads) > 0 {
+// 		fmt.Printf("Failed to download: %d\n\n", len(permanentlyFailedDownloads))
+// 		fmt.Println("The following files could not be downloaded:")
+
+// 		for i, fd := range permanentlyFailedDownloads {
+// 			fmt.Printf("%d. Topic: %s\n", i+1, fd.Topic)
+// 			fmt.Printf("   File: %s\n", fd.RefMat.Name)
+// 			fmt.Printf("   Error: %s\n", fd.Error)
+// 			fmt.Println()
+// 		}
+
+// 		fmt.Println("\nYou can try downloading these files individually later.")
+// 	} else {
+// 		fmt.Println("All files were downloaded successfully!")
+// 	}
+
+// 	fmt.Printf("Files have been saved to: %s\n", fullDirPath)
+// 	helpers.OpenFolder(fullDirPath)
+// 	return nil
+// }
+
+// func generateFilePath(dirPath string, indexNo int, moduleNo, topicNo, topicName string, refMatNo int, ext string) string {
+// 	var filename string
+
+// 	if moduleNo != "" && topicNo != "" {
+// 		topicContent := extractTopicContent(topicName)
+// 		filename = fmt.Sprintf("M%s_T%s_%s_%d%s", moduleNo, topicNo, helpers.SanitizeFilename(topicContent), refMatNo, ext)
+// 	} else {
+// 		filename = fmt.Sprintf("%d_%s_%d%s", indexNo, topicName, refMatNo, ext)
+// 	}
+
+// 	filename = helpers.SanitizeFilename(filename)
+// 	filePath := filepath.Join(dirPath, filename)
+
+// 	// Handle long path names
+// 	if len(filePath) > 250 {
+// 		ext := filepath.Ext(filename)
+// 		baseFilename := filename[:len(filename)-len(ext)]
+// 		excessLength := len(filePath) - 250
+// 		if excessLength >= len(baseFilename) {
+// 			baseFilename = fmt.Sprintf("file_%d_%d", indexNo, refMatNo)
+// 		} else {
+// 			baseFilename = baseFilename[:len(baseFilename)-excessLength-1]
+// 		}
+// 		filename = baseFilename + ext
+// 		filePath = filepath.Join(dirPath, filename)
+// 	}
+
+// 	return filePath
+// }
 
 // func isSuccessfulDownload(body []byte) bool {
 // 	if len(body) < 4 {
