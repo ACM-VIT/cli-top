@@ -500,26 +500,24 @@ func parseIndices(input string, max int) ([]int, []string) {
 }
 
 func downloadMaterialsHope(regNo string, cookies types.Cookies, selectedCourse types.Course, allMaterials []types.CourseMaterial, selectedMaterials []types.CourseMaterial, faculty types.Faculty) error {
-	// Create a wait group to manage concurrent downloads
+	// Concurrency primitives
 	var wg sync.WaitGroup
-	errChan := make(chan error, len(selectedMaterials))
+	errChan := make(chan error, 1024) // large enough buffer for errors
 
 	coursePageDir, err := helpers.GetOrCreateDownloadDir("Course Page")
 	if err != nil {
 		return fmt.Errorf("failed to create course page directory: %w", err)
 	}
 
+	// Build folder structure (UNCHANGED)
 	courseParts := helpers.SplitCourseNameFull(selectedCourse.Name)
-	// Merge courseParts[0] and courseParts[1], then take courseParts[3], then faculty.Name
 	semesterName := fmt.Sprintf("%s_%s", courseParts[0], courseParts[1])
 	courseName := courseParts[3]
-
 	fullDirPath := filepath.Join(coursePageDir, semesterName, courseName, faculty.Name)
 	fmt.Println(fullDirPath)
 
-	err = os.MkdirAll(fullDirPath, os.ModePerm)
-	if err != nil {
-		return err
+	if mkErr := os.MkdirAll(fullDirPath, os.ModePerm); mkErr != nil {
+		return mkErr
 	}
 
 	if selectedMaterials == nil {
@@ -531,39 +529,63 @@ func downloadMaterialsHope(regNo string, cookies types.Cookies, selectedCourse t
 		return fmt.Errorf("rate limit exceeded")
 	}
 
-	if _, err := os.Stat(fullDirPath); os.IsNotExist(err) {
+	if _, statErr := os.Stat(fullDirPath); os.IsNotExist(statErr) {
 		return fmt.Errorf("download directory does not exist: %s", fullDirPath)
 	}
 
+	// Count total reference materials for progress bar
 	totalRefMaterials := 0
 	for _, material := range selectedMaterials {
 		totalRefMaterials += len(material.ReferenceMaterials)
 	}
 
-	bar := progressbar.NewOptions(totalRefMaterials,
+	bar := progressbar.NewOptions(
+		totalRefMaterials,
 		progressbar.OptionSetDescription("Downloading materials..."),
 		progressbar.OptionSetElapsedTime(true),
 		progressbar.OptionSetWidth(15),
 		progressbar.OptionThrottle(100*time.Millisecond),
 		progressbar.OptionClearOnFinish(),
 	)
+	var barMu sync.Mutex
+	addProgress := func() {
+		barMu.Lock()
+		_ = bar.Add(1)
+		barMu.Unlock()
+	}
 
-	concurrency := 2
+	// Tunables
+	concurrency := 4 // allow a bit more concurrency while being gentle on server
 	sem := make(chan struct{}, concurrency)
 
-	// Download each material concurrently
-	for _, material := range selectedMaterials {
-		wg.Add(1)
-		// Acquire slot in semaphore for each course material download
-		sem <- struct{}{}
-		go func(mat types.CourseMaterial) {
-			defer wg.Done()
-			// Iterate over each reference material for the course material
-			for _, refMat := range mat.ReferenceMaterials {
-				isPotentialPptx := strings.Contains(strings.ToLower(refMat.Name), "ppt") ||
-					strings.Contains(strings.ToLower(refMat.Name), "presentation") ||
-					strings.Contains(strings.ToLower(refMat.Name), "slide")
+	// Helper to decide if a file is likely large/needs longer timeout
+	isLargeCandidate := func(name string) bool {
+		low := strings.ToLower(name)
+		return strings.Contains(low, "ppt") ||
+			strings.Contains(low, "presentation") ||
+			strings.Contains(low, "slide") ||
+			strings.HasSuffix(low, ".pptx") ||
+			strings.HasSuffix(low, ".ppt") ||
+			strings.HasSuffix(low, ".zip") ||
+			strings.HasSuffix(low, ".mp4") ||
+			strings.HasSuffix(low, ".mkv")
+	}
 
+	// Launch per-reference-material goroutines (better throughput; path remains unchanged)
+	for _, mat := range selectedMaterials {
+		material := mat // capture
+		for _, rm := range material.ReferenceMaterials {
+			refMat := rm // capture
+
+			sem <- struct{}{}
+			wg.Add(1)
+
+			go func(material types.CourseMaterial, refMat types.ReferenceMaterial) {
+				defer wg.Done()
+				defer func() { <-sem }()
+				defer addProgress()
+
+				// Endpoint & payload (UNCHANGED)
 				downloadURL := "https://vtop.vit.ac.in/vtop/downloadCourseMaterialFacultyPdf"
 				payloadMap := map[string]string{
 					"_csrf":        cookies.CSRF,
@@ -572,15 +594,23 @@ func downloadMaterialsHope(regNo string, cookies types.Cookies, selectedCourse t
 				}
 				formData := helpers.FormatBodyDataClient(payloadMap)
 
-				var body []byte
-				// var headers http.Header
-				retries := 2
-				var downloadErr error
-				var lastError string
+				// Retry logic with exponential backoff + jitter + last long attempt
+				maxAttempts := 5
+				large := isLargeCandidate(refMat.Name)
 
-				for attempt := 1; attempt <= retries; attempt++ {
-					attemptClient := &http.Client{
-						Timeout: time.Minute * 2,
+				var body []byte
+				var headers http.Header
+				var lastErr error
+				var success bool
+
+				for attempt := 1; attempt <= maxAttempts; attempt++ {
+					timeout := 2 * time.Minute
+					if large {
+						timeout = 5 * time.Minute
+					}
+
+					client := &http.Client{
+						Timeout: timeout,
 						Transport: &http.Transport{
 							MaxIdleConns:        10,
 							MaxIdleConnsPerHost: 5,
@@ -588,61 +618,100 @@ func downloadMaterialsHope(regNo string, cookies types.Cookies, selectedCourse t
 							DisableKeepAlives:   true,
 						},
 					}
-					if isPotentialPptx {
-						attemptClient.Timeout = time.Minute * 5
-					}
 
-					body, _, downloadErr = helpers.FetchReqClient(attemptClient, regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
-					if downloadErr == nil && len(body) > 0 {
-						if (isPotentialPptx && len(body) > 4096) || isSuccessfulDownload(body) {
-							break
-						} else {
-							downloadErr = fmt.Errorf("invalid file content")
-							lastError = "Invalid file content"
-						}
-					} else if downloadErr != nil {
-						lastError = downloadErr.Error()
+					var fetchErr error
+					body, headers, fetchErr = helpers.FetchReqClient(client, regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
+					if fetchErr != nil {
+						lastErr = fetchErr
+					} else if len(body) == 0 {
+						lastErr = fmt.Errorf("empty response")
 					} else {
-						lastError = "Empty response"
+						// Validate content
+						if (large && len(body) > 4096) || isSuccessfulDownload(body) {
+							success = true
+							break
+						}
+						lastErr = fmt.Errorf("invalid file content")
 					}
 
 					if debug.Debug {
-						fmt.Printf("Attempt %d: Error downloading material ID %s: %v\n", attempt, refMat.MaterialID, downloadErr)
+						fmt.Printf("Attempt %d/%d for %s (ID=%s): %v\n", attempt, maxAttempts, material.Topic, refMat.MaterialID, lastErr)
 					}
 
-					backoffTime := time.Duration(attempt*attempt) * 500 * time.Millisecond
+					// Exponential backoff with jitter
+					backoff := time.Duration(attempt*attempt) * 500 * time.Millisecond
 					jitter := time.Duration(rand.Intn(1000)) * time.Millisecond
-					time.Sleep(backoffTime + jitter)
+					time.Sleep(backoff + jitter)
 				}
 
-				if downloadErr != nil || !isSuccessfulDownload(body) {
-					errChan <- fmt.Errorf("failed to download %s: %s", mat.Topic, lastError)
-				} else {
-					filePath := filepath.Join(fullDirPath, refMat.Name)
-
-					err = helpers.SaveFile(body, filePath)
-					if err != nil {
-						lastError = err.Error()
+				// Final "fresh client" attempt with longer timeout & cache buster
+				if !success {
+					timeout := 5 * time.Minute
+					if large {
+						timeout = 10 * time.Minute
 					}
-
-					fmt.Printf("Downloaded: %s\n", mat.Topic)
+					freshClient := &http.Client{
+						Timeout: timeout,
+						Transport: &http.Transport{
+							DisableKeepAlives: true,
+						},
+					}
+					randomParam := fmt.Sprintf("?nocache=%d", time.Now().UnixNano())
+					b2, h2, fetchErr := helpers.FetchReqClient(
+						freshClient, regNo, cookies, downloadURL+randomParam, "",
+						formData, "POST", "application/x-www-form-urlencoded",
+					)
+					if fetchErr == nil && len(b2) > 0 && ((large && len(b2) > 4096) || isSuccessfulDownload(b2)) {
+						body, headers = b2, h2
+						success = true
+					} else if fetchErr != nil {
+						lastErr = fetchErr
+					} else {
+						lastErr = fmt.Errorf("final attempt received invalid/empty content")
+					}
 				}
-				// Update progress bar after each ref material downloaded (success or failure)
-				bar.Add(1)
-			}
-			<-sem
-		}(material)
+
+				if !success {
+					errChan <- fmt.Errorf("failed to download %q (fileId=%s): %v", material.Topic, refMat.MaterialID, lastErr)
+					return
+				}
+
+				// File-type detection (do NOT change file path)
+				detectedExt := helpers.GetFileExtension(refMat.Name, body, headers)
+				nameExt := strings.ToLower(filepath.Ext(refMat.Name))
+				if detectedExt != "" && strings.ToLower(detectedExt) != nameExt {
+					// Informative log only; do not alter the filename/path.
+					if debug.Debug {
+						fmt.Printf("Extension mismatch for %q: server suggests %s, name has %s\n", refMat.Name, detectedExt, nameExt)
+					}
+				}
+
+				// Save (KEEP PATH UNCHANGED)
+				filePath := filepath.Join(fullDirPath, refMat.Name)
+				if saveErr := helpers.SaveFile(body, filePath); saveErr != nil {
+					errChan <- fmt.Errorf("error saving %q to %s: %v", material.Topic, filePath, saveErr)
+					return
+				}
+
+				if debug.Debug {
+					if detectedExt != "" {
+						fmt.Printf("Downloaded: %s -> %s (detected %s)\n", material.Topic, refMat.Name, detectedExt)
+					} else {
+						fmt.Printf("Downloaded: %s -> %s\n", material.Topic, refMat.Name)
+					}
+				}
+			}(material, refMat)
+		}
 	}
 
-	// Wait for all downloads to complete
+	// Waiter for all downloads
 	go func() {
 		wg.Wait()
 		close(errChan)
 	}()
 
-	// Handle errors
-	for err := range errChan {
-		fmt.Println("Error:", err)
+	for e := range errChan {
+		fmt.Println("Error:", e)
 	}
 
 	return nil
