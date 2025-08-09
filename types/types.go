@@ -42,14 +42,10 @@ type StudentDetails struct {
 }
 
 type Faculty struct {
-	ID           string
 	Name         string
 	ErpID        string
-	ClassID      string
 	SemesterName string
 	CourseName   string
-	SemSubID     string
-	Slot         string
 }
 
 type Slot struct {
