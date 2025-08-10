@@ -81,11 +81,11 @@ func ExecuteCoursePageOldDownload(regNo string, cookies types.Cookies, semesterF
 	choice := helpers.TableSelector("semester", nested_sem_list, strconv.Itoa(semesterFlag))
 	if choice.ExitRequest {
 		fmt.Println("Selection canceled by user.")
-		return 
+		return
 	}
 	if !choice.Selected || choice.Index < 1 || choice.Index > len(semDetails) {
 		fmt.Println("Invalid semester selection. Please try again.")
-		return 
+		return
 	}
 	selectedSem = semDetails[choice.Index-1]
 
@@ -178,7 +178,6 @@ func coursePageOldAfterSemSelection(regNo string, cookies types.Cookies, selecte
 
 	fmt.Println("\nDownload complete!")
 }
-
 
 func fetchAndSelectCourseOld(regNo string, cookies types.Cookies, semSubId string, courseFlag int) (types.Course, error) {
 	getCourseURL := "https://vtop.vit.ac.in/vtop/getCourseForCoursePage"
@@ -730,9 +729,6 @@ func parseCourseMaterialsPage(htmlContent string) ([]types.CourseMaterial, error
 
 	return materials, nil
 }
-
-
-
 
 func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selectedCourse types.Course, selectedFaculty types.FacultyOld, allMaterials []types.CourseMaterial, selectedMaterials []types.CourseMaterial) error {
 	// Create the Course Page directory
@@ -1288,8 +1284,6 @@ func generateFilePath(dirPath string, indexNo int, moduleNo, topicNo, topicName 
 
 	return filePath
 }
-
-
 
 // func getOptimalConcurrency() int {
 // 	numCPU := runtime.NumCPU()

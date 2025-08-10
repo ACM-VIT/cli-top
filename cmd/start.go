@@ -560,7 +560,6 @@ var coursePageArchiveCmd = &cobra.Command{
 	},
 }
 
-
 var libraryDuesCmd = &cobra.Command{
 	Use:   "library-dues",
 	Short: "Show Library Dues",
