@@ -227,3 +227,15 @@ type Event struct {
 	RegisterStatus       string
 	CanRegister          bool
 }
+
+
+type FacultyOld struct {
+	ID           string
+	Name         string
+	ErpID        string
+	ClassID      string
+	SemesterName string
+	CourseName   string
+	SemSubID     string
+	Slot         string
+}

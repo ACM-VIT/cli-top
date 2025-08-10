@@ -13,8 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-
-	// "regexp"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -53,15 +52,11 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag
 		return
 	}
 
-	fmt.Println(selectedCourse)
-
-	materials, faculty, err := fetchFacultieswithMaterials(regNo, cookies, selectedCourse.ID, selectedCourse.Name)
+	materials, faculty, err := fetchFacultieswithMaterials(regNo, cookies, selectedCourse.ID, selectedCourse.Name, facultyFlag)
 	if err != nil {
 		fmt.Println("Error fetching faculties:", err)
 		return
 	}
-
-	fmt.Println(materials)
 
 	displayCourseMaterials(materials)
 
@@ -71,7 +66,6 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag
 		return
 	}
 
-	fmt.Println(selectedMaterials)
 	err = downloadMaterialsHope(regNo, cookies, selectedCourse, materials, selectedMaterials, faculty)
 	if err != nil {
 		fmt.Printf("Error downloading materials: %v\n", err)
@@ -127,8 +121,28 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, courseFlag int) (
 			})
 		}
 	})
+	// // Merge semester names from semDetails into semSet, but remove duplicates by normalizing.
+	// semDetails, err := helpers.GetSemDetails(cookies, regNo)
+	// if err == nil && len(semDetails) > 0 {
+	// 	for _, sem := range semDetails {
+	// 		// Normalize by removing trailing " - VLR" if present
+	// 		normalized := strings.TrimSuffix(sem.SemName, " - VLR")
+	// 		semSet[normalized] = struct{}{}
+	// 	}
+	// }
+	// if err != nil {
+	// 	return types.Course{}, err
+	// }
+	// // Also normalize keys already in semSet (from goquery)
+	// normalizedSemSet := make(map[string]struct{})
+	// for sem := range semSet {
+	// 	normalized := strings.TrimSuffix(sem, " - VLR")
+	// 	normalizedSemSet[normalized] = struct{}{}
+	// }
+	// semSet = normalizedSemSet
 
-	// Custom sort for semesters: by year, then by season (Fall < Winter)
+
+
 	type semInfo struct {
 		Raw    string
 		Year   int
@@ -164,21 +178,46 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, courseFlag int) (
 		semesters = append(semesters, si.Raw)
 	}
 
-	// Ask user to select semester
-	semTable := [][]string{{"SEMESTER"}}
-	for _, sem := range semesters {
-		semTable = append(semTable, []string{sem})
-	}
-	semResult := helpers.TableSelector("Semester", semTable, "")
-	if semResult.ExitRequest {
-		return types.Course{}, fmt.Errorf("selection canceled by user")
-	}
-	if !semResult.Selected || semResult.Index < 1 || semResult.Index > len(semesters) {
-		return types.Course{}, fmt.Errorf("invalid semester selection")
-	}
-	selectedSemester := semesters[semResult.Index-1]
 
-	// Filter courses by selected semester
+	// fallSemester := "Fall Semester 2025-26"
+	// fallIdx := -1
+	// i := 0
+	// for _, sem := range semesters {
+	// 	if sem == fallSemester {
+	// 		fallIdx = i
+	// 		break
+	// 	}
+	// 	i++
+	// }
+
+
+	// Ask user to select semester
+
+	var selectedSemester string
+	
+	if len(semesters) > 1 {
+		semTable := [][]string{{"SEMESTER"}}
+		for _, sem := range semesters {
+			semTable = append(semTable, []string{sem})
+		}
+		semResult := helpers.TableSelector("Semester", semTable, "")
+		if semResult.ExitRequest {
+			return types.Course{}, fmt.Errorf("selection canceled by user")
+		}
+		if !semResult.Selected || semResult.Index < 1 || semResult.Index > len(semesters) {
+			return types.Course{}, fmt.Errorf("invalid semester selection")
+		}
+		selectedSemester = semesters[semResult.Index-1]
+	} else {
+		selectedSemester = semesters[0]
+	}
+
+	// if fallIdx != -1 {
+	// 	 if semResult.Index-1 < fallIdx {
+	// 		coursePageOldAfterSemSelection(regNo, cookies, selectedSemester, courseFlag, facultyFlag)
+	// 	 }
+	// }
+
 	var filteredCourses []types.Course
 	for _, c := range courses {
 		if c.Semester == selectedSemester {
@@ -218,7 +257,7 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, courseFlag int) (
 	return selectedCourse, nil
 }
 
-func fetchFacultieswithMaterials(regNo string, cookies types.Cookies, courseID string, courseName string) ([]types.CourseMaterial, types.Faculty, error) {
+func fetchFacultieswithMaterials(regNo string, cookies types.Cookies, courseID string, courseName string, facultyFlag string) ([]types.CourseMaterial, types.Faculty, error) {
 	getFacultyMaterialURL := "https://vtop.vit.ac.in/vtop/academics/CoursePageConsolidated/getCourseDetail"
 	// Extract course type from courseName (assumed format: "Semester - CourseCode - CourseTitle - ...")
 	parts := strings.Split(courseName, " - ")
@@ -339,10 +378,10 @@ func fetchFacultieswithMaterials(regNo string, cookies types.Cookies, courseID s
 	sort.Slice(facultyList, func(i, j int) bool {
 		return facultyList[i].Name < facultyList[j].Name
 	})
-	// Debug print the faculty list
-	fmt.Println("DEBUG: Extracted Faculties:")
-	for _, f := range facultyList {
-		fmt.Printf("%+v\n", f)
+
+	// If nothing uploaded for this course, error out explicitly
+	if len(facultyList) == 0 {
+		return nil, types.Faculty{}, fmt.Errorf("no material uploaded")
 	}
 
 	// Prompt the user to select a faculty
@@ -350,7 +389,7 @@ func fetchFacultieswithMaterials(regNo string, cookies types.Cookies, courseID s
 	for _, f := range facultyList {
 		nestedList = append(nestedList, []string{f.Name})
 	}
-	result := helpers.TableSelector("Faculty", nestedList, "")
+	result := helpers.TableSelectorFuzzy("Faculty", nestedList, facultyFlag, helpers.NewFuzzySearch)
 	if result.ExitRequest {
 		return nil, types.Faculty{}, fmt.Errorf("selection canceled by user")
 	}
@@ -373,7 +412,8 @@ func fetchFacultieswithMaterials(regNo string, cookies types.Cookies, courseID s
 		}
 	}
 	if len(materials) == 0 {
-		return nil, types.Faculty{}, fmt.Errorf("no materials found for selected faculty")
+		// No rows matched selected faculty – treat as no uploads
+		return nil, types.Faculty{}, fmt.Errorf("no material uploaded")
 	}
 	return materials, selectedFaculty, nil
 }
@@ -514,7 +554,6 @@ func downloadMaterialsHope(regNo string, cookies types.Cookies, selectedCourse t
 	semesterName := fmt.Sprintf("%s_%s", courseParts[0], courseParts[1])
 	courseName := courseParts[3]
 	fullDirPath := filepath.Join(coursePageDir, semesterName, courseName, faculty.Name)
-	fmt.Println(fullDirPath)
 
 	if mkErr := os.MkdirAll(fullDirPath, os.ModePerm); mkErr != nil {
 		return mkErr
@@ -634,11 +673,6 @@ func downloadMaterialsHope(regNo string, cookies types.Cookies, selectedCourse t
 						lastErr = fmt.Errorf("invalid file content")
 					}
 
-					if debug.Debug {
-						fmt.Printf("Attempt %d/%d for %s (ID=%s): %v\n", attempt, maxAttempts, material.Topic, refMat.MaterialID, lastErr)
-					}
-
-					// Exponential backoff with jitter
 					backoff := time.Duration(attempt*attempt) * 500 * time.Millisecond
 					jitter := time.Duration(rand.Intn(1000)) * time.Millisecond
 					time.Sleep(backoff + jitter)
@@ -676,29 +710,37 @@ func downloadMaterialsHope(regNo string, cookies types.Cookies, selectedCourse t
 					return
 				}
 
-				// File-type detection (do NOT change file path)
-				detectedExt := helpers.GetFileExtension(refMat.Name, body, headers)
-				nameExt := strings.ToLower(filepath.Ext(refMat.Name))
-				if detectedExt != "" && strings.ToLower(detectedExt) != nameExt {
-					// Informative log only; do not alter the filename/path.
-					if debug.Debug {
-						fmt.Printf("Extension mismatch for %q: server suggests %s, name has %s\n", refMat.Name, detectedExt, nameExt)
-					}
+				// Build safe filename:
+				// 1) Treat only allowed extensions as real extensions.
+				// 2) Fix trailing numeric dotted suffixes (e.g. "1.1" -> "1-1").
+				// 3) Ensure final extension is one of allowed Office/PDF types.
+				baseName := helpers.SanitizeFilename(refMat.Name)
+				currExt := strings.ToLower(filepath.Ext(baseName))
+
+				detected := strings.ToLower(helpers.GetFileExtension(refMat.Name, body, headers))
+				if detected == "" {
+					detected = inferExtFromBody(body)
+				}
+				finalExt := pickAllowedExt(currExt, detected, body)
+				if !strings.HasPrefix(finalExt, ".") {
+					finalExt = "." + finalExt
 				}
 
-				// Save (KEEP PATH UNCHANGED)
-				filePath := filepath.Join(fullDirPath, refMat.Name)
+				// Only strip current extension if it is an allowed one; otherwise keep it in the base name.
+				nameNoExt := baseName
+				if _, ok := allowedOfficeExt[currExt]; ok {
+					nameNoExt = strings.TrimSuffix(baseName, currExt)
+				}
+
+				// Convert trailing dotted numeric suffix to hyphenated form (e.g., "Topic 1.2" -> "Topic 1-2")
+				nameNoExt = fixNumericSuffix(strings.TrimSpace(nameNoExt))
+
+				finalName := nameNoExt + finalExt
+				filePath := filepath.Join(fullDirPath, finalName)
+
 				if saveErr := helpers.SaveFile(body, filePath); saveErr != nil {
 					errChan <- fmt.Errorf("error saving %q to %s: %v", material.Topic, filePath, saveErr)
 					return
-				}
-
-				if debug.Debug {
-					if detectedExt != "" {
-						fmt.Printf("Downloaded: %s -> %s (detected %s)\n", material.Topic, refMat.Name, detectedExt)
-					} else {
-						fmt.Printf("Downloaded: %s -> %s\n", material.Topic, refMat.Name)
-					}
 				}
 			}(material, refMat)
 		}
@@ -713,6 +755,8 @@ func downloadMaterialsHope(regNo string, cookies types.Cookies, selectedCourse t
 	for e := range errChan {
 		fmt.Println("Error:", e)
 	}
+
+	helpers.OpenFolder(fullDirPath)
 
 	return nil
 }
@@ -799,4 +843,102 @@ func extractTopicContent(topic string) string {
 		return parts[1]
 	}
 	return topic
+}
+
+// Allowed extensions: only PDF and Office formats
+var allowedOfficeExt = map[string]struct {
+}{
+
+	".pdf":  {},
+	".pptx": {},
+	".ppt":  {},
+	".docx": {},
+	".doc":  {},
+	".xlsx": {},
+	".xls":  {},
+}
+
+// pickAllowedExt chooses a safe extension from detected or current, restricted to allowedOfficeExt.
+// Falls back to inferring from body, then .pdf.
+func pickAllowedExt(currExt, detected string, body []byte) string {
+	currExt = strings.ToLower(currExt)
+	detected = strings.ToLower(detected)
+	if _, ok := allowedOfficeExt[detected]; ok {
+		return detected
+	}
+	if _, ok := allowedOfficeExt[currExt]; ok {
+		return currExt
+	}
+	inf := strings.ToLower(inferExtFromBody(body))
+	if _, ok := allowedOfficeExt[inf]; ok {
+		return inf
+	}
+	return ".pdf"
+}
+
+// inferExtFromBody tries to infer a reasonable extension from the file signature/content,
+// restricted to PDF and Office formats only.
+func inferExtFromBody(body []byte) string {
+	if len(body) < 4 {
+		return ""
+	}
+	sig := string(body[:4])
+	switch sig {
+	case "%PDF":
+		return ".pdf"
+	case "PK\x03\x04":
+		// OOXML (zip): decide based on internal folder names
+		readerAt := bytes.NewReader(body)
+		size := int64(len(body))
+		if zr, err := zip.NewReader(readerAt, size); err == nil {
+			for _, f := range zr.File {
+				n := f.Name
+				if strings.HasPrefix(n, "ppt/") {
+					return ".pptx"
+				}
+				if strings.HasPrefix(n, "word/") {
+					return ".docx"
+				}
+				if strings.HasPrefix(n, "xl/") {
+					return ".xlsx"
+				}
+			}
+		}
+		return ""
+	case "\xD0\xCF\x11\xE0":
+		// Legacy OLE Compound File: inspect for stream names
+		window := body
+		if len(window) > 16384 {
+			window = body[:16384]
+		}
+		if bytes.Contains(window, []byte("PowerPoint Document")) {
+			return ".ppt"
+		}
+		if bytes.Contains(window, []byte("WordDocument")) {
+			return ".doc"
+		}
+		if bytes.Contains(window, []byte("Workbook")) || bytes.Contains(window, []byte("Book")) {
+			return ".xls"
+		}
+		return ".ppt" // default to most common legacy type
+	default:
+		// Unknown: do not return non-office/image/zip extensions
+		return ""
+	}
+}
+
+// fixNumericSuffix converts a trailing dotted numeric suffix into a hyphenated form.
+// Examples:
+//
+//	"Lecture 1.1"   -> "Lecture 1-1"
+//	"Topic A 2.3.4" -> "Topic A 2-3-4"
+func fixNumericSuffix(name string) string {
+	re := regexp.MustCompile(`(\d+(?:\.\d+)+)$`)
+	if m := re.FindStringSubmatchIndex(name); m != nil && len(m) >= 4 {
+		start, end := m[2], m[3]
+		tail := name[start:end]
+		tail = strings.ReplaceAll(tail, ".", "-")
+		return name[:start] + tail
+	}
+	return name
 }
