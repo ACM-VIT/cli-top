@@ -141,8 +141,6 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, courseFlag int) (
 	// }
 	// semSet = normalizedSemSet
 
-
-
 	type semInfo struct {
 		Raw    string
 		Year   int
@@ -178,7 +176,6 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, courseFlag int) (
 		semesters = append(semesters, si.Raw)
 	}
 
-
 	// fallSemester := "Fall Semester 2025-26"
 	// fallIdx := -1
 	// i := 0
@@ -190,11 +187,10 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, courseFlag int) (
 	// 	i++
 	// }
 
-
 	// Ask user to select semester
 
 	var selectedSemester string
-	
+
 	if len(semesters) > 1 {
 		semTable := [][]string{{"SEMESTER"}}
 		for _, sem := range semesters {
@@ -934,7 +930,7 @@ func inferExtFromBody(body []byte) string {
 //	"Topic A 2.3.4" -> "Topic A 2-3-4"
 func fixNumericSuffix(name string) string {
 	re := regexp.MustCompile(`(\d+(?:\.\d+)+)$`)
-	if m := re.FindStringSubmatchIndex(name); m != nil && len(m) >= 4 {
+	if m := re.FindStringSubmatchIndex(name); len(m) >= 4 {
 		start, end := m[2], m[3]
 		tail := name[start:end]
 		tail = strings.ReplaceAll(tail, ".", "-")

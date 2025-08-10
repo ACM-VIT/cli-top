@@ -228,7 +228,6 @@ type Event struct {
 	CanRegister          bool
 }
 
-
 type FacultyOld struct {
 	ID           string
 	Name         string
