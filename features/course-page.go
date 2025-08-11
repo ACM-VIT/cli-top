@@ -1,11 +1,5 @@
 package features
 
-// import (
-// 	"cli-top/helpers"
-// 	"fmt"
-// 	"path/filepath"
-// )
-
 import (
 	"bytes"
 	"cli-top/debug"
