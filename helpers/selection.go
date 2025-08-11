@@ -234,8 +234,8 @@ func ReplaceCrossWithPlus(input string) string {
 // 	}
 // }
 
-func RemoveDuplicateFaculties(faculties []types.Faculty) []types.Faculty {
-	uniqueFaculties := make([]types.Faculty, 0, len(faculties))
+func RemoveDuplicateFaculties(faculties []types.FacultyOld) []types.FacultyOld {
+	uniqueFaculties := make([]types.FacultyOld, 0, len(faculties))
 	keys := make(map[string]bool)
 	for _, faculty := range faculties {
 		key := faculty.ID + "_" + faculty.Name + "_" + faculty.Slot
@@ -247,7 +247,7 @@ func RemoveDuplicateFaculties(faculties []types.Faculty) []types.Faculty {
 	return uniqueFaculties
 }
 
-func SortFacultiesAlphabetically(faculties []types.Faculty) {
+func SortFacultiesAlphabetically(faculties []types.FacultyOld) {
 	sort.Slice(faculties, func(i, j int) bool {
 		return strings.ToLower(faculties[i].Name) < strings.ToLower(faculties[j].Name)
 	})

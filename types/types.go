@@ -42,14 +42,10 @@ type StudentDetails struct {
 }
 
 type Faculty struct {
-	ID           string
 	Name         string
 	ErpID        string
-	ClassID      string
 	SemesterName string
 	CourseName   string
-	SemSubID     string
-	Slot         string
 }
 
 type Slot struct {
@@ -230,4 +226,15 @@ type Event struct {
 	Venue                string
 	RegisterStatus       string
 	CanRegister          bool
+}
+
+type FacultyOld struct {
+	ID           string
+	Name         string
+	ErpID        string
+	ClassID      string
+	SemesterName string
+	CourseName   string
+	SemSubID     string
+	Slot         string
 }

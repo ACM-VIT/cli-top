@@ -92,57 +92,57 @@ func fetchWorkingSaturdays(regNo string, cookies types.Cookies, semSubID, classG
 
 	doc3, _ := goquery.NewDocumentFromReader(bytes.NewReader(body3))
 
-	   doc3.Find(calendarTableSelector).Find("tr").Each(func(i int, tr *goquery.Selection) {
-			   td := tr.Find("td").Eq(saturdayIndex)
-			   if td.Length() == 0 {
-					   return
-			   }
-			   // Check for 'Freshers' or batch/semester specific text
-			   cellText := td.Text()
-			   cellTextLower := strings.ToLower(cellText)
-			   if strings.Contains(cellTextLower, "fresher") {
-					   // Skip if this working Saturday is only for freshers
-					   return
-			   }
-			   // Optionally, add more checks here for your batch/semester if needed
-			   dayTxt := strings.TrimSpace(td.Find("span").First().Text())
-			   if dayTxt == "" {
-					   return
-			   }
-			   dayInt := 0
-			   fmt.Sscanf(dayTxt, "%d", &dayInt)
-			   if dayInt == 0 {
-					   return
-			   }
-			   order := ""
-			   td.Find("span").EachWithBreak(func(_ int, s *goquery.Selection) bool {
-					   txt := strings.TrimSpace(s.Text())
-					   if strings.Contains(strings.ToLower(txt), "day order") {
-							   noParen := strings.Trim(txt, "()")
-							   parts := strings.SplitN(noParen, " Day Order", 2)
-							   if len(parts) > 0 {
-									   order = parts[0]
-							   }
-							   return false
-					   }
-					   return true
-			   })
-			   if order == "" {
-					   return
-			   }
-			   dayOrder := map[string]string{
-					   "monday":    "Monday",
-					   "tuesday":   "Tuesday",
-					   "wednesday": "Wednesday",
-					   "thursday":  "Thursday",
-					   "friday":    "Friday",
-			   }[strings.ToLower(order)]
-			   if dayOrder == "" {
-					   return
-			   }
-			   wsDate := time.Date(now.Year(), now.Month(), dayInt, 0, 0, 0, 0, locIndia)
-			   result = append(result, WorkingSaturday{Date: wsDate, DayOrder: dayOrder})
-	   })
+	doc3.Find(calendarTableSelector).Find("tr").Each(func(i int, tr *goquery.Selection) {
+		td := tr.Find("td").Eq(saturdayIndex)
+		if td.Length() == 0 {
+			return
+		}
+		// Check for 'Freshers' or batch/semester specific text
+		cellText := td.Text()
+		cellTextLower := strings.ToLower(cellText)
+		if strings.Contains(cellTextLower, "fresher") {
+			// Skip if this working Saturday is only for freshers
+			return
+		}
+		// Optionally, add more checks here for your batch/semester if needed
+		dayTxt := strings.TrimSpace(td.Find("span").First().Text())
+		if dayTxt == "" {
+			return
+		}
+		dayInt := 0
+		fmt.Sscanf(dayTxt, "%d", &dayInt)
+		if dayInt == 0 {
+			return
+		}
+		order := ""
+		td.Find("span").EachWithBreak(func(_ int, s *goquery.Selection) bool {
+			txt := strings.TrimSpace(s.Text())
+			if strings.Contains(strings.ToLower(txt), "day order") {
+				noParen := strings.Trim(txt, "()")
+				parts := strings.SplitN(noParen, " Day Order", 2)
+				if len(parts) > 0 {
+					order = parts[0]
+				}
+				return false
+			}
+			return true
+		})
+		if order == "" {
+			return
+		}
+		dayOrder := map[string]string{
+			"monday":    "Monday",
+			"tuesday":   "Tuesday",
+			"wednesday": "Wednesday",
+			"thursday":  "Thursday",
+			"friday":    "Friday",
+		}[strings.ToLower(order)]
+		if dayOrder == "" {
+			return
+		}
+		wsDate := time.Date(now.Year(), now.Month(), dayInt, 0, 0, 0, 0, locIndia)
+		result = append(result, WorkingSaturday{Date: wsDate, DayOrder: dayOrder})
+	})
 
 	return result
 }
@@ -767,42 +767,42 @@ func getCourseName(doc *goquery.Document) map[string]types.SubjectTime {
 }
 
 func updateTimetableWithWorkingSaturdays(timetable map[string][]types.Class, workingSaturdays []WorkingSaturday) {
-	   for _, ws := range workingSaturdays {
-			   classes, ok := timetable[ws.DayOrder]
-			   if !ok || len(classes) == 0 {
-					   // If no classes on the referenced DayOrder, skip this working Saturday
-					   continue
-			   }
-			   for _, c := range classes {
-					   duplicate := false
-					   for _, existing := range timetable["Saturday"] {
-							   if existing.Subject == c.Subject &&
-									   existing.Slot == c.Slot &&
-									   existing.StartTime == c.StartTime &&
-									   existing.EndTime == c.EndTime &&
-									   existing.Venue == c.Venue &&
-									   existing.DayOrder == ws.DayOrder {
-									   duplicate = true
-									   break
-							   }
-					   }
-					   if !duplicate {
-							   timetable["Saturday"] = append(timetable["Saturday"], types.Class{
-									   Subject:   c.Subject,
-									   Slot:      c.Slot,
-									   Venue:     c.Venue,
-									   StartTime: c.StartTime,
-									   EndTime:   c.EndTime,
-									   DayOrder:  ws.DayOrder,
-							   })
-					   }
-			   }
-	   }
-	   if _, exists := timetable["Saturday"]; exists {
-			   sort.Slice(timetable["Saturday"], func(i, j int) bool {
-					   return timetable["Saturday"][i].StartTime < timetable["Saturday"][j].StartTime
-			   })
-	   }
+	for _, ws := range workingSaturdays {
+		classes, ok := timetable[ws.DayOrder]
+		if !ok || len(classes) == 0 {
+			// If no classes on the referenced DayOrder, skip this working Saturday
+			continue
+		}
+		for _, c := range classes {
+			duplicate := false
+			for _, existing := range timetable["Saturday"] {
+				if existing.Subject == c.Subject &&
+					existing.Slot == c.Slot &&
+					existing.StartTime == c.StartTime &&
+					existing.EndTime == c.EndTime &&
+					existing.Venue == c.Venue &&
+					existing.DayOrder == ws.DayOrder {
+					duplicate = true
+					break
+				}
+			}
+			if !duplicate {
+				timetable["Saturday"] = append(timetable["Saturday"], types.Class{
+					Subject:   c.Subject,
+					Slot:      c.Slot,
+					Venue:     c.Venue,
+					StartTime: c.StartTime,
+					EndTime:   c.EndTime,
+					DayOrder:  ws.DayOrder,
+				})
+			}
+		}
+	}
+	if _, exists := timetable["Saturday"]; exists {
+		sort.Slice(timetable["Saturday"], func(i, j int) bool {
+			return timetable["Saturday"][i].StartTime < timetable["Saturday"][j].StartTime
+		})
+	}
 }
 
 func printTT(timetable map[string][]types.Class, workingSaturdays []WorkingSaturday) {
@@ -820,37 +820,37 @@ func printTT(timetable map[string][]types.Class, workingSaturdays []WorkingSatur
 		}
 	}
 
-	   highlightNextDay := false
-	   if currentDayIndex != -1 {
-			   classes, exists := timetable[currentDay]
-			   if exists && len(classes) > 0 {
-					   sort.Slice(classes, func(i, j int) bool {
-							   return classes[i].StartTime < classes[j].StartTime
-					   })
-					   lastClass := classes[len(classes)-1]
-					   lastClassTime, _ := time.Parse("15:04", lastClass.EndTime)
-					   lastClassToday := time.Date(now.Year(), now.Month(), now.Day(), lastClassTime.Hour(), lastClassTime.Minute(), 0, 0, now.Location())
-					   if now.After(lastClassToday) {
-							   highlightNextDay = true
-					   }
-			   } else {
-					   highlightNextDay = true
-			   }
-	   }
+	highlightNextDay := false
+	if currentDayIndex != -1 {
+		classes, exists := timetable[currentDay]
+		if exists && len(classes) > 0 {
+			sort.Slice(classes, func(i, j int) bool {
+				return classes[i].StartTime < classes[j].StartTime
+			})
+			lastClass := classes[len(classes)-1]
+			lastClassTime, _ := time.Parse("15:04", lastClass.EndTime)
+			lastClassToday := time.Date(now.Year(), now.Month(), now.Day(), lastClassTime.Hour(), lastClassTime.Minute(), 0, 0, now.Location())
+			if now.After(lastClassToday) {
+				highlightNextDay = true
+			}
+		} else {
+			highlightNextDay = true
+		}
+	}
 
-	   dayToHighlight := daysOfWeek[currentDayIndex]
-	   if highlightNextDay {
-			   // Find the next day with classes (including Saturday/Sunday)
-			   for offset := 1; offset <= 7; offset++ {
-					   nextIdx := (currentDayIndex + offset) % len(daysOfWeek)
-					   nextDay := daysOfWeek[nextIdx]
-					   classes, exists := timetable[nextDay]
-					   if exists && len(classes) > 0 {
-							   dayToHighlight = nextDay
-							   break
-					   }
-			   }
-	   }
+	dayToHighlight := daysOfWeek[currentDayIndex]
+	if highlightNextDay {
+		// Find the next day with classes (including Saturday/Sunday)
+		for offset := 1; offset <= 7; offset++ {
+			nextIdx := (currentDayIndex + offset) % len(daysOfWeek)
+			nextDay := daysOfWeek[nextIdx]
+			classes, exists := timetable[nextDay]
+			if exists && len(classes) > 0 {
+				dayToHighlight = nextDay
+				break
+			}
+		}
+	}
 
 	var targetSaturdayDate time.Time
 	currentWeekday := now.Weekday()
@@ -916,67 +916,67 @@ func printTT(timetable map[string][]types.Class, workingSaturdays []WorkingSatur
 			continue
 		}
 
-	   var subset []types.Class
-	   if matchingDayOrder != "" {
-			   for _, c := range satClasses {
-					   if c.DayOrder == matchingDayOrder {
-							   subset = append(subset, c)
-					   }
-			   }
-			   // Only show working Saturday if there are classes for the referenced DayOrder
-			   if len(subset) == 0 {
-					   continue
-			   }
-	   } else {
-			   for _, c := range satClasses {
-					   if c.DayOrder == "" {
-							   subset = append(subset, c)
-					   }
-			   }
-			   if len(subset) == 0 {
-					   continue
-			   }
-	   }
+		var subset []types.Class
+		if matchingDayOrder != "" {
+			for _, c := range satClasses {
+				if c.DayOrder == matchingDayOrder {
+					subset = append(subset, c)
+				}
+			}
+			// Only show working Saturday if there are classes for the referenced DayOrder
+			if len(subset) == 0 {
+				continue
+			}
+		} else {
+			for _, c := range satClasses {
+				if c.DayOrder == "" {
+					subset = append(subset, c)
+				}
+			}
+			if len(subset) == 0 {
+				continue
+			}
+		}
 
-	   if day == dayToHighlight {
-			   fmt.Printf("%s\n\n", applyColor(day, Cyan+Bold))
-	   } else {
-			   fmt.Printf("%s\n\n", day)
-	   }
+		if day == dayToHighlight {
+			fmt.Printf("%s\n\n", applyColor(day, Cyan+Bold))
+		} else {
+			fmt.Printf("%s\n\n", day)
+		}
 
-	   if matchingDayOrder != "" {
-			   fmt.Printf("%s %s\n\n", applyColor("Working Saturday", helpers.Yellow),
-					   applyColor(fmt.Sprintf("(Following %s schedule)", matchingDayOrder), helpers.Yellow))
-	   }
+		if matchingDayOrder != "" {
+			fmt.Printf("%s %s\n\n", applyColor("Working Saturday", helpers.Yellow),
+				applyColor(fmt.Sprintf("(Following %s schedule)", matchingDayOrder), helpers.Yellow))
+		}
 
-	   sort.Slice(subset, func(i, j int) bool {
-			   return subset[i].StartTime < subset[j].StartTime
-	   })
-	   tableData := [][]string{{"Time", "Subject", "Slot", "Venue"}}
-	   for _, c := range subset {
-			   row := []string{fmt.Sprintf("%s-%s", c.StartTime, c.EndTime), c.Subject, c.Slot, c.Venue}
-			   if day == dayToHighlight {
-					   startT, _ := time.Parse("15:04", c.StartTime)
-					   endT, _ := time.Parse("15:04", c.EndTime)
-					   startTime := time.Date(now.Year(), now.Month(), now.Day(), startT.Hour(), startT.Minute(), 0, 0, now.Location())
-					   endTime := time.Date(now.Year(), now.Month(), now.Day(), endT.Hour(), endT.Minute(), 0, 0, now.Location())
-					   if now.After(startTime) && now.Before(endTime) {
-							   for i := range row {
-									   row[i] = applyColor(row[i], helpers.Green+Bold)
-							   }
-					   } else if now.After(endTime) {
-							   for i := range row {
-									   row[i] = applyColor(row[i], White+Dim)
-							   }
-					   } else {
-							   for i := range row {
-									   row[i] = applyStyle(row[i], Bold)
-							   }
-					   }
-			   }
-			   tableData = append(tableData, row)
-	   }
-	   helpers.PrintTable(tableData, 0)
-	   fmt.Println()
+		sort.Slice(subset, func(i, j int) bool {
+			return subset[i].StartTime < subset[j].StartTime
+		})
+		tableData := [][]string{{"Time", "Subject", "Slot", "Venue"}}
+		for _, c := range subset {
+			row := []string{fmt.Sprintf("%s-%s", c.StartTime, c.EndTime), c.Subject, c.Slot, c.Venue}
+			if day == dayToHighlight {
+				startT, _ := time.Parse("15:04", c.StartTime)
+				endT, _ := time.Parse("15:04", c.EndTime)
+				startTime := time.Date(now.Year(), now.Month(), now.Day(), startT.Hour(), startT.Minute(), 0, 0, now.Location())
+				endTime := time.Date(now.Year(), now.Month(), now.Day(), endT.Hour(), endT.Minute(), 0, 0, now.Location())
+				if now.After(startTime) && now.Before(endTime) {
+					for i := range row {
+						row[i] = applyColor(row[i], helpers.Green+Bold)
+					}
+				} else if now.After(endTime) {
+					for i := range row {
+						row[i] = applyColor(row[i], White+Dim)
+					}
+				} else {
+					for i := range row {
+						row[i] = applyStyle(row[i], Bold)
+					}
+				}
+			}
+			tableData = append(tableData, row)
+		}
+		helpers.PrintTable(tableData, 0)
+		fmt.Println()
 	}
 }
