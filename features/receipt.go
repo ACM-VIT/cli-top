@@ -35,7 +35,6 @@ func GetReceipt(regNo string, cookies types.Cookies) {
 		fmt.Println("Error parsing HTML:", err)
 		return
 	}
-
 	var receipts [][]string
 	receipts = append(receipts, []string{"INVOICE NUMBER", "RECEIPT NUMBER", "DATE", "AMOUNT"})
 
