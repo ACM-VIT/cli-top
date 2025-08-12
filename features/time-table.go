@@ -852,7 +852,6 @@ func printTT(timetable map[string][]types.Class, workingSaturdays []WorkingSatur
 		}
 	}
 
-
 	var targetSaturdayDate time.Time
 	currentWeekday := now.Weekday()
 	daysAhead := (int(time.Saturday) - int(currentWeekday) + 7) % 7
