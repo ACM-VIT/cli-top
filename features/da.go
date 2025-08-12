@@ -527,6 +527,18 @@ func pendingDAs(doc *goquery.Document, subject types.DAsubject) (types.LatestDA,
 				}
 				daMap[title] = true
 
+				var daCode string
+				codeInput := td.Eq(7).Find("input[name='code']")
+				if codeInput.Length() > 0 {
+					daCode = strings.TrimSpace(codeInput.AttrOr("value", ""))
+				}
+				if daCode == "" {
+					btn := td.Eq(7).Find("button")
+					if btn.Length() > 0 {
+						daCode = strings.TrimSpace(btn.AttrOr("data-editcode", ""))
+					}
+				}
+
 				dueDateStr := strings.TrimSpace(td.Eq(4).Find("span").Text())
 				var dueDate time.Time
 				if dueDateStr == "-" || dueDateStr == "" {
@@ -584,6 +596,7 @@ func pendingDAs(doc *goquery.Document, subject types.DAsubject) (types.LatestDA,
 					Last_upload:  lastUpdated,
 					DownloadLink: downloadLinkQP,
 					DueDate:      dueDate,
+					Code:         daCode,
 				}
 
 				if !tempDA.DueDate.IsZero() {
