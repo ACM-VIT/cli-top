@@ -299,7 +299,6 @@ func fetchFacultieswithMaterials(regNo string, cookies types.Cookies, courseID s
 		if facultySpans.Length() < 2 {
 			return
 		}
-		// rawFaculty expected format: "ERPID - Faculty Name - SCOPE"
 		rawFaculty := strings.TrimSpace(facultySpans.Eq(0).Text())
 		date := strings.TrimSpace(facultySpans.Eq(1).Text())
 		if rawFaculty == "" {
@@ -316,6 +315,7 @@ func fetchFacultieswithMaterials(regNo string, cookies types.Cookies, courseID s
 		// Topic from cell 2: try the nested span inside div.mt-1
 		materialDiv := cells.Eq(2).Find("div.mt-1")
 		var topic string
+		var mNo string
 		if materialDiv.Length() > 0 {
 			// Try to find the span with style containing "#2E86C1"
 			materialDiv.Find("span").Each(func(i int, s *goquery.Selection) {
@@ -328,14 +328,20 @@ func fetchFacultieswithMaterials(regNo string, cookies types.Cookies, courseID s
 			if topic == "" {
 				topic = strings.TrimSpace(materialDiv.Find("span").First().Text())
 			}
+			// Extract MNo from span with style containing "#28B463"
+			materialDiv.Find("span").Each(func(i int, s *goquery.Selection) {
+				if style, exists := s.Attr("style"); exists && strings.Contains(style, "#28B463") {
+					mNo = strings.TrimSpace(s.Text())
+				}
+			})
 		} else {
 			topic = strings.TrimSpace(cells.Eq(2).Text())
+			mNo = ""
 		}
 
 		// Download button is in cell 4
 		downloadBtn := cells.Eq(4).Find("button[name='downloadmat']")
 		materialID, _ := downloadBtn.Attr("data-fileid")
-		// Use topic as the material name (ignore button text)
 		material := types.CourseMaterial{
 			Index: index,
 			Date:  date,
@@ -346,6 +352,7 @@ func fetchFacultieswithMaterials(regNo string, cookies types.Cookies, courseID s
 					MaterialID: materialID,
 				},
 			},
+			MNo: mNo,
 		}
 		allMaterials = append(allMaterials, facultyMaterial{
 			Faculty:  rawFaculty,
@@ -425,9 +432,9 @@ func displayCourseMaterials(materials []types.CourseMaterial) {
 
 	var header []string
 	if showWebColumn {
-		header = []string{"DATE", "TOPIC", "REF COUNT", "WEB MATERIAL"}
+		header = []string{"DATE", "MODULE", "TOPIC", "REF COUNT", "WEB MATERIAL"}
 	} else {
-		header = []string{"DATE", "TOPIC", "REF COUNT"}
+		header = []string{"DATE", "MODULE", "TOPIC", "REF COUNT"}
 	}
 
 	// Increase topic column width from 30 to 50
@@ -435,6 +442,7 @@ func displayCourseMaterials(materials []types.CourseMaterial) {
 	for _, material := range materials {
 		refCount := strconv.Itoa(len(material.ReferenceMaterials))
 		topic := helpers.TruncateWithEllipsis(material.Topic, 50)
+		module := material.MNo
 		if showWebColumn {
 			webCol := ""
 			if strings.TrimSpace(material.WebLink) != "" {
@@ -442,6 +450,7 @@ func displayCourseMaterials(materials []types.CourseMaterial) {
 			}
 			nestedList = append(nestedList, []string{
 				material.Date,
+				module,
 				topic,
 				refCount,
 				webCol,
@@ -449,6 +458,7 @@ func displayCourseMaterials(materials []types.CourseMaterial) {
 		} else {
 			nestedList = append(nestedList, []string{
 				material.Date,
+				module,
 				topic,
 				refCount,
 			})
@@ -731,11 +741,29 @@ func downloadMaterialsHope(regNo string, cookies types.Cookies, selectedCourse t
 				// Convert trailing dotted numeric suffix to hyphenated form (e.g., "Topic 1.2" -> "Topic 1-2")
 				nameNoExt = fixNumericSuffix(strings.TrimSpace(nameNoExt))
 
-				finalName := nameNoExt + finalExt
-				filePath := filepath.Join(fullDirPath, finalName)
+				// Prepend module number if available
+				modulePrefix := ""
+				if strings.TrimSpace(material.MNo) != "" {
+					modulePrefix = "Module-" + material.MNo + "_"
+				}
+				baseFileName := modulePrefix + nameNoExt + finalExt
+				filePath := filepath.Join(fullDirPath, baseFileName)
 
-				if saveErr := helpers.SaveFile(body, filePath); saveErr != nil {
-					errChan <- fmt.Errorf("error saving %q to %s: %v", material.Topic, filePath, saveErr)
+				// Ensure no overwrite: if file exists, append _1, _2, etc.
+				uniqueFilePath := filePath
+				if _, err := os.Stat(uniqueFilePath); err == nil {
+					// File exists, find a unique name
+					for suffix := 1; ; suffix++ {
+						altName := fmt.Sprintf("%s_%d%s", modulePrefix+nameNoExt, suffix, finalExt)
+						uniqueFilePath = filepath.Join(fullDirPath, altName)
+						if _, err := os.Stat(uniqueFilePath); os.IsNotExist(err) {
+							break
+						}
+					}
+				}
+
+				if saveErr := helpers.SaveFile(body, uniqueFilePath); saveErr != nil {
+					errChan <- fmt.Errorf("error saving %q to %s: %v", material.Topic, uniqueFilePath, saveErr)
 					return
 				}
 			}(material, refMat)
