@@ -111,7 +111,7 @@ type DAEvent struct {
 	QP           string
 	Last_upload  string
 	DownloadLink string
-	Code         string 
+	Code         string
 }
 
 type SubjectDAs struct {
