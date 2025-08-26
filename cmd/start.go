@@ -34,6 +34,24 @@ var fuzzyIndexFlag int
 var courseNameFlag string
 var syllabusCourseFlag string
 
+func configFilePath() string {
+	const fileName = "cli-top-config.env"
+	if cwd, err := os.Getwd(); err == nil {
+		cwdPath := filepath.Join(cwd, fileName)
+		if _, err := os.Stat(cwdPath); err == nil {
+			return cwdPath
+		}
+	}
+
+	if exePath, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exePath)
+		exePath := filepath.Join(exeDir, fileName)
+		return exePath
+	}
+
+	return fileName
+}
+
 func getOrCreateUUID() string {
 	registeredUUID := viper.GetString("UUID")
 	if registeredUUID != "" {
@@ -44,7 +62,7 @@ func getOrCreateUUID() string {
 	if unregisteredUUID == "" {
 		unregisteredUUID = uuid.New().String()
 		viper.Set("UNREGISTERED_UUID", unregisteredUUID)
-		if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
+		if err := viper.WriteConfigAs(configFilePath()); err != nil && debug.Debug {
 			fmt.Println("Error saving unregistered UUID to config:", err)
 		}
 	}
@@ -58,7 +76,7 @@ func getOrCreateUUID() string {
 
 	viper.Set("UUID", unregisteredUUID)
 	viper.Set("UNREGISTERED_UUID", "")
-	if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
+	if err := viper.WriteConfigAs(configFilePath()); err != nil && debug.Debug {
 		fmt.Println("Error updating registered UUID in config:", err)
 	}
 
@@ -130,7 +148,7 @@ func trackCommand(command string) {
 		}
 		viper.Set("UUID", newUUID)
 		viper.Set("UNREGISTERED_UUID", "")
-		if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
+		if err := viper.WriteConfigAs(configFilePath()); err != nil && debug.Debug {
 			fmt.Println("Error updating registered UUID in config:", err)
 		}
 	} else if resp.StatusCode != http.StatusOK {
@@ -162,21 +180,13 @@ func startfn() {
 	}
 	red.Println("\nWelcome to CLI-TOP!\n ")
 	red.Println("Use \"cli-top help\" or \"cli-top --list\" to show available commands\nUse \"cli-top [command] --help\" for more information about a command.\n ")
-	fileName := "cli-top-config.env"
-
-	currentDir, err := os.Getwd()
-	if err != nil && debug.Debug {
-		fmt.Println("Error getting current directory:", err)
-		return
-	}
-
-	filePath := filepath.Join(currentDir, fileName)
+	filePath := configFilePath()
 
 	if _, err := os.Stat(filePath); err == nil {
 		if debug.Debug {
 			fmt.Println("File exists:", filePath)
 		}
-		err := godotenv.Load("cli-top-config.env")
+		err := godotenv.Load(filePath)
 		if err != nil && debug.Debug {
 			fmt.Println("Error loading .env file")
 		}
@@ -187,11 +197,12 @@ func startfn() {
 		if os.Getenv("VTOP_USERNAME") != "" && os.Getenv("PASSWORD") != "" {
 			vtop_login()
 		}
-	} else if os.IsNotExist(err) {
-		fmt.Println("File does not exist:", filePath)
-		fmt.Println("Please login using the \"login\" command")
 	} else {
-		fmt.Println("Error checking file existence:", err)
+		// File not found in cwd or exe dir
+		if debug.Debug {
+			fmt.Println("File does not exist:", filePath)
+		}
+		fmt.Println("Please login using the \"login\" command")
 	}
 
 	userUUID := getOrCreateUUID()
@@ -201,7 +212,7 @@ func startfn() {
 }
 
 func vtop_login() (types.Cookies, string) {
-	err := godotenv.Load("cli-top-config.env")
+	err := godotenv.Load(configFilePath())
 	if err != nil && debug.Debug {
 		fmt.Println("Error loading .env file, please enter your credentials using the \"login\" command.")
 	}
@@ -241,7 +252,7 @@ func saveCookiesToFile(cookies types.Cookies, userInfo types.LogIn, Key string) 
 	viper.Set("VTOP_USERNAME", "\""+userInfo.Username+"\"")
 	viper.Set("PASSWORD", "\""+userInfo.Password+"\"")
 	viper.Set("KEY", "\""+Key+"\"")
-	if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
+	if err := viper.WriteConfigAs(configFilePath()); err != nil && debug.Debug {
 		fmt.Println("Error writing to .env file:", err)
 	}
 }
@@ -251,7 +262,7 @@ func readCookiesFromFile() (types.Cookies, string) {
 		debug.Debug = true
 		fmt.Println("Debug mode on")
 	}
-	err := godotenv.Load("cli-top-config.env")
+	err := godotenv.Load(configFilePath())
 	if err != nil && debug.Debug {
 		fmt.Println("Error loading .env file, please enter your credentials using the \"login\" command.")
 	}
@@ -384,7 +395,7 @@ func Execute() {
 		return
 	}
 
-	err := godotenv.Load("cli-top-config.env")
+	err := godotenv.Load(configFilePath())
 	if err != nil && debug.Debug {
 		fmt.Println("Error loading .env file:", err)
 	}
@@ -582,7 +593,7 @@ var logoutCmd = &cobra.Command{
 	Use:   "logout",
 	Short: "Logout from VTOP",
 	Run: func(cmd *cobra.Command, args []string) {
-		err := godotenv.Load("cli-top-config.env")
+		err := godotenv.Load(configFilePath())
 		if err != nil && debug.Debug {
 			fmt.Println("Error loading .env file:", err)
 			return
@@ -599,7 +610,8 @@ var logoutCmd = &cobra.Command{
 			"UUID": uuid,
 		}
 
-		f, err := os.Create("cli-top-config.env")
+		// create the config file at the discovered path
+		f, err := os.Create(configFilePath())
 		if err != nil {
 			if debug.Debug {
 				fmt.Println("Error creating .env file:", err)

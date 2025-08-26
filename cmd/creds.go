@@ -3,15 +3,22 @@ package cmd
 import (
 	"cli-top/debug"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-// var username = "k"
-// var password = "k"
-// var regno = "k"
+func exeConfigPath() string {
+	const fileName = "cli-top-config.env"
+	if exePath, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exePath)
+		return filepath.Join(exeDir, fileName)
+	}
+	return "cli-top-config.env"
+}
 
 var credCmd = &cobra.Command{
 	Use:   "login",
@@ -33,7 +40,7 @@ var credCmd = &cobra.Command{
 		viper.Set("PASSWORD", "\""+encryptedPassword+"\"")
 		viper.Set("KEY", "\""+key+"\"")
 
-		if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
+		if err := viper.WriteConfigAs(exeConfigPath()); err != nil && debug.Debug {
 			fmt.Println("Error writing to .env file:", err)
 			return
 		}
@@ -54,7 +61,7 @@ func init() {
 	credCmd.Flags().String("password", "", "Enter VTOP password")
 	credCmd.Flags().String("regno", "", "Enter VIT registration number")
 	viper.SetConfigType("env")
-	viper.SetConfigFile("cli-top-config.env")
+	viper.SetConfigFile(exeConfigPath())
 	viper.ReadInConfig()
 	rootCmd.AddCommand(credCmd)
 }
