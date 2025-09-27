@@ -7,7 +7,10 @@ import (
 	"cli-top/debug"
 	"cli-top/helpers"
 	"cli-top/types"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"math/rand"
 	"net/http"
 	"os"
@@ -342,17 +345,38 @@ func fetchFacultieswithMaterials(regNo string, cookies types.Cookies, courseID s
 		// Download button is in cell 4
 		downloadBtn := cells.Eq(4).Find("button[name='downloadmat']")
 		materialID, _ := downloadBtn.Attr("data-fileid")
+
+		// Detect inline web links (anchors) in the row and normalize to absolute URL
+		var webLink string
+		row.Find("a").Each(func(ai int, a *goquery.Selection) {
+			href, ok := a.Attr("href")
+			if !ok || strings.TrimSpace(href) == "" {
+				return
+			}
+			href = strings.TrimSpace(href)
+			// ignore javascript pseudo-links
+			if strings.HasPrefix(strings.ToLower(href), "javascript:") {
+				return
+			}
+			// normalize relative links to absolute VTOP host
+			if strings.HasPrefix(href, "/") {
+				href = "https://vtop.vit.ac.in" + href
+			} else if !strings.HasPrefix(href, "http") {
+				// handle "./path" or "path" -> make relative to host root
+				href = "https://vtop.vit.ac.in/" + strings.TrimLeft(href, "./")
+			}
+			if webLink == "" {
+				webLink = href
+			}
+		})
+
 		material := types.CourseMaterial{
-			Index: index,
-			Date:  date,
-			Topic: topic,
-			ReferenceMaterials: []types.ReferenceMaterial{
-				{
-					Name:       topic,
-					MaterialID: materialID,
-				},
-			},
-			MNo: mNo,
+			Index:              index,
+			Date:               date,
+			Topic:              topic,
+			ReferenceMaterials: []types.ReferenceMaterial{{Name: topic, MaterialID: materialID}},
+			MNo:                mNo,
+			WebLink:            webLink, // newly populated if present
 		}
 		allMaterials = append(allMaterials, facultyMaterial{
 			Faculty:  rawFaculty,
@@ -421,6 +445,16 @@ func fetchFacultieswithMaterials(regNo string, cookies types.Cookies, courseID s
 	return materials, selectedFaculty, nil
 }
 
+// makeANSILink returns an ANSI hyperlink sequence which makes the label clickable in terminals that support it.
+// Fallback is simply the label (but the escape sequence is still emitted).
+func makeANSILink(url, label string) string {
+	if strings.TrimSpace(url) == "" {
+		return ""
+	}
+	// Standard terminal hyperlink OSC 8 sequence
+	return fmt.Sprintf("\x1b]8;;%s\x07%s\x1b]8;;\x07", url, label)
+}
+
 func displayCourseMaterials(materials []types.CourseMaterial) {
 	showWebColumn := false
 	for _, material := range materials {
@@ -446,7 +480,8 @@ func displayCourseMaterials(materials []types.CourseMaterial) {
 		if showWebColumn {
 			webCol := ""
 			if strings.TrimSpace(material.WebLink) != "" {
-				webCol = helpers.MakeANSILink("Open", material.WebLink)
+				// Use local ansi hyperlink helper for consistent clickable output
+				webCol = makeANSILink(material.WebLink, "Open")
 			}
 			nestedList = append(nestedList, []string{
 				material.Date,
@@ -578,10 +613,47 @@ func downloadMaterialsHope(regNo string, cookies types.Cookies, selectedCourse t
 		return fmt.Errorf("download directory does not exist: %s", fullDirPath)
 	}
 
-	// Count total reference materials for progress bar
+	// --- New: Pre-scan existing files and build hash map to detect duplicates ---
+	existingHashes := make(map[string]string) // hashHex -> filepath
+	var existingMu sync.Mutex
+
+	_ = filepath.Walk(fullDirPath, func(p string, info os.FileInfo, err error) error {
+		if err != nil {
+			// ignore and continue
+			return nil
+		}
+		if info.IsDir() {
+			return nil
+		}
+		f, err := os.Open(p)
+		if err != nil {
+			return nil
+		}
+		defer f.Close()
+		h := sha256.New()
+		if _, err := io.Copy(h, f); err != nil {
+			return nil
+		}
+		sum := h.Sum(nil)
+		hexsum := hex.EncodeToString(sum)
+		existingMu.Lock()
+		existingHashes[hexsum] = p
+		existingMu.Unlock()
+		return nil
+	})
+	// --- end pre-scan ---
+
 	totalRefMaterials := 0
 	for _, material := range selectedMaterials {
-		totalRefMaterials += len(material.ReferenceMaterials)
+		if material.WebLink != "" {
+			fmt.Printf("Web Material available for '%s'\n", material.Topic)
+			fmt.Printf("Link: %s\n", material.WebLink)
+		}
+		for _, rm := range material.ReferenceMaterials {
+			if strings.TrimSpace(rm.MaterialID) != "" {
+				totalRefMaterials++
+			}
+		}
 	}
 
 	bar := progressbar.NewOptions(
@@ -620,6 +692,10 @@ func downloadMaterialsHope(regNo string, cookies types.Cookies, selectedCourse t
 	for _, mat := range selectedMaterials {
 		material := mat // capture
 		for _, rm := range material.ReferenceMaterials {
+			// skip web-only materials without a file ID
+			if strings.TrimSpace(rm.MaterialID) == "" {
+				continue
+			}
 			refMat := rm // capture
 
 			sem <- struct{}{}
@@ -716,6 +792,18 @@ func downloadMaterialsHope(regNo string, cookies types.Cookies, selectedCourse t
 					return
 				}
 
+				// compute content hash for dedup check
+				contentHash := sha256.Sum256(body)
+				hashHex := hex.EncodeToString(contentHash[:])
+
+				// if an identical file already exists in target dir (from previous runs or earlier saves), skip saving
+				existingMu.Lock()
+				if _, ok := existingHashes[hashHex]; ok {
+					existingMu.Unlock()
+					return
+				}
+				existingMu.Unlock()
+
 				// Build safe filename:
 				// 1) Treat only allowed extensions as real extensions.
 				// 2) Fix trailing numeric dotted suffixes (e.g. "1.1" -> "1-1").
@@ -746,15 +834,15 @@ func downloadMaterialsHope(regNo string, cookies types.Cookies, selectedCourse t
 				if strings.TrimSpace(material.MNo) != "" {
 					modulePrefix = "Module-" + material.MNo + "_"
 				}
-				baseFileName := modulePrefix + nameNoExt + finalExt
-				filePath := filepath.Join(fullDirPath, baseFileName)
 
-				// Ensure no overwrite: if file exists, append _1, _2, etc.
-				uniqueFilePath := filePath
+				// Use short hash suffix to guarantee unique filename for new content
+				shortHash := hashHex[:8]
+				baseFileName := fmt.Sprintf("%s%s_%s%s", modulePrefix, nameNoExt, shortHash, finalExt)
+				uniqueFilePath := filepath.Join(fullDirPath, baseFileName)
+
 				if _, err := os.Stat(uniqueFilePath); err == nil {
-					// File exists, find a unique name
 					for suffix := 1; ; suffix++ {
-						altName := fmt.Sprintf("%s_%d%s", modulePrefix+nameNoExt, suffix, finalExt)
+						altName := fmt.Sprintf("%s%s_%s_%d%s", modulePrefix, nameNoExt, shortHash, suffix, finalExt)
 						uniqueFilePath = filepath.Join(fullDirPath, altName)
 						if _, err := os.Stat(uniqueFilePath); os.IsNotExist(err) {
 							break
@@ -766,6 +854,11 @@ func downloadMaterialsHope(regNo string, cookies types.Cookies, selectedCourse t
 					errChan <- fmt.Errorf("error saving %q to %s: %v", material.Topic, uniqueFilePath, saveErr)
 					return
 				}
+
+				existingMu.Lock()
+				existingHashes[hashHex] = uniqueFilePath
+				existingMu.Unlock()
+
 			}(material, refMat)
 		}
 	}

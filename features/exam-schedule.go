@@ -7,6 +7,7 @@ import (
 	"cli-top/types"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -139,7 +140,6 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 		displayExamScheduleTable(fatExams)
 	}
 
-	// Generate ICS file with all upcoming exams
 	if len(allExams) > 0 {
 		generateICSFile(allExams)
 	}
@@ -277,17 +277,24 @@ func filterAndSortUpcomingExams(exams []types.ExamEvent) []types.ExamEvent {
 func generateICSFile(exams []types.ExamEvent) {
 	var icsEvents []types.ICSWithLocation
 	for _, exam := range exams {
-		timeRange := strings.Split(exam.ExamTime, " - ")
+		cleanedTime := exam.ExamTime
+		if idx := strings.Index(strings.ToLower(cleanedTime), "(report by:"); idx != -1 {
+			cleanedTime = strings.TrimSpace(cleanedTime[:idx])
+		}
+		re := regexp.MustCompile(`\s*\([^)]*\)`)
+		cleanedTime = strings.TrimSpace(re.ReplaceAllString(cleanedTime, ""))
+		timeRange := strings.Split(cleanedTime, " - ")
 		if len(timeRange) != 2 {
-			fmt.Println("Invalid time range format")
+			fmt.Printf("Invalid time range format for exam '%s' (%s)\n", exam.CourseTitle, exam.CourseCode)
 			continue
 		}
-
+		startStr := strings.TrimSpace(timeRange[0])
+		endStr := strings.TrimSpace(timeRange[1])
 		inputTimeLayout := "3:04 PM"
 		outputTimeLayout := "20060102T150405"
 
-		startTime, err1 := time.Parse(inputTimeLayout, timeRange[0])
-		endTime, err2 := time.Parse(inputTimeLayout, timeRange[1])
+		startTime, err1 := time.Parse(inputTimeLayout, startStr)
+		endTime, err2 := time.Parse(inputTimeLayout, endStr)
 
 		if err1 != nil || err2 != nil {
 			fmt.Println("Error parsing time range:", err1, err2)
