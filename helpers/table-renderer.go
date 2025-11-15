@@ -9,6 +9,59 @@ import (
 	"strings"
 )
 
+// TableSnapshot captures the raw data passed to PrintTable for structured reuse.
+type TableSnapshot struct {
+	Headers  []string   `json:"headers"`
+	Rows     [][]string `json:"rows"`
+	HasIndex bool       `json:"hasIndex"`
+}
+
+type tableCaptureHook func(TableSnapshot)
+
+var currentTableCaptureHook tableCaptureHook
+
+// RegisterTableCaptureHook installs a hook that receives every table rendered by PrintTable.
+// It returns a restore function that reverts to the previous hook when invoked.
+func RegisterTableCaptureHook(h func(TableSnapshot)) func() {
+	previous := currentTableCaptureHook
+	currentTableCaptureHook = h
+	return func() {
+		currentTableCaptureHook = previous
+	}
+}
+
+func emitTableSnapshot(nestedList [][]string, indexStatus int) {
+	if currentTableCaptureHook == nil || len(nestedList) == 0 {
+		return
+	}
+	cloned := cloneTableData(nestedList)
+	snapshot := TableSnapshot{
+		Headers:  cloned[0],
+		Rows:     cloned[1:],
+		HasIndex: indexStatus == 1,
+	}
+	currentTableCaptureHook(snapshot)
+}
+
+func cloneTableData(src [][]string) [][]string {
+	cloned := make([][]string, len(src))
+	for i, row := range src {
+		cloned[i] = append([]string(nil), row...)
+	}
+	return cloned
+}
+
+func sanitizeTableData(src [][]string) [][]string {
+	clean := make([][]string, len(src))
+	for i, row := range src {
+		clean[i] = make([]string, len(row))
+		for j, cell := range row {
+			clean[i][j] = StripAnsiCodes(cell)
+		}
+	}
+	return clean
+}
+
 func StripAnsiCodes(str string) string {
 	// Remove standard ANSI CSI sequences (e.g. colors)
 	reCSI := regexp.MustCompile(`\x1b\[[0-9;]*m`)
@@ -389,6 +442,8 @@ func PrintTable(nestedList [][]string, indexStatus int) int {
 			fmt.Println()
 		}
 	}
+
+	emitTableSnapshot(sanitizeTableData(normalizedList), indexStatus)
 	return 0
 }
 

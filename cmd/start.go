@@ -283,13 +283,13 @@ var rootCmd = &cobra.Command{
 	Use:   "cli-top",
 	Short: "A simple CLI tool for vtop",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		if cmd.Name() != "login" && cmd.Name() != "logout" && cmd.Name() != "cli-top" {
-			go trackCommand(cmd.Name())
-		}
+	if cmd.Name() != "login" && cmd.Name() != "logout" && cmd.Name() != "cli-top" && cmd.Name() != "proxy" {
+		go trackCommand(cmd.Name())
+	}
 
-		if cmd.Name() != "login" && cmd.Name() != "logout" {
-			go func() {
-				userUUID := viper.GetString("UUID")
+	if cmd.Name() != "login" && cmd.Name() != "logout" && cmd.Name() != "proxy" {
+		go func() {
+			userUUID := viper.GetString("UUID")
 				if userUUID == "" {
 					return
 				}
@@ -436,7 +436,30 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
 
 	// Add subcommands to root command
-	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, coursePageArchiveCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd, facilityCmd, syllabusCmd, courseAllocationCmd)
+	rootCmd.AddCommand(
+		profileCmd,
+		marksCmd,
+		gradesCmd,
+		attendanceCmd,
+		timeTableCmd,
+		receiptCmd,
+		hostelCmd,
+		cgpaCmd,
+		examScheduleCmd,
+		libraryDuesCmd,
+		logoutCmd,
+		calendarCmd,
+		coursePageCmd,
+		coursePageArchiveCmd,
+		nightslipCmd,
+		leavestatusCmd,
+		classMessagesCmd,
+		daDetailsCmd,
+		facilityCmd,
+		syllabusCmd,
+		courseAllocationCmd,
+		proxyCmd,
+	)
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
