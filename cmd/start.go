@@ -13,7 +13,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/fatih/color"
@@ -34,6 +33,10 @@ var fuzzyIndexFlag int
 var courseNameFlag string
 var syllabusCourseFlag string
 
+func configFilePath() string {
+	return helpers.ConfigFilePath()
+}
+
 func getOrCreateUUID() string {
 	registeredUUID := viper.GetString("UUID")
 	if registeredUUID != "" {
@@ -44,7 +47,7 @@ func getOrCreateUUID() string {
 	if unregisteredUUID == "" {
 		unregisteredUUID = uuid.New().String()
 		viper.Set("UNREGISTERED_UUID", unregisteredUUID)
-		if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
+		if err := viper.WriteConfigAs(configFilePath()); err != nil && debug.Debug {
 			fmt.Println("Error saving unregistered UUID to config:", err)
 		}
 	}
@@ -58,7 +61,7 @@ func getOrCreateUUID() string {
 
 	viper.Set("UUID", unregisteredUUID)
 	viper.Set("UNREGISTERED_UUID", "")
-	if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
+	if err := viper.WriteConfigAs(configFilePath()); err != nil && debug.Debug {
 		fmt.Println("Error updating registered UUID in config:", err)
 	}
 
@@ -130,7 +133,7 @@ func trackCommand(command string) {
 		}
 		viper.Set("UUID", newUUID)
 		viper.Set("UNREGISTERED_UUID", "")
-		if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
+		if err := viper.WriteConfigAs(configFilePath()); err != nil && debug.Debug {
 			fmt.Println("Error updating registered UUID in config:", err)
 		}
 	} else if resp.StatusCode != http.StatusOK {
@@ -162,21 +165,14 @@ func startfn() {
 	}
 	red.Println("\nWelcome to CLI-TOP!\n ")
 	red.Println("Use \"cli-top help\" or \"cli-top --list\" to show available commands\nUse \"cli-top [command] --help\" for more information about a command.\n ")
-	fileName := "cli-top-config.env"
-
-	currentDir, err := os.Getwd()
-	if err != nil && debug.Debug {
-		fmt.Println("Error getting current directory:", err)
-		return
-	}
-
-	filePath := filepath.Join(currentDir, fileName)
+	filePath := configFilePath()
 
 	if _, err := os.Stat(filePath); err == nil {
 		if debug.Debug {
 			fmt.Println("File exists:", filePath)
 		}
-		err := godotenv.Load("cli-top-config.env")
+		err := godotenv.Load(filePath)
+		helpers.LoadSemesterCacheFromEnv()
 		if err != nil && debug.Debug {
 			fmt.Println("Error loading .env file")
 		}
@@ -187,11 +183,12 @@ func startfn() {
 		if os.Getenv("VTOP_USERNAME") != "" && os.Getenv("PASSWORD") != "" {
 			vtop_login()
 		}
-	} else if os.IsNotExist(err) {
-		fmt.Println("File does not exist:", filePath)
-		fmt.Println("Please login using the \"login\" command")
 	} else {
-		fmt.Println("Error checking file existence:", err)
+		// File not found in cwd or exe dir
+		if debug.Debug {
+			fmt.Println("File does not exist:", filePath)
+		}
+		fmt.Println("Please login using the \"login\" command")
 	}
 
 	userUUID := getOrCreateUUID()
@@ -201,7 +198,10 @@ func startfn() {
 }
 
 func vtop_login() (types.Cookies, string) {
-	err := godotenv.Load("cli-top-config.env")
+	err := godotenv.Load(configFilePath())
+	helpers.LoadSemesterCacheFromEnv()
+	helpers.LoadSemesterCacheFromEnv()
+	helpers.LoadSemesterCacheFromEnv()
 	if err != nil && debug.Debug {
 		fmt.Println("Error loading .env file, please enter your credentials using the \"login\" command.")
 	}
@@ -241,8 +241,11 @@ func saveCookiesToFile(cookies types.Cookies, userInfo types.LogIn, Key string) 
 	viper.Set("VTOP_USERNAME", "\""+userInfo.Username+"\"")
 	viper.Set("PASSWORD", "\""+userInfo.Password+"\"")
 	viper.Set("KEY", "\""+Key+"\"")
-	if err := viper.WriteConfigAs("cli-top-config.env"); err != nil && debug.Debug {
+	if err := viper.WriteConfigAs(configFilePath()); err != nil && debug.Debug {
 		fmt.Println("Error writing to .env file:", err)
+	}
+	if userInfo.RegNo != "" {
+		helpers.InvalidateSemesterCache(userInfo.RegNo)
 	}
 }
 
@@ -251,7 +254,7 @@ func readCookiesFromFile() (types.Cookies, string) {
 		debug.Debug = true
 		fmt.Println("Debug mode on")
 	}
-	err := godotenv.Load("cli-top-config.env")
+	err := godotenv.Load(configFilePath())
 	if err != nil && debug.Debug {
 		fmt.Println("Error loading .env file, please enter your credentials using the \"login\" command.")
 	}
@@ -272,11 +275,11 @@ var rootCmd = &cobra.Command{
 	Use:   "cli-top",
 	Short: "A simple CLI tool for vtop",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		if cmd.Name() != "login" && cmd.Name() != "logout" && cmd.Name() != "cli-top" {
+		if cmd.Name() != "login" && cmd.Name() != "logout" && cmd.Name() != "cli-top" && cmd.Name() != "proxy" {
 			go trackCommand(cmd.Name())
 		}
 
-		if cmd.Name() != "login" && cmd.Name() != "logout" {
+		if cmd.Name() != "login" && cmd.Name() != "logout" && cmd.Name() != "proxy" {
 			go func() {
 				userUUID := viper.GetString("UUID")
 				if userUUID == "" {
@@ -384,7 +387,7 @@ func Execute() {
 		return
 	}
 
-	err := godotenv.Load("cli-top-config.env")
+	err := godotenv.Load(configFilePath())
 	if err != nil && debug.Debug {
 		fmt.Println("Error loading .env file:", err)
 	}
@@ -425,7 +428,30 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
 
 	// Add subcommands to root command
-	rootCmd.AddCommand(profileCmd, marksCmd, gradesCmd, attendanceCmd, timeTableCmd, receiptCmd, hostelCmd, cgpaCmd, examScheduleCmd, libraryDuesCmd, logoutCmd, calendarCmd, coursePageCmd, coursePageArchiveCmd, nightslipCmd, leavestatusCmd, classMessagesCmd, daDetailsCmd, facilityCmd, syllabusCmd, courseAllocationCmd)
+	rootCmd.AddCommand(
+		profileCmd,
+		marksCmd,
+		gradesCmd,
+		attendanceCmd,
+		timeTableCmd,
+		receiptCmd,
+		hostelCmd,
+		cgpaCmd,
+		examScheduleCmd,
+		libraryDuesCmd,
+		logoutCmd,
+		calendarCmd,
+		coursePageCmd,
+		coursePageArchiveCmd,
+		nightslipCmd,
+		leavestatusCmd,
+		classMessagesCmd,
+		daDetailsCmd,
+		facilityCmd,
+		syllabusCmd,
+		courseAllocationCmd,
+		proxyCmd,
+	)
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
@@ -437,152 +463,153 @@ func Execute() {
 var courseAllocationCmd = &cobra.Command{
 	Use:   "course-allocation",
 	Short: "View course allocation",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: helpers.CommandRunner("course-allocation", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.ExecuteInteractiveCourseAllocationView(regNo, cookies, "")
-	},
+	}),
 }
 
 var profileCmd = &cobra.Command{
 	Use:   "profile",
 	Short: "Show VTOP Student Profile",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: helpers.CommandRunner("profile", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.Profile(cookies, regNo)
-	},
+	}),
 }
 
 var facilityCmd = &cobra.Command{
 	Use:   "facility",
 	Short: "View facilities",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: helpers.CommandRunner("facility", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.RegisterPhyFacility(regNo, cookies)
-	},
+	}),
 }
 
 var syllabusCmd = &cobra.Command{
 	Use:   "syllabus",
 	Short: "Download syllabus for a selected course",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: helpers.CommandRunner("syllabus", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.ExecuteSyllabusDownload(regNo, cookies, syllabusCourseFlag)
-	},
+	}),
 }
 
 var marksCmd = &cobra.Command{
 	Use:   "marks",
 	Short: "Show Marks Details of a particular semester",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: helpers.CommandRunner("marks", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.GetMarks(regNo, cookies, "", semesterFlag)
-	},
+	}),
 }
 
 var gradesCmd = &cobra.Command{
 	Use:   "grades",
 	Short: "Show Grade Details of a particular semester",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: helpers.CommandRunner("grades", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.GetGrades(regNo, cookies, "", semesterFlag)
-	},
+	}),
 }
 
 var attendanceCmd = &cobra.Command{
 	Use:   "attendance",
 	Short: "Show Attendance Details of a particular semester",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: helpers.CommandRunner("attendance", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.GetAttendance(regNo, cookies, semesterFlag)
-	},
+	}),
 }
 
 var receiptCmd = &cobra.Command{
 	Use:   "receipts",
 	Short: "Show Receipt Details of a user",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: helpers.CommandRunner("receipts", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.GetReceipt(regNo, cookies)
-	},
+	}),
 }
 
 var timeTableCmd = &cobra.Command{
 	Use:   "timetable",
 	Short: "Show Time Table of a particular semester",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: helpers.CommandRunner("timetable", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.GetTimeTable(regNo, cookies, semesterFlag)
-	},
+	}),
 }
 
 var hostelCmd = &cobra.Command{
 	Use:   "hostel",
 	Short: "Show Hostel Details of a user",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: helpers.CommandRunner("hostel", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.PrintHostelInfo(regNo, cookies, "https://vtop.vit.ac.in/vtop/studentsRecord/StudentProfileAllView")
-	},
+	}),
 }
 
 var cgpaCmd = &cobra.Command{
 	Use:   "cgpa",
 	Short: "Show CGPA details",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: helpers.CommandRunner("cgpa", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.PrintCgpa(regNo, cookies, "https://vtop.vit.ac.in/vtop/examinations/examGradeView/StudentGradeHistory")
-	},
+	}),
 }
 
 var examScheduleCmd = &cobra.Command{
 	Use:   "exams",
 	Short: "Show Exam Schedule",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: helpers.CommandRunner("exams", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.GetExamSchedule(regNo, cookies, semesterFlag)
-	},
+	}),
 }
 
 var coursePageCmd = &cobra.Command{
 	Use:   "course-page",
 	Short: "Download course materials for a selected semester, course, and faculty",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: helpers.CommandRunner("course-page", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.ExecuteCoursePageDownload(regNo, cookies, semesterFlag, courseFlag, facultyFlag, fuzzyIndexFlag)
-	},
+	}),
 }
 
 var coursePageArchiveCmd = &cobra.Command{
 	Use:   "course-page-archive",
 	Short: "Download course materials for a selected semester, course, and faculty (Archive)",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: helpers.CommandRunner("course-page-archive", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.ExecuteCoursePageOldDownload(regNo, cookies, semesterFlag, courseFlag, facultyFlag, fuzzyIndexFlag)
-	},
+	}),
 }
 
 var libraryDuesCmd = &cobra.Command{
 	Use:   "library-dues",
 	Short: "Show Library Dues",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: helpers.CommandRunner("library-dues", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.GetLibraryDues(regNo, cookies)
-	},
+	}),
 }
 
 var calendarCmd = &cobra.Command{
 	Use:   "calendar",
 	Short: "Show Calendar",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: helpers.CommandRunner("calendar", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.PrintCal(regNo, cookies, semesterFlag, classGrpFlag)
-	},
+	}),
 }
 
 var logoutCmd = &cobra.Command{
 	Use:   "logout",
 	Short: "Logout from VTOP",
-	Run: func(cmd *cobra.Command, args []string) {
-		err := godotenv.Load("cli-top-config.env")
+	Run: helpers.CommandRunner("logout", func(cmd *cobra.Command, args []string) {
+		err := godotenv.Load(configFilePath())
+		helpers.LoadSemesterCacheFromEnv()
 		if err != nil && debug.Debug {
 			fmt.Println("Error loading .env file:", err)
 			return
@@ -599,7 +626,8 @@ var logoutCmd = &cobra.Command{
 			"UUID": uuid,
 		}
 
-		f, err := os.Create("cli-top-config.env")
+		// create the config file at the discovered path
+		f, err := os.Create(configFilePath())
 		if err != nil {
 			if debug.Debug {
 				fmt.Println("Error creating .env file:", err)
@@ -617,41 +645,41 @@ var logoutCmd = &cobra.Command{
 		}
 
 		fmt.Println("Logged out successfully.")
-	},
+	}),
 }
 
 var nightslipCmd = &cobra.Command{
 	Use:   "nightslip",
 	Short: "Show Nightslip Request Status of a user",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: helpers.CommandRunner("nightslip", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.GetNightSlipStatus(regNo, cookies)
-	},
+	}),
 }
 
 var leavestatusCmd = &cobra.Command{
 	Use:   "leave",
 	Short: "Show Leave Status",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: helpers.CommandRunner("leave", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.GetLeaveStatus(regNo, cookies)
-	},
+	}),
 }
 
 var classMessagesCmd = &cobra.Command{
 	Use:   "msg",
 	Short: "Show Class Messages",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: helpers.CommandRunner("msg", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.GetClassMessage(regNo, cookies)
-	},
+	}),
 }
 
 var daDetailsCmd = &cobra.Command{
 	Use:   "da",
 	Short: "Show Digital Assignment Details",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: helpers.CommandRunner("da", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.PrintAllDAs(regNo, cookies, courseNameFlag)
-	},
+	}),
 }

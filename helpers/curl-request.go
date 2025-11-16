@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cli-top/debug"
 	"cli-top/types"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,52 +17,54 @@ import (
 func FetchReq(regNo string, cookies types.Cookies, url string, semID string, payload string, method string, header string) ([]byte, error) {
 	client := GetHTTPClient()
 
-	var req *http.Request
-	var err error
-
-	if payload == "" {
-		payload = fmt.Sprintf("verifyMenu=true&authorizedID=%s&_csrf=%s&nocache=%d", regNo, cookies.CSRF, time.Now().UnixNano())
-	} else if payload == "UTC" {
-		payload = fmt.Sprintf("authorizedID=%s&_csrf=%s&semesterSubId=%s&x=%s", regNo, cookies.CSRF, semID, time.Now().UTC().Format(time.RFC1123))
-	}
-
-	// Create a new request with POST/GET method and payload
-	if method == "POST" {
-		req, err = http.NewRequest("POST", url, bytes.NewBuffer([]byte(payload)))
-		if err != nil && debug.Debug {
-			return nil, err
+	buildRequest := func() (*http.Request, context.CancelFunc, error) {
+		if payload == "" {
+			payload = fmt.Sprintf("verifyMenu=true&authorizedID=%s&_csrf=%s&nocache=%d", regNo, cookies.CSRF, time.Now().UnixNano())
+		} else if payload == "UTC" {
+			payload = fmt.Sprintf("authorizedID=%s&_csrf=%s&semesterSubId=%s&x=%s", regNo, cookies.CSRF, semID, time.Now().UTC().Format(time.RFC1123))
 		}
-	} else if method == "GET" {
-		req, err = http.NewRequest("GET", url, nil)
-		if err != nil && debug.Debug {
-			fmt.Println(err)
+
+		ctx, cancel := context.WithTimeout(context.Background(), defaultRequestTimeout)
+		var req *http.Request
+		var err error
+		if method == "POST" {
+			req, err = http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer([]byte(payload)))
+		} else if method == "GET" {
+			req, err = http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		} else {
+			cancel()
+			return nil, nil, fmt.Errorf("invalid method: %s", method)
 		}
-	} else {
-		return nil, fmt.Errorf("invalid method: %s", method)
+		if err != nil {
+			cancel()
+			return nil, nil, err
+		}
+
+		SetVtopHeaders(req)
+		if header == "marks" {
+			req.Header.Set("Content-Type", "multipart/form-data; boundary=----WebKitFormBoundary9yjNZXu7BBjgQK7J")
+		} else {
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		}
+		req.Header.Set("Cookie", fmt.Sprintf("SERVERID=%s; JSESSIONID=%s", cookies.SERVERID, cookies.JSESSIONID))
+		return req, cancel, nil
 	}
-
-	// Add default VTOP headers
-	SetVtopHeaders(req)
-
-	// Set headers or cookies for specific features if needed
-	if header == "marks" {
-		req.Header.Set("Content-Type", "multipart/form-data; boundary=----WebKitFormBoundary9yjNZXu7BBjgQK7J")
-	} else {
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	}
-
-	// Set common cookies
-	req.Header.Set("Cookie", fmt.Sprintf("SERVERID=%s; JSESSIONID=%s", cookies.SERVERID, cookies.JSESSIONID))
 
 	retry := false
+
 RETRY:
-	resp, err := client.Do(req)
+	req, cancel, err := buildRequest()
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
+	resp, err := client.Do(req)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
 	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	cancel()
 	if err != nil {
 		return nil, err
 	}
@@ -71,14 +74,6 @@ RETRY:
 			newCookies, _ := vtopLoginFunc()
 			cookies = newCookies
 			retry = true
-			if method == "POST" {
-				req, err = http.NewRequest("POST", url, bytes.NewBuffer([]byte(payload)))
-			} else {
-				req, err = http.NewRequest("GET", url, nil)
-			}
-			SetVtopHeaders(req)
-			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			req.Header.Set("Cookie", fmt.Sprintf("SERVERID=%s; JSESSIONID=%s", cookies.SERVERID, cookies.JSESSIONID))
 			goto RETRY
 		}
 		return nil, fmt.Errorf("Session expired or VTOP returned 404. Please run 'cli-top login' to refresh your session.")
@@ -89,7 +84,8 @@ RETRY:
 
 func getVtopLoginFunc() func() (types.Cookies, string) {
 	return func() (types.Cookies, string) {
-		_ = godotenv.Load("cli-top-config.env")
+		_ = godotenv.Load(ConfigFilePath())
+		LoadSemesterCacheFromEnv()
 		userInfo := types.LogIn{
 			Username: os.Getenv("VTOP_USERNAME"),
 			Password: os.Getenv("PASSWORD"),

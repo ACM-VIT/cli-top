@@ -5,6 +5,7 @@ import (
 	"cli-top/debug"
 	"cli-top/helpers"
 	"cli-top/types"
+	"context"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -30,13 +31,7 @@ import (
 // 	CourseCellSelector   = "td"
 // )
 
-// var newHttpClient *http.Client
-
-func init() {
-	newHttpClient = &http.Client{
-		Timeout: time.Duration(60) * time.Second,
-	}
-}
+// legacy HTTP client removed in favour of helpers.GetHTTPClient()
 
 func ExecuteCoursePageOldDownload(regNo string, cookies types.Cookies, semesterFlag int, courseFlag int, facultyFlag string, fuzzyFlag int) {
 	if !helpers.ValidateLogin(cookies) {
@@ -184,7 +179,7 @@ func fetchAndSelectCourseOld(regNo string, cookies types.Cookies, semSubId strin
 	}
 
 	formData := helpers.FormatBodyDataClient(payloadMap)
-	body, _, err := helpers.FetchReqClient(newHttpClient, regNo, cookies, getCourseURL, "", formData, "POST", "application/x-www-form-urlencoded")
+	body, _, err := helpers.FetchReqClient(helpers.GetHTTPClient(), regNo, cookies, getCourseURL, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		return types.Course{}, err
 	}
@@ -238,7 +233,7 @@ func fetchSlotIds(regNo string, cookies types.Cookies, semSubId string, classId 
 	}
 
 	formData := helpers.FormatBodyDataClient(payloadMap)
-	body, _, err := helpers.FetchReqClient(newHttpClient, regNo, cookies, getSlotURL, "", formData, "POST", "application/x-www-form-urlencoded")
+	body, _, err := helpers.FetchReqClient(helpers.GetHTTPClient(), regNo, cookies, getSlotURL, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		return nil, err
 	}
@@ -278,7 +273,7 @@ func fetchFacultiesForAllSlotsConcurrently(regNo string, cookies types.Cookies, 
 		go func(i int, slotId string) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			faculties, err := fetchFaculties(newHttpClient, regNo, cookies, semSubId, classId, slotId)
+			faculties, err := fetchFaculties(regNo, cookies, semSubId, classId, slotId)
 			if err != nil {
 				if debug.Debug {
 					fmt.Printf("Error fetching faculties for slot %s: %v\n", slotId, err)
@@ -309,7 +304,7 @@ func fetchFacultiesForAllSlotsConcurrently(regNo string, cookies types.Cookies, 
 	return uniqueFaculties, nil
 }
 
-func fetchFaculties(client *http.Client, regNo string, cookies types.Cookies, semSubId string, classId string, slotId string) ([]types.FacultyOld, error) {
+func fetchFaculties(regNo string, cookies types.Cookies, semSubId string, classId string, slotId string) ([]types.FacultyOld, error) {
 	getFacultyURL := "https://vtop.vit.ac.in/vtop/getFacultyForCoursePage"
 	payloadMap := map[string]string{
 		"_csrf":         cookies.CSRF,
@@ -323,7 +318,7 @@ func fetchFaculties(client *http.Client, regNo string, cookies types.Cookies, se
 	}
 
 	formData := helpers.FormatBodyDataClient(payloadMap)
-	body, _, err := helpers.FetchReqClient(client, regNo, cookies, getFacultyURL, "", formData, "POST", "application/x-www-form-urlencoded")
+	body, _, err := helpers.FetchReqClient(helpers.GetHTTPClient(), regNo, cookies, getFacultyURL, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		return nil, err
 	}
@@ -431,7 +426,7 @@ func fetchCourseMaterialsPage(regNo string, cookies types.Cookies, selectedFacul
 		"x":            time.Now().UTC().Format(time.RFC1123),
 	}
 	formData := helpers.FormatBodyDataClient(payloadMap)
-	body, _, err := helpers.FetchReqClient(newHttpClient, regNo, cookies, url, "", formData, "POST", "application/x-www-form-urlencoded")
+	body, _, err := helpers.FetchReqClient(helpers.GetHTTPClient(), regNo, cookies, url, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		return "", err
 	}
@@ -916,28 +911,19 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 				var lastError string
 
 				for attempt := 1; attempt <= retries; attempt++ {
-					attemptClient := &http.Client{
-						Timeout: time.Minute * 2,
-						Transport: &http.Transport{
-							MaxIdleConns:        10,
-							MaxIdleConnsPerHost: 5,
-							IdleConnTimeout:     30 * time.Second,
-							DisableKeepAlives:   true,
-						},
-					}
-
+					timeout := 2 * time.Minute
 					if isPotentialPptx {
-						attemptClient.Timeout = time.Minute * 5
+						timeout = 5 * time.Minute
 					}
-
-					body, headers, downloadErr = helpers.FetchReqClient(attemptClient, regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
+					ctx, cancelCtx := context.WithTimeout(context.Background(), timeout)
+					body, headers, downloadErr = helpers.FetchReqClientWithContext(ctx, helpers.GetHTTPClient(), regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
+					cancelCtx()
 					if downloadErr == nil && len(body) > 0 {
 						if (isPotentialPptx && len(body) > 4096) || isSuccessfulDownload(body) {
 							break
-						} else {
-							downloadErr = fmt.Errorf("invalid file content")
-							lastError = "Invalid file content"
 						}
+						downloadErr = fmt.Errorf("invalid file content")
+						lastError = "Invalid file content"
 					} else if downloadErr != nil {
 						lastError = downloadErr.Error()
 					} else {
@@ -1095,21 +1081,6 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 			var headers http.Header
 			var downloadErr error
 			var lastError string
-
-			retryClient := &http.Client{
-				Timeout: time.Minute * 5,
-				Transport: &http.Transport{
-					MaxIdleConns:        5,
-					MaxIdleConnsPerHost: 2,
-					IdleConnTimeout:     90 * time.Second,
-					DisableKeepAlives:   true,
-				},
-			}
-
-			if isPotentialPptx {
-				retryClient.Timeout = time.Minute * 10
-			}
-
 			success := false
 
 			for attempt := 1; attempt <= 5; attempt++ {
@@ -1118,7 +1089,13 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 					time.Sleep(sleepTime)
 				}
 
-				body, headers, downloadErr = helpers.FetchReqClient(retryClient, regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
+				timeout := 5 * time.Minute
+				if isPotentialPptx {
+					timeout = 10 * time.Minute
+				}
+				ctx, cancelCtx := context.WithTimeout(context.Background(), timeout)
+				body, headers, downloadErr = helpers.FetchReqClientWithContext(ctx, helpers.GetHTTPClient(), regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
+				cancelCtx()
 
 				if downloadErr == nil && len(body) > 0 {
 					if (isPotentialPptx && len(body) > 4096) || isSuccessfulDownload(body) {
@@ -1155,20 +1132,15 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 
 					var timeout time.Duration
 					if isPotentialPptx {
-						timeout = time.Minute * 15
+						timeout = 15 * time.Minute
 					} else {
-						timeout = time.Minute * 10
-					}
-
-					freshClient := &http.Client{
-						Timeout: timeout,
-						Transport: &http.Transport{
-							DisableKeepAlives: true,
-						},
+						timeout = 10 * time.Minute
 					}
 
 					randomParam := fmt.Sprintf("&nocache=%d", time.Now().UnixNano())
-					body, headers, downloadErr = helpers.FetchReqClient(freshClient, regNo, cookies, downloadURL+randomParam, "", formData, "POST", "application/x-www-form-urlencoded")
+					ctxFresh, cancelFresh := context.WithTimeout(context.Background(), timeout)
+					body, headers, downloadErr = helpers.FetchReqClientWithContext(ctxFresh, helpers.GetHTTPClient(), regNo, cookies, downloadURL+randomParam, "", formData, "POST", "application/x-www-form-urlencoded")
+					cancelFresh()
 
 					if downloadErr == nil && len(body) > 0 {
 						if (isPotentialPptx && len(body) > 4096) || isSuccessfulDownload(body) {

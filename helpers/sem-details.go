@@ -59,6 +59,9 @@ func FindAndSaveSemIds(doc *goquery.Document) ([]types.Semester, error) {
 
 // GetSemDetails fetches semester details
 func GetSemDetails(cookies types.Cookies, regNo string) ([]types.Semester, error) {
+	if cached, ok := getCachedSemesters(regNo); ok {
+		return cached, nil
+	}
 	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
 		return nil, fmt.Errorf("please login first using the cli-top login command")
 	}
@@ -87,10 +90,14 @@ func GetSemDetails(cookies types.Cookies, regNo string) ([]types.Semester, error
 		return allSems, err
 	}
 	ReverseSlice(allSems)
+	storeSemesters(regNo, allSems)
 	return allSems, nil
 }
 
 func GetSemDetailsBackup(cookies types.Cookies, regNo string) ([]types.Semester, error) {
+	if cached, ok := getCachedSemesters(regNo); ok {
+		return cached, nil
+	}
 	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentCoursePage"
 	var allSems []types.Semester
 	bodyText, err := FetchReq(regNo, cookies, url, "", "", "POST", "")
@@ -106,6 +113,7 @@ func GetSemDetailsBackup(cookies types.Cookies, regNo string) ([]types.Semester,
 		return allSems, err
 	}
 	ReverseSlice(allSems)
+	storeSemesters(regNo, allSems)
 	return allSems, nil
 }
 
@@ -135,6 +143,11 @@ func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) (types.
 	nested_sem_list = append(nested_sem_list, []string{"Semester ID", "Semester"})
 	for i := 0; i < len(semDetails); i++ {
 		nested_sem_list = append(nested_sem_list, []string{semDetails[i].SemID, semDetails[i].SemName})
+	}
+
+	if os.Getenv("CLI_TOP_PROXY_MODE") == "1" && sem_choice <= 0 {
+		selectedSem = semDetails[len(semDetails)-1]
+		return selectedSem, nil
 	}
 
 	choice := TableSelector("semester", nested_sem_list, strconv.Itoa(sem_choice))
