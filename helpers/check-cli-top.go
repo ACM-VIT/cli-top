@@ -22,6 +22,8 @@ import (
 
 var latestJSONURL = "https://cli-top.acmvit.in/latest.json"
 
+const releaseNotesURL = "https://cli-top.acmvit.in/releases.json"
+
 func SetLatestJSONURL(url string) {
 	latestJSONURL = url
 }
@@ -511,6 +513,48 @@ func looksLikeZip(data []byte) bool {
 	return len(data) > 3 && data[0] == 0x50 && data[1] == 0x4b
 }
 
+type releaseList struct {
+	Releases []releaseEntry `json:"releases"`
+}
+
+type releaseEntry struct {
+	Version string   `json:"version"`
+	Changes []string `json:"changes"`
+}
+
+func fetchReleaseHighlight(version string) string {
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get(releaseNotesURL)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return ""
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return ""
+	}
+	var list releaseList
+	if err := json.Unmarshal(body, &list); err != nil {
+		return ""
+	}
+	for _, rel := range list.Releases {
+		if strings.EqualFold(rel.Version, version) {
+			if len(rel.Changes) == 0 {
+				return ""
+			}
+			summary := rel.Changes[0]
+			if len(rel.Changes) > 1 {
+				summary = fmt.Sprintf("%s (and more)", summary)
+			}
+			return summary
+		}
+	}
+	return ""
+}
+
 func CheckUpdateSilently() (bool, string, error) {
 	client := &http.Client{Timeout: 5 * time.Second}
 	req, err := http.NewRequest("GET", "https://cli-top.acmvit.in/latest.json", nil)
@@ -544,17 +588,17 @@ func CheckUpdateSilently() (bool, string, error) {
 	return false, versionInfo.Version, nil
 }
 
-func ShouldShowUpdateNotification() (bool, string) {
+func ShouldShowUpdateNotification() (bool, string, string) {
 	lastNotifiedVersion := viper.GetString("LAST_UPDATE_NOTIFIED_VERSION")
 	currentVersion := debug.Version
 
 	if lastNotifiedVersion == currentVersion {
-		return false, ""
+		return false, "", ""
 	}
 
 	updateAvailable, latestVersion, err := CheckUpdateSilently()
 	if err != nil || !updateAvailable {
-		return false, ""
+		return false, "", ""
 	}
 
 	viper.Set("LAST_UPDATE_NOTIFIED_VERSION", currentVersion)
@@ -562,15 +606,21 @@ func ShouldShowUpdateNotification() (bool, string) {
 		fmt.Println("Error updating last notified version in config:", err)
 	}
 
-	return true, latestVersion
+	highlight := fetchReleaseHighlight(latestVersion)
+	return true, latestVersion, highlight
 }
 
-func ShowUpdateNotification(latestVersion string) {
+func ShowUpdateNotification(latestVersion, highlight string) {
 	fmt.Printf("\n")
 	fmt.Printf("┌─────────────────────────────────────────────────────────┐\n")
 	fmt.Printf("│ A new version of cli-top is available!                  │\n")
 	fmt.Printf("│ Current version: %-10s   Latest version: %-10s│\n", debug.Version, latestVersion)
 	fmt.Printf("│                                                         │\n")
+	if highlight != "" {
+		short := TruncateWithEllipsis(highlight, 43)
+		fmt.Printf("│ What's new: %-43s │\n", short)
+		fmt.Printf("│                                                         │\n")
+	}
 	fmt.Printf("│ Update with: cli-top -u                                 │\n")
 	fmt.Printf("└─────────────────────────────────────────────────────────┘\n")
 	fmt.Printf("\n")
