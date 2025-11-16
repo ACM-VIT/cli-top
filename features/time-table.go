@@ -543,6 +543,10 @@ func GetTimeTable(regNo string, cookies types.Cookies, sem_choice int) {
 		printTT(timetable, workingSats)
 	}
 
+	if os.Getenv("CLI_TOP_PROXY_MODE") == "1" {
+		return
+	}
+
 	icsDir, err := helpers.GetOrCreateDownloadDir(filepath.Join("Other Downloads", "ICS File"))
 	if err != nil {
 		fmt.Println("Error creating ICS file directory:", err)

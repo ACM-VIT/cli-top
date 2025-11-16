@@ -137,6 +137,11 @@ func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) (types.
 		nested_sem_list = append(nested_sem_list, []string{semDetails[i].SemID, semDetails[i].SemName})
 	}
 
+	if os.Getenv("CLI_TOP_PROXY_MODE") == "1" && sem_choice <= 0 {
+		selectedSem = semDetails[len(semDetails)-1]
+		return selectedSem, nil
+	}
+
 	choice := TableSelector("semester", nested_sem_list, strconv.Itoa(sem_choice))
 	if choice.ExitRequest {
 		return selectedSem, fmt.Errorf("selection canceled by user")
