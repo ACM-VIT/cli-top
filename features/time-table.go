@@ -6,7 +6,6 @@ import (
 	"cli-top/helpers"
 	types "cli-top/types"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -33,7 +32,7 @@ type WorkingSaturday struct {
 func fetchWorkingSaturdays(regNo string, cookies types.Cookies, semSubID, classGroupID string) []WorkingSaturday {
 	var result []WorkingSaturday
 
-	client := &http.Client{}
+	client := helpers.GetHTTPClient()
 	locIndia := time.FixedZone("IST", 5*3600+1800)
 	now := time.Now().In(locIndia)
 

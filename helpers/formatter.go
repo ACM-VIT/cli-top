@@ -1,32 +1,43 @@
 package helpers
 
 import (
+	"net/url"
+	"sort"
 	"strings"
 )
 
 func FormatBodyData(bodyData map[string]string) string {
-	var builder strings.Builder
-	for key, value := range bodyData {
-		builder.WriteString(key)
-		builder.WriteByte('=')
-		builder.WriteString(value)
-		builder.WriteByte('&')
+	if len(bodyData) == 0 {
+		return ""
 	}
-	// Remove trailing '&'
-	str := builder.String()
-	return str[:len(str)-1]
+	keys := make([]string, 0, len(bodyData))
+	for key := range bodyData {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	values := url.Values{}
+	for _, key := range keys {
+		values.Set(key, bodyData[key])
+	}
+	return values.Encode()
 }
 
 func FormatCookies(cookies map[string]string) string {
+	if len(cookies) == 0 {
+		return ""
+	}
 	var builder strings.Builder
-	for key, value := range cookies {
+	keys := make([]string, 0, len(cookies))
+	for key := range cookies {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
 		builder.WriteString(key)
 		builder.WriteByte('=')
-		builder.WriteString(value)
-		builder.WriteByte(';')
-		builder.WriteByte(' ')
+		builder.WriteString(cookies[key])
+		builder.WriteString("; ")
 	}
-	// Remove trailing '; '
 	str := builder.String()
-	return str[:len(str)-2]
+	return strings.TrimSuffix(str, "; ")
 }

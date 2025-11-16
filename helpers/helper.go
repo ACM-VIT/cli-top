@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"cli-top/debug"
 	types "cli-top/types"
+	"context"
 	"fmt"
 	"io"
 	"mime"
@@ -243,7 +244,16 @@ func FormatBodyDataClient(payloadMap map[string]string) []byte {
 }
 
 func FetchReqClient(client *http.Client, regNo string, cookies types.Cookies, url string, referer string, formData []byte, method string, contentType string) ([]byte, http.Header, error) {
-	req, err := http.NewRequest(method, url, bytes.NewBuffer(formData))
+	ctx, cancel := context.WithTimeout(context.Background(), defaultRequestTimeout)
+	defer cancel()
+	return FetchReqClientWithContext(ctx, client, regNo, cookies, url, referer, formData, method, contentType)
+}
+
+func FetchReqClientWithContext(ctx context.Context, client *http.Client, regNo string, cookies types.Cookies, url string, referer string, formData []byte, method string, contentType string) ([]byte, http.Header, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(formData))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create HTTP request: %w", err)
 	}

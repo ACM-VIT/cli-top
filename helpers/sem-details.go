@@ -59,6 +59,9 @@ func FindAndSaveSemIds(doc *goquery.Document) ([]types.Semester, error) {
 
 // GetSemDetails fetches semester details
 func GetSemDetails(cookies types.Cookies, regNo string) ([]types.Semester, error) {
+	if cached, ok := getCachedSemesters(regNo); ok {
+		return cached, nil
+	}
 	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
 		return nil, fmt.Errorf("please login first using the cli-top login command")
 	}
@@ -87,10 +90,14 @@ func GetSemDetails(cookies types.Cookies, regNo string) ([]types.Semester, error
 		return allSems, err
 	}
 	ReverseSlice(allSems)
+	storeSemesters(regNo, allSems)
 	return allSems, nil
 }
 
 func GetSemDetailsBackup(cookies types.Cookies, regNo string) ([]types.Semester, error) {
+	if cached, ok := getCachedSemesters(regNo); ok {
+		return cached, nil
+	}
 	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentCoursePage"
 	var allSems []types.Semester
 	bodyText, err := FetchReq(regNo, cookies, url, "", "", "POST", "")
@@ -106,6 +113,7 @@ func GetSemDetailsBackup(cookies types.Cookies, regNo string) ([]types.Semester,
 		return allSems, err
 	}
 	ReverseSlice(allSems)
+	storeSemesters(regNo, allSems)
 	return allSems, nil
 }
 

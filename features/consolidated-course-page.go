@@ -7,6 +7,7 @@ import (
 	"cli-top/debug"
 	"cli-top/helpers"
 	"cli-top/types"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -36,13 +37,7 @@ const (
 	CourseCellSelector   = "td"
 )
 
-var newHttpClient *http.Client
-
-func init() {
-	newHttpClient = &http.Client{
-		Timeout: time.Duration(60) * time.Second,
-	}
-}
+// dedicated HTTP client replaced by helpers.GetHTTPClient()
 
 func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag int, courseFlag int, facultyFlag string, fuzzyFlag int) {
 	if !helpers.ValidateLogin(cookies) {
@@ -88,7 +83,7 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, courseFlag int) (
 	}
 
 	formData := helpers.FormatBodyDataClient(payloadMap)
-	body, _, err := helpers.FetchReqClient(newHttpClient, regNo, cookies, getCourseURL, "", formData, "POST", "application/x-www-form-urlencoded")
+	body, _, err := helpers.FetchReqClient(helpers.GetHTTPClient(), regNo, cookies, getCourseURL, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		return types.Course{}, err
 	}
@@ -272,7 +267,7 @@ func fetchFacultieswithMaterials(regNo string, cookies types.Cookies, courseID s
 		"x":            time.Now().UTC().Format(time.RFC1123),
 	}
 	formData := helpers.FormatBodyDataClient(payloadMap)
-	body, _, err := helpers.FetchReqClient(newHttpClient, regNo, cookies, getFacultyMaterialURL, "", formData, "POST", "application/x-www-form-urlencoded")
+	body, _, err := helpers.FetchReqClient(helpers.GetHTTPClient(), regNo, cookies, getFacultyMaterialURL, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		return nil, types.Faculty{}, err
 	}
@@ -730,24 +725,15 @@ func downloadMaterialsHope(regNo string, cookies types.Cookies, selectedCourse t
 						timeout = 5 * time.Minute
 					}
 
-					client := &http.Client{
-						Timeout: timeout,
-						Transport: &http.Transport{
-							MaxIdleConns:        10,
-							MaxIdleConnsPerHost: 5,
-							IdleConnTimeout:     30 * time.Second,
-							DisableKeepAlives:   true,
-						},
-					}
-
-					var fetchErr error
-					body, headers, fetchErr = helpers.FetchReqClient(client, regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
+					ctx, cancelCtx := context.WithTimeout(context.Background(), timeout)
+					b, h, fetchErr := helpers.FetchReqClientWithContext(ctx, helpers.GetHTTPClient(), regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
+					cancelCtx()
+					body, headers = b, h
 					if fetchErr != nil {
 						lastErr = fetchErr
 					} else if len(body) == 0 {
 						lastErr = fmt.Errorf("empty response")
 					} else {
-						// Validate content
 						if (large && len(body) > 4096) || isSuccessfulDownload(body) {
 							success = true
 							break
@@ -760,23 +746,18 @@ func downloadMaterialsHope(regNo string, cookies types.Cookies, selectedCourse t
 					time.Sleep(backoff + jitter)
 				}
 
-				// Final "fresh client" attempt with longer timeout & cache buster
 				if !success {
 					timeout := 5 * time.Minute
 					if large {
 						timeout = 10 * time.Minute
 					}
-					freshClient := &http.Client{
-						Timeout: timeout,
-						Transport: &http.Transport{
-							DisableKeepAlives: true,
-						},
-					}
 					randomParam := fmt.Sprintf("?nocache=%d", time.Now().UnixNano())
-					b2, h2, fetchErr := helpers.FetchReqClient(
-						freshClient, regNo, cookies, downloadURL+randomParam, "",
+					ctxFresh, cancelFresh := context.WithTimeout(context.Background(), timeout)
+					b2, h2, fetchErr := helpers.FetchReqClientWithContext(
+						ctxFresh, helpers.GetHTTPClient(), regNo, cookies, downloadURL+randomParam, "",
 						formData, "POST", "application/x-www-form-urlencoded",
 					)
+					cancelFresh()
 					if fetchErr == nil && len(b2) > 0 && ((large && len(b2) > 4096) || isSuccessfulDownload(b2)) {
 						body, headers = b2, h2
 						success = true
