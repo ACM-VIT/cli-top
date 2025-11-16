@@ -186,8 +186,13 @@ type Registration struct {
 }
 
 type VersionInfo struct {
-	Version    string `json:"version"`
-	KillSwitch int    `json:"killSwitch"`
+	Version    string            `json:"version"`
+	KillSwitch int               `json:"killSwitch"`
+	Downloads  map[string]string `json:"downloads"`
+	WindowsURL string            `json:"windowsUrl"`
+	LinuxURL   string            `json:"linuxUrl"`
+	MacURL     string            `json:"macUrl"`
+	AndroidURL string            `json:"androidUrl"`
 }
 
 type TrackingData struct {
