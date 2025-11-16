@@ -22,6 +22,8 @@ import (
 
 var latestJSONURL = "https://cli-top.acmvit.in/latest.json"
 
+const releaseNotesURL = "https://cli-top.acmvit.in/releases.json"
+
 func SetLatestJSONURL(url string) {
 	latestJSONURL = url
 }
@@ -195,30 +197,19 @@ func Update() {
 
 	fmt.Printf("A new version %s is available. Downloading update…\n", vi.Version)
 
-	base := "https://github.com/technical-director-acmvit/cli-top-website/raw/main/buildFiles"
-	var dl string
-	switch runtime.GOOS {
-	case "windows":
-		dl = fmt.Sprintf("%s/v%s/cli-top-windows-installer_v%s.exe", base, vi.Version, vi.Version)
-	case "linux":
-		dl = fmt.Sprintf("%s/v%s/cli-top-linux_v%s.zip", base, vi.Version, vi.Version)
-	case "android":
-		dl = fmt.Sprintf("%s/v%s/cli-top-android_v%s.zip", base, vi.Version, vi.Version)
-	case "darwin":
-		dl = fmt.Sprintf("%s/v%s/cli-top-macos_v%s.zip", base, vi.Version, vi.Version)
-	default:
-		fmt.Println("Auto-update not supported on", runtime.GOOS)
+	candidates := resolveDownloadCandidates(vi, runtime.GOOS)
+	if len(candidates) == 0 {
+		fmt.Println("Auto-update is not supported on", runtime.GOOS)
 		return
 	}
 
-	resp, err = http.Get(dl)
+	expectZip := runtime.GOOS != "windows"
+	data, downloadSource, err := downloadUpdateArtifact(candidates, expectZip)
 	if err != nil {
 		fmt.Println("Error downloading update:", err)
+		fmt.Println("You can install the update manually from https://cli-top.acmvit.in/ or the GitHub releases page.")
 		return
 	}
-	defer resp.Body.Close()
-
-	data, _ := io.ReadAll(resp.Body)
 
 	execPath, _ := os.Executable()
 	execPath, _ = filepath.EvalSymlinks(execPath)
@@ -253,12 +244,20 @@ echo ========================================================
 echo                CLI-TOP AUTO-UPDATER
 echo ========================================================
 echo.
+set FAILED=0
 echo [*] Stopping CLI-TOP processes...
 taskkill /IM cli-top.exe /F >nul 2>&1
 timeout /t 2 /nobreak >nul
 echo.
 echo [*] Installing update v%s...
 start /wait "" "%s" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+if errorlevel 1 (
+    echo [-] Installer reported an error.
+    echo     You can download the update manually from:
+    echo     %s
+    set FAILED=1
+    goto cleanup
+)
 echo.
 echo [+] Update completed successfully!
 echo.
@@ -269,11 +268,13 @@ echo.
 echo [*] Cleaning up temporary files...
 del "%s" 2>nul
 echo.
-echo [+] Update process completed! Enjoy the new version!
-timeout /t 2 /nobreak >nul
-echo.
-echo This window will close automatically in 3 seconds...
-timeout /t 3 /nobreak >nul`, vi.Version, installer, execPath, installer)
+:cleanup
+if %%FAILED%%==1 (
+    echo [!] Update process encountered an error. CLI-TOP was not updated.
+) else (
+    echo [+] Update process completed! Enjoy the new version!
+)
+timeout /t 3 /nobreak >nul`, vi.Version, installer, downloadSource, execPath, installer)
 		os.WriteFile(bat, []byte(script), 0644)
 		green.Println("[DONE]")
 
@@ -292,7 +293,7 @@ timeout /t 3 /nobreak >nul`, vi.Version, installer, execPath, installer)
 	}
 
 	/* ---------- non-Windows path unchanged: download ZIP, replace binary ---------- */
-	if strings.HasSuffix(dl, ".zip") {
+	if expectZip {
 		if b, err := extractBinaryFromZipToBytes(data); err == nil {
 			data = b
 		} else {
@@ -410,6 +411,150 @@ func checkWritePermission(path string) error {
 	return nil
 }
 
+func resolveDownloadCandidates(vi types.VersionInfo, goos string) []string {
+	seen := make(map[string]struct{})
+	urls := make([]string, 0, 5)
+	add := func(url string) {
+		if url == "" {
+			return
+		}
+		if _, ok := seen[url]; ok {
+			return
+		}
+		seen[url] = struct{}{}
+		urls = append(urls, url)
+	}
+
+	if vi.Downloads != nil {
+		add(vi.Downloads[goos])
+	}
+	switch goos {
+	case "windows":
+		add(vi.WindowsURL)
+	case "linux":
+		add(vi.LinuxURL)
+	case "darwin":
+		add(vi.MacURL)
+	case "android":
+		add(vi.AndroidURL)
+	}
+
+	add(defaultLegacyDownload(goos, vi.Version))
+
+	filtered := make([]string, 0, len(urls))
+	for _, url := range urls {
+		if url != "" {
+			filtered = append(filtered, url)
+		}
+	}
+	return filtered
+}
+
+func defaultLegacyDownload(goos, version string) string {
+	base := "https://raw.githubusercontent.com/technical-director-acmvit/cli-top-website/main/buildFiles"
+	switch goos {
+	case "windows":
+		return fmt.Sprintf("%s/v%s/cli-top-windows-installer_v%s.exe", base, version, version)
+	case "linux":
+		return fmt.Sprintf("%s/v%s/cli-top-linux_v%s.zip", base, version, version)
+	case "android":
+		return fmt.Sprintf("%s/v%s/cli-top-android_v%s.zip", base, version, version)
+	case "darwin":
+		return fmt.Sprintf("%s/v%s/cli-top-macos_v%s.zip", base, version, version)
+	default:
+		return ""
+	}
+}
+
+func downloadUpdateArtifact(urls []string, expectZip bool) ([]byte, string, error) {
+	client := &http.Client{Timeout: 60 * time.Second}
+	var lastErr error
+	for _, url := range urls {
+		resp, err := client.Get(url)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		if resp.StatusCode >= 400 {
+			lastErr = fmt.Errorf("download failed with status %d for %s", resp.StatusCode, url)
+			resp.Body.Close()
+			continue
+		}
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		if expectZip {
+			if !looksLikeZip(body) {
+				lastErr = fmt.Errorf("downloaded file from %s is not a valid ZIP archive", url)
+				continue
+			}
+		} else {
+			if !looksLikePE(body) {
+				lastErr = fmt.Errorf("downloaded file from %s is not a valid Windows executable", url)
+				continue
+			}
+		}
+		return body, url, nil
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("no download URLs available")
+	}
+	return nil, "", lastErr
+}
+
+func looksLikePE(data []byte) bool {
+	return len(data) > 2 && data[0] == 0x4d && data[1] == 0x5a
+}
+
+func looksLikeZip(data []byte) bool {
+	return len(data) > 3 && data[0] == 0x50 && data[1] == 0x4b
+}
+
+type releaseList struct {
+	Releases []releaseEntry `json:"releases"`
+}
+
+type releaseEntry struct {
+	Version string   `json:"version"`
+	Changes []string `json:"changes"`
+}
+
+func fetchReleaseHighlight(version string) string {
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get(releaseNotesURL)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return ""
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return ""
+	}
+	var list releaseList
+	if err := json.Unmarshal(body, &list); err != nil {
+		return ""
+	}
+	for _, rel := range list.Releases {
+		if strings.EqualFold(rel.Version, version) {
+			if len(rel.Changes) == 0 {
+				return ""
+			}
+			summary := rel.Changes[0]
+			if len(rel.Changes) > 1 {
+				summary = fmt.Sprintf("%s (and more)", summary)
+			}
+			return summary
+		}
+	}
+	return ""
+}
+
 func CheckUpdateSilently() (bool, string, error) {
 	client := &http.Client{Timeout: 5 * time.Second}
 	req, err := http.NewRequest("GET", "https://cli-top.acmvit.in/latest.json", nil)
@@ -443,17 +588,17 @@ func CheckUpdateSilently() (bool, string, error) {
 	return false, versionInfo.Version, nil
 }
 
-func ShouldShowUpdateNotification() (bool, string) {
+func ShouldShowUpdateNotification() (bool, string, string) {
 	lastNotifiedVersion := viper.GetString("LAST_UPDATE_NOTIFIED_VERSION")
 	currentVersion := debug.Version
 
 	if lastNotifiedVersion == currentVersion {
-		return false, ""
+		return false, "", ""
 	}
 
 	updateAvailable, latestVersion, err := CheckUpdateSilently()
 	if err != nil || !updateAvailable {
-		return false, ""
+		return false, "", ""
 	}
 
 	viper.Set("LAST_UPDATE_NOTIFIED_VERSION", currentVersion)
@@ -461,15 +606,21 @@ func ShouldShowUpdateNotification() (bool, string) {
 		fmt.Println("Error updating last notified version in config:", err)
 	}
 
-	return true, latestVersion
+	highlight := fetchReleaseHighlight(latestVersion)
+	return true, latestVersion, highlight
 }
 
-func ShowUpdateNotification(latestVersion string) {
+func ShowUpdateNotification(latestVersion, highlight string) {
 	fmt.Printf("\n")
 	fmt.Printf("┌─────────────────────────────────────────────────────────┐\n")
 	fmt.Printf("│ A new version of cli-top is available!                  │\n")
 	fmt.Printf("│ Current version: %-10s   Latest version: %-10s│\n", debug.Version, latestVersion)
 	fmt.Printf("│                                                         │\n")
+	if highlight != "" {
+		short := TruncateWithEllipsis(highlight, 43)
+		fmt.Printf("│ What's new: %-43s │\n", short)
+		fmt.Printf("│                                                         │\n")
+	}
 	fmt.Printf("│ Update with: cli-top -u                                 │\n")
 	fmt.Printf("└─────────────────────────────────────────────────────────┘\n")
 	fmt.Printf("\n")

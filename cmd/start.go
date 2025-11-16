@@ -200,8 +200,6 @@ func startfn() {
 func vtop_login() (types.Cookies, string) {
 	err := godotenv.Load(configFilePath())
 	helpers.LoadSemesterCacheFromEnv()
-	helpers.LoadSemesterCacheFromEnv()
-	helpers.LoadSemesterCacheFromEnv()
 	if err != nil && debug.Debug {
 		fmt.Println("Error loading .env file, please enter your credentials using the \"login\" command.")
 	}
@@ -398,9 +396,9 @@ func Execute() {
 	}
 
 	if !updateFlag && os.Args[len(os.Args)-1] != "-u" && os.Args[len(os.Args)-1] != "--update" {
-		shouldNotify, latestVersion := helpers.ShouldShowUpdateNotification()
+		shouldNotify, latestVersion, highlight := helpers.ShouldShowUpdateNotification()
 		if shouldNotify {
-			helpers.ShowUpdateNotification(latestVersion)
+			helpers.ShowUpdateNotification(latestVersion, highlight)
 		}
 	}
 
