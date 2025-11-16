@@ -155,6 +155,48 @@ func processDates(regNo string, cookies types.Cookies, semester types.Semester, 
 		return_list = append(return_list, monthelement)
 	}
 
+	type monthDoc struct {
+		doc *goquery.Document
+		err error
+	}
+	monthDocs := make([]monthDoc, len(datelist))
+	parallel := helpers.NewParallelizer(helpers.DetermineParallelism(len(datelist)))
+
+	for idx, date := range datelist {
+		idx := idx
+		date := date
+		parallel.Go(func() {
+			url := "https://vtop.vit.ac.in/vtop/processViewCalendar"
+			payloadMap := map[string]string{
+				"_csrf":        cookies.CSRF,
+				"calDate":      date,
+				"semSubId":     semester.SemID,
+				"classGroupId": grp,
+				"authorizedID": regNo,
+				"x":            fmt.Sprintf("%d", time.Now().Unix()),
+			}
+			formData := helpers.FormatBodyData(payloadMap)
+			bodyText, err := helpers.FetchReq(regNo, cookies, url, semester.SemID, formData, "POST", "")
+			if err != nil {
+				if debug.Debug {
+					fmt.Println(err)
+				}
+				monthDocs[idx].err = err
+				return
+			}
+			doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
+			if err != nil {
+				if debug.Debug {
+					fmt.Println(err)
+				}
+				monthDocs[idx].err = err
+				return
+			}
+			monthDocs[idx].doc = doc
+		})
+	}
+	parallel.Wait()
+
 	for i, date := range datelist {
 		if year != date[7:] {
 			addPadding(&color_list)
@@ -165,25 +207,10 @@ func processDates(regNo string, cookies types.Cookies, semester types.Semester, 
 			color_list = [][]int{}
 			year = ""
 		}
-		url := "https://vtop.vit.ac.in/vtop/processViewCalendar"
-		payloadMap := map[string]string{
-			"_csrf":        cookies.CSRF,
-			"calDate":      date,
-			"semSubId":     semester.SemID,
-			"classGroupId": grp,
-			"authorizedID": regNo,
-			"x":            fmt.Sprintf("%d", time.Now().Unix()),
+		if monthDocs[i].doc == nil {
+			continue
 		}
-		formData := helpers.FormatBodyData(payloadMap)
-		bodyText, err := helpers.FetchReq(regNo, cookies, url, semester.SemID, formData, "POST", "")
-		if err != nil && debug.Debug {
-			fmt.Println(err)
-		}
-		doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
-		if err != nil && debug.Debug {
-			fmt.Println(err)
-		}
-		typeOfDay := extractTypeOfDay(doc, return_list[i])
+		typeOfDay := extractTypeOfDay(monthDocs[i].doc, return_list[i])
 		color_list = append(color_list, typeOfDay)
 		months = append(months, date[3:6])
 		year = date[7:]
