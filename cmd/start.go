@@ -396,9 +396,9 @@ func Execute() {
 	}
 
 	if !updateFlag && os.Args[len(os.Args)-1] != "-u" && os.Args[len(os.Args)-1] != "--update" {
-		shouldNotify, latestVersion := helpers.ShouldShowUpdateNotification()
+		shouldNotify, latestVersion, highlight := helpers.ShouldShowUpdateNotification()
 		if shouldNotify {
-			helpers.ShowUpdateNotification(latestVersion)
+			helpers.ShowUpdateNotification(latestVersion, highlight)
 		}
 	}
 
