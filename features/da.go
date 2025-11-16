@@ -29,6 +29,8 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		return
 	}
 
+	isProxyMode := os.Getenv("CLI_TOP_PROXY_MODE") == "1"
+
 	allSems, err := helpers.GetSemDetails(cookies, regNo)
 	if err != nil {
 		if debug.Debug {
@@ -204,6 +206,13 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		if icsGenerated {
 			helpers.GenerateCalendarImportLinks(uploadedFileURL, "DAs")
 		}
+
+		if isProxyMode {
+			helpers.PrintTable(subjectsTable, 1)
+			fmt.Println("\nProxy mode detected — skipping interactive DA selection.")
+			return
+		}
+
 		fmt.Println("\nPlease select a subject by entering the corresponding number:")
 		subjectChoice := helpers.TableSelector("subject", subjectsTable, "0")
 		if subjectChoice.ExitRequest || !subjectChoice.Selected {
@@ -275,6 +284,10 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		}
 
 		if len(singleSubDownload) > 1 {
+			if isProxyMode {
+				fmt.Println("Proxy mode detected — skipping DA download prompt.")
+				return
+			}
 			downloadChoice := helpers.TableSelector("DA", singleSubDownload, "0")
 			if downloadChoice.ExitRequest || !downloadChoice.Selected {
 				fmt.Println("Selection canceled")

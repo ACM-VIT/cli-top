@@ -23,6 +23,7 @@ var proxyCmd = &cobra.Command{
 	Short:  "Machine-facing entrypoint used by the proxy + MCP services",
 	Hidden: true,
 	Args:   cobra.MinimumNArgs(3),
+	DisableFlagParsing: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		runProxyCommand(args)
 	},
@@ -48,13 +49,27 @@ type proxyError struct {
 }
 
 var interactiveProxyCommands = map[string]struct{}{
-	"calendar":            {},
+	"timetable": {},
+	"marks":     {},
+	"grades":    {},
+	"calendar":  {},
+
 	"course-page":         {},
 	"course-page-archive": {},
 	"course-allocation":   {},
 	"da":                  {},
 	"facility":            {},
 	"syllabus":            {},
+}
+
+var defaultSyncCommands = []string{"profile", "timetable", "attendance", "marks", "cgpa", "exams", "da"}
+
+type syncResultEntry struct {
+	Command       string         `json:"command"`
+	Success       bool           `json:"success"`
+	Output        string         `json:"output,omitempty"`
+	StructuredRaw map[string]any `json:"structured_data,omitempty"`
+	Error         *proxyError    `json:"error,omitempty"`
 }
 
 func runProxyCommand(args []string) {
@@ -99,6 +114,21 @@ func runProxyCommand(args []string) {
 	}
 	resp.RegNo = regNo
 
+	prevProxyMode := os.Getenv("CLI_TOP_PROXY_MODE")
+	os.Setenv("CLI_TOP_PROXY_MODE", "1")
+	defer func() {
+		if prevProxyMode == "" {
+			os.Unsetenv("CLI_TOP_PROXY_MODE")
+		} else {
+			os.Setenv("CLI_TOP_PROXY_MODE", prevProxyMode)
+		}
+	}()
+
+	if command == "sync" {
+		runSyncProxyCommand(&resp, flags, cookies, regNo, start)
+		return
+	}
+
 	prevLogin := helpers.VtopLoginGlobal
 	helpers.VtopLoginGlobal = func() (types.Cookies, string) {
 		freshCookies, freshReg, loginErr := proxyLogin(username, password)
@@ -119,7 +149,9 @@ func runProxyCommand(args []string) {
 
 	var tee io.Writer
 	if isInteractiveProxyCommand(command) {
-		tee = os.Stderr
+		// Mirror interactive prompts to the original stdout so downstream proxies
+		// (which listen on stdout) can auto-respond to menus.
+		tee = os.Stdout
 	}
 
 	output, execErr := captureCommandOutput(func() error {
@@ -216,6 +248,10 @@ func proxyLogin(username, password string) (types.Cookies, string, error) {
 }
 
 func dispatchProxyCommand(command string, flags map[string]string, cookies types.Cookies, regNo string) error {
+	return executeFeatureCommand(command, flags, cookies, regNo)
+}
+
+func executeFeatureCommand(command string, flags map[string]string, cookies types.Cookies, regNo string) error {
 	switch command {
 	case "profile":
 		features.Profile(cookies, regNo)
@@ -277,6 +313,106 @@ func dispatchProxyCommand(command string, flags map[string]string, cookies types
 	return nil
 }
 
+func runSyncProxyCommand(resp *proxyResponse, flags map[string]string, cookies types.Cookies, regNo string, start time.Time) {
+	commands := resolveSyncCommands(flags)
+	if len(commands) == 0 {
+		resp.Error = &proxyError{Kind: "invalid_flags", Message: "no commands provided for sync"}
+		resp.StructuredRaw = map[string]any{"results": []syncResultEntry{}}
+		resp.Success = false
+		resp.Output = ""
+		resp.print(start)
+		return
+	}
+
+	results := make([]syncResultEntry, 0, len(commands))
+	allSuccess := true
+
+	for _, cmd := range commands {
+		entry := executeSyncSubcommand(cmd, flags, cookies, regNo)
+		if !entry.Success {
+			allSuccess = false
+		}
+		results = append(results, entry)
+	}
+
+	resp.StructuredRaw = map[string]any{"results": results}
+	resp.Output = ""
+	resp.Success = allSuccess
+	if !allSuccess {
+		resp.Error = &proxyError{Kind: "partial_failure", Message: "one or more sync commands failed"}
+	}
+	resp.print(start)
+}
+
+func resolveSyncCommands(flags map[string]string) []string {
+	raw := strings.TrimSpace(flags["commands"])
+	if raw == "" {
+		return append([]string(nil), defaultSyncCommands...)
+	}
+	parts := strings.Split(raw, ",")
+	var commands []string
+	for _, part := range parts {
+		trimmed := strings.ToLower(strings.TrimSpace(part))
+		if trimmed == "" {
+			continue
+		}
+		commands = append(commands, trimmed)
+	}
+	if len(commands) == 0 {
+		return append([]string(nil), defaultSyncCommands...)
+	}
+	return commands
+}
+
+func executeSyncSubcommand(command string, flags map[string]string, cookies types.Cookies, regNo string) syncResultEntry {
+	entry := syncResultEntry{Command: command}
+	subFlags := cloneFlags(flags)
+	delete(subFlags, "commands")
+
+	tableSnapshots := []helpers.TableSnapshot{}
+	restore := helpers.RegisterTableCaptureHook(func(snapshot helpers.TableSnapshot) {
+		tableSnapshots = append(tableSnapshots, snapshot)
+	})
+	defer restore()
+
+	var tee io.Writer
+	if isInteractiveProxyCommand(command) {
+		tee = os.Stdout
+	}
+
+	output, execErr := captureCommandOutput(func() error {
+		return executeFeatureCommand(command, subFlags, cookies, regNo)
+	}, tee)
+
+	cleaned := strings.TrimSpace(helpers.StripAnsiCodes(output))
+	if cleaned != "" {
+		entry.Output = cleaned
+	}
+	if len(tableSnapshots) > 0 {
+		entry.StructuredRaw = map[string]any{"tables": tableSnapshots}
+	}
+
+	if execErr != nil {
+		entry.Error = &proxyError{Kind: "execution_error", Message: execErr.Error()}
+		entry.Success = false
+	} else {
+		entry.Success = true
+	}
+
+	return entry
+}
+
+func cloneFlags(src map[string]string) map[string]string {
+	if len(src) == 0 {
+		return map[string]string{}
+	}
+	copy := make(map[string]string, len(src))
+	for key, value := range src {
+		copy[key] = value
+	}
+	return copy
+}
+
 func parseProxyFlags(args []string) map[string]string {
 	if len(args) == 0 {
 		return nil
@@ -319,6 +455,8 @@ func canonicalFlagName(flag string) string {
 		return "fuzzyIndex"
 	case "d", "debug":
 		return "debug"
+	case "x", "commands", "sync", "sync-commands":
+		return "commands"
 	default:
 		return normalized
 	}
