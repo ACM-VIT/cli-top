@@ -12,6 +12,11 @@ import (
 	"golang.org/x/term"
 )
 
+const (
+	defaultTerminalWidth = 160
+	minColumnWidth       = 12
+)
+
 // TableSnapshot captures the raw data passed to PrintTable for structured reuse.
 type TableSnapshot struct {
 	Headers  []string   `json:"headers"`
@@ -350,54 +355,19 @@ func PrintTable(nestedList [][]string, indexStatus int) int {
 		}
 	}
 
-	colWidths := computeColumnWidths(normalizedList)
-	chunks := calculateColumnChunks(colWidths, detectTerminalWidth())
-	if len(chunks) == 0 {
-		chunks = []columnChunk{{start: 0, end: len(colWidths)}}
-	}
-
-	for chunkIdx, chunk := range chunks {
-		if chunkIdx > 0 {
-			fmt.Printf("\n   Columns %d-%d of %d\n\n", chunk.start+1, chunk.end, len(colWidths))
-		}
-		printTableChunk(normalizedList, colWidths, indexStatus, chunk.start, chunk.end)
-	}
-
-	emitTableSnapshot(sanitizeTableData(normalizedList), indexStatus)
-	return 0
-}
-
-func NewFuzzySearch(nestedList [][]string, stringFlag string) []int {
-	var matchedResults []int
-	for i, v := range nestedList {
-		combinedData := strings.Join(v, " ")
-		if FuzzyMatch(stringFlag, combinedData) {
-			matchedResults = append(matchedResults, i)
+	colWidths := make([]int, len(normalizedList[0]))
+	for _, row := range normalizedList {
+		for colIdx, cell := range row {
+			for _, line := range strings.Split(cell, "\n") {
+				visibleLen := utf8.RuneCountInString(StripAnsiCodes(line))
+				if visibleLen > colWidths[colIdx] {
+					colWidths[colIdx] = visibleLen
+				}
+			}
 		}
 	}
-	return matchedResults
-}
 
-const (
-	defaultTerminalWidth = 120
-	sidePadding          = 2
-)
-
-type columnChunk struct {
-	start int
-	end   int
-}
-
-func printTableChunk(rows [][]string, widths []int, indexStatus int, start, end int) {
-	if start < 0 {
-		start = 0
-	}
-	if end > len(widths) {
-		end = len(widths)
-	}
-	if start >= end {
-		return
-	}
+	colWidths = applyResponsiveWidths(colWidths)
 
 	rightAlign := func(s string, width int) string {
 		stripped := StripAnsiCodes(s)
@@ -418,30 +388,29 @@ func printTableChunk(rows [][]string, widths []int, indexStatus int, start, end 
 	}
 
 	fmt.Print("   ")
-	for col := start; col < end; col++ {
-		aligned := leftAlign(rows[0][col], widths[col])
+	for colIdx, headerCell := range normalizedList[0] {
+		aligned := leftAlign(headerCell, colWidths[colIdx])
 		fmt.Print(" ", aligned, " ")
-		if col < end-1 {
+		if colIdx < len(normalizedList[0])-1 {
 			fmt.Print("│")
 		}
 	}
 	fmt.Println()
 
 	fmt.Print("    ")
-	for col := start; col < end; col++ {
-		fmt.Print(strings.Repeat("─", widths[col]))
-		if col < end-1 {
+	for colIdx, width := range colWidths {
+		fmt.Print(strings.Repeat("─", width))
+		if colIdx < len(colWidths)-1 {
 			fmt.Print("─┼─")
 		}
 	}
 	fmt.Println()
 
-	cols := indexRange(start, end)
-	for _, row := range rows[1:] {
-		rowLines := make([][]string, 0, end-start)
+	for _, row := range normalizedList[1:] {
+		rowLines := make([][]string, 0)
 		maxLines := 1
-		for col := start; col < end; col++ {
-			lines := strings.Split(row[col], "\n")
+		for colIdx, cell := range row {
+			lines := wrapCellContent(cell, colWidths[colIdx])
 			if len(lines) > maxLines {
 				maxLines = len(lines)
 			}
@@ -450,79 +419,41 @@ func printTableChunk(rows [][]string, widths []int, indexStatus int, start, end 
 
 		for lineIdx := 0; lineIdx < maxLines; lineIdx++ {
 			fmt.Print("   ")
-			for offset, globalCol := range cols {
-				cellLines := rowLines[offset]
+			for colIdx, cellLines := range rowLines {
 				line := ""
 				if lineIdx < len(cellLines) {
 					line = cellLines[lineIdx]
 				}
 
 				var aligned string
-				if globalCol == 0 && indexStatus == 1 {
-					aligned = rightAlign(line, widths[globalCol])
+				if colIdx == 0 && indexStatus == 1 {
+					aligned = rightAlign(line, colWidths[colIdx])
 				} else {
-					aligned = leftAlign(line, widths[globalCol])
+					aligned = leftAlign(line, colWidths[colIdx])
 				}
 
 				fmt.Print(" ", aligned, " ")
-				if offset < len(rowLines)-1 {
+				if colIdx < len(row)-1 {
 					fmt.Print("│")
 				}
 			}
 			fmt.Println()
 		}
 	}
+
+	emitTableSnapshot(sanitizeTableData(normalizedList), indexStatus)
+	return 0
 }
 
-func computeColumnWidths(rows [][]string) []int {
-	widths := make([]int, len(rows[0]))
-	for _, row := range rows {
-		for colIdx, cell := range row {
-			for _, line := range strings.Split(cell, "\n") {
-				visibleLen := utf8.RuneCountInString(StripAnsiCodes(line))
-				if visibleLen > widths[colIdx] {
-					widths[colIdx] = visibleLen
-				}
-			}
+func NewFuzzySearch(nestedList [][]string, stringFlag string) []int {
+	var matchedResults []int
+	for i, v := range nestedList {
+		combinedData := strings.Join(v, " ")
+		if FuzzyMatch(stringFlag, combinedData) {
+			matchedResults = append(matchedResults, i)
 		}
 	}
-	return widths
-}
-
-func calculateColumnChunks(widths []int, termWidth int) []columnChunk {
-	if termWidth <= 0 {
-		termWidth = defaultTerminalWidth
-	}
-	if termWidth < 20 {
-		termWidth = 20
-	}
-	var chunks []columnChunk
-	start := 0
-	for start < len(widths) {
-		sum := 3
-		end := start
-		for end < len(widths) {
-			cellWidth := widths[end] + sidePadding
-			sep := 0
-			if end > start {
-				sep = 1
-			}
-			if sum+sep+cellWidth > termWidth {
-				if end == start {
-					end++
-				}
-				break
-			}
-			sum += sep + cellWidth
-			end++
-		}
-		if end == start {
-			end++
-		}
-		chunks = append(chunks, columnChunk{start: start, end: end})
-		start = end
-	}
-	return chunks
+	return matchedResults
 }
 
 func detectTerminalWidth() int {
@@ -533,12 +464,132 @@ func detectTerminalWidth() int {
 	return defaultTerminalWidth
 }
 
-func indexRange(start, end int) []int {
-	values := make([]int, 0, end-start)
-	for i := start; i < end; i++ {
-		values = append(values, i)
+func applyResponsiveWidths(widths []int) []int {
+	if len(widths) == 0 {
+		return widths
 	}
-	return values
+	copyWidths := make([]int, len(widths))
+	copy(copyWidths, widths)
+	termWidth := detectTerminalWidth()
+	if termWidth <= 0 {
+		return copyWidths
+	}
+	separatorWidth := (len(copyWidths)-1)*3 + 6
+	available := termWidth - separatorWidth
+	if available < len(copyWidths)*minColumnWidth {
+		available = len(copyWidths) * minColumnWidth
+	}
+	sum := 0
+	for _, w := range copyWidths {
+		sum += w
+	}
+	if sum <= available {
+		return copyWidths
+	}
+	excess := sum - available
+	for excess > 0 {
+		maxIdx := -1
+		maxWidth := minColumnWidth
+		for i, w := range copyWidths {
+			if w > maxWidth {
+				maxWidth = w
+				maxIdx = i
+			}
+		}
+		if maxIdx == -1 {
+			break
+		}
+		copyWidths[maxIdx]--
+		excess--
+	}
+	return copyWidths
+}
+
+func wrapCellContent(cell string, width int) []string {
+	if width <= 0 {
+		width = minColumnWidth
+	}
+	cell = strings.ReplaceAll(cell, "\r\n", "\n")
+	segments := strings.Split(cell, "\n")
+	var lines []string
+	for _, segment := range segments {
+		segment = strings.TrimRight(segment, "\r")
+		if segment == "" {
+			lines = append(lines, "")
+			continue
+		}
+		wrapped := wrapLine(segment, width)
+		lines = append(lines, wrapped...)
+	}
+	if len(lines) == 0 {
+		lines = append(lines, "")
+	}
+	return lines
+}
+
+func wrapLine(line string, width int) []string {
+	if width <= 0 {
+		return []string{line}
+	}
+	if visibleLen(line) <= width {
+		return []string{line}
+	}
+	words := strings.Fields(line)
+	if len(words) == 0 {
+		return []string{line}
+	}
+	current := ""
+	currentVisible := 0
+	var lines []string
+	for _, word := range words {
+		wordVisible := visibleLen(word)
+		if current == "" {
+			if wordVisible <= width {
+				current = word
+				currentVisible = wordVisible
+				continue
+			}
+			lines = append(lines, word)
+			current = ""
+			currentVisible = 0
+			continue
+		}
+		if currentVisible+1+wordVisible <= width {
+			current += " " + word
+			currentVisible += 1 + wordVisible
+			continue
+		}
+		lines = append(lines, current)
+		current = word
+		currentVisible = wordVisible
+	}
+	if current != "" {
+		lines = append(lines, current)
+	}
+	return lines
+}
+
+func splitLongWord(word string, width int) []string {
+	if width <= 0 {
+		return []string{word}
+	}
+	runes := []rune(word)
+	if len(runes) == 0 {
+		return []string{""}
+	}
+	var parts []string
+	for start := 0; start < len(runes); start += width {
+		end := start + width
+		if end > len(runes) {
+			end = len(runes)
+		}
+		parts = append(parts, string(runes[start:end]))
+	}
+	return parts
+}
+
+func visibleLen(s string) int {
+	return utf8.RuneCountInString(StripAnsiCodes(s))
 }
 
 // isNumeric checks if a string can be parsed as an integer
