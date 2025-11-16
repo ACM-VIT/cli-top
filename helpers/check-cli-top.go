@@ -451,7 +451,7 @@ func resolveDownloadCandidates(vi types.VersionInfo, goos string) []string {
 }
 
 func defaultLegacyDownload(goos, version string) string {
-	base := "https://github.com/technical-director-acmvit/cli-top-website/raw/main/buildFiles"
+	base := "https://raw.githubusercontent.com/technical-director-acmvit/cli-top-website/main/buildFiles"
 	switch goos {
 	case "windows":
 		return fmt.Sprintf("%s/v%s/cli-top-windows-installer_v%s.exe", base, version, version)
