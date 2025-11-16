@@ -200,8 +200,6 @@ func startfn() {
 func vtop_login() (types.Cookies, string) {
 	err := godotenv.Load(configFilePath())
 	helpers.LoadSemesterCacheFromEnv()
-	helpers.LoadSemesterCacheFromEnv()
-	helpers.LoadSemesterCacheFromEnv()
 	if err != nil && debug.Debug {
 		fmt.Println("Error loading .env file, please enter your credentials using the \"login\" command.")
 	}
