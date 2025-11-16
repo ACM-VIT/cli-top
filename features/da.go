@@ -29,6 +29,8 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		return
 	}
 
+	isProxyMode := os.Getenv("CLI_TOP_PROXY_MODE") == "1"
+
 	allSems, err := helpers.GetSemDetails(cookies, regNo)
 	if err != nil {
 		if debug.Debug {
@@ -68,6 +70,34 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		return
 	}
 
+	if !helpers.ShouldMuteUI() {
+		helpers.Infof("\nFetching digital assignments for %d subject(s)...\n", len(listOfSubjects))
+	}
+
+	type subjectFetchResult struct {
+		data types.SubjectDAs
+		ok   bool
+	}
+	results := make([]subjectFetchResult, len(listOfSubjects))
+	parallel := helpers.NewParallelizer(helpers.DetermineParallelism(len(listOfSubjects)))
+
+	for idx, detail := range listOfSubjects {
+		idx := idx
+		detail := detail
+		parallel.Go(func() {
+			doc := getOneSub(regNo, cookies, detail.ID)
+			if doc == nil {
+				if debug.Debug {
+					fmt.Printf("Document for subject ID %s is nil. Skipping.\n", detail.ID)
+				}
+				return
+			}
+			_, singleSubAllDa := pendingDAs(doc, detail)
+			results[idx] = subjectFetchResult{data: singleSubAllDa, ok: true}
+		})
+	}
+	parallel.Wait()
+
 	var (
 		subjDAs        []types.SubjectDAs
 		allUpcomingDAs []types.DAEvent
@@ -77,15 +107,12 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 
 	today := time.Now().Truncate(24 * time.Hour)
 
-	for _, detail := range listOfSubjects {
-		doc := getOneSub(regNo, cookies, detail.ID)
-		if doc == nil {
-			if debug.Debug {
-				fmt.Printf("Document for subject ID %s is nil. Skipping.\n", detail.ID)
-			}
+	for idx, detail := range listOfSubjects {
+		result := results[idx]
+		if !result.ok {
 			continue
 		}
-		_, singleSubAllDa := pendingDAs(doc, detail)
+		singleSubAllDa := result.data
 		subjDAs = append(subjDAs, singleSubAllDa)
 		subjectIDs = append(subjectIDs, detail.ID)
 
@@ -119,15 +146,11 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 						fmt.Printf("Identified Upcoming DA: Title='%s', QP='%s', DueDate='%s', Last_upload='%s'\n",
 							da.Title, da.QP, da.DueDate.Format(time.RFC3339), da.Last_upload)
 					}
-				} else {
-					if debug.Debug {
-						fmt.Printf("DA '%s' does not meet upcoming criteria.\n", da.Title)
-					}
+				} else if debug.Debug {
+					fmt.Printf("DA '%s' does not meet upcoming criteria.\n", da.Title)
 				}
-			} else {
-				if debug.Debug {
-					fmt.Printf("DA '%s' is not upcoming. DueDate: '%s'\n", da.Title, da.DueDate.Format(time.RFC3339))
-				}
+			} else if debug.Debug {
+				fmt.Printf("DA '%s' is not upcoming. DueDate: '%s'\n", da.Title, da.DueDate.Format(time.RFC3339))
 			}
 		}
 
@@ -146,6 +169,11 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 			fmt.Sprintf("%d/%d", completedDAs, totalDAs),
 			nextDueDate,
 		})
+	}
+
+	if len(subjDAs) == 0 {
+		fmt.Println("No digital assignments available across subjects.")
+		return
 	}
 
 	var (
@@ -204,6 +232,13 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		if icsGenerated {
 			helpers.GenerateCalendarImportLinks(uploadedFileURL, "DAs")
 		}
+
+		if isProxyMode {
+			helpers.PrintTable(subjectsTable, 1)
+			fmt.Println("\nProxy mode detected — skipping interactive DA selection.")
+			return
+		}
+
 		fmt.Println("\nPlease select a subject by entering the corresponding number:")
 		subjectChoice := helpers.TableSelector("subject", subjectsTable, "0")
 		if subjectChoice.ExitRequest || !subjectChoice.Selected {
@@ -275,6 +310,10 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		}
 
 		if len(singleSubDownload) > 1 {
+			if isProxyMode {
+				fmt.Println("Proxy mode detected — skipping DA download prompt.")
+				return
+			}
 			downloadChoice := helpers.TableSelector("DA", singleSubDownload, "0")
 			if downloadChoice.ExitRequest || !downloadChoice.Selected {
 				fmt.Println("Selection canceled")
@@ -527,6 +566,18 @@ func pendingDAs(doc *goquery.Document, subject types.DAsubject) (types.LatestDA,
 				}
 				daMap[title] = true
 
+				var daCode string
+				codeInput := td.Eq(7).Find("input[name='code']")
+				if codeInput.Length() > 0 {
+					daCode = strings.TrimSpace(codeInput.AttrOr("value", ""))
+				}
+				if daCode == "" {
+					btn := td.Eq(7).Find("button")
+					if btn.Length() > 0 {
+						daCode = strings.TrimSpace(btn.AttrOr("data-editcode", ""))
+					}
+				}
+
 				dueDateStr := strings.TrimSpace(td.Eq(4).Find("span").Text())
 				var dueDate time.Time
 				if dueDateStr == "-" || dueDateStr == "" {
@@ -584,6 +635,7 @@ func pendingDAs(doc *goquery.Document, subject types.DAsubject) (types.LatestDA,
 					Last_upload:  lastUpdated,
 					DownloadLink: downloadLinkQP,
 					DueDate:      dueDate,
+					Code:         daCode,
 				}
 
 				if !tempDA.DueDate.IsZero() {

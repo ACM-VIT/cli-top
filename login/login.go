@@ -11,8 +11,9 @@ import (
 	"strings"
 )
 
-func performLogin(userInfo types.LogIn, cookies types.Cookies, captcha string) types.Cookies {
-
+// performLogin executes a single login attempt and returns any high-level error type.
+// errorType is one of: "", "invalid_captcha", "invalid_credentials", "max_attempts", "network_error".
+func performLogin(userInfo types.LogIn, cookies types.Cookies, captcha string) (types.Cookies, string) {
 	client := helpers.GetHTTPClient()
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		return http.ErrUseLastResponse
@@ -31,21 +32,26 @@ func performLogin(userInfo types.LogIn, cookies types.Cookies, captcha string) t
 	req.Header.Set("Referer", "https://vtop.vit.ac.in/vtop/login")
 	req.Header.Set("Cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", cookies.JSESSIONID, cookies.SERVERID))
 	resp, err := client.Do(req)
-	if err != nil && debug.Debug {
-		fmt.Println(err)
+	if err != nil {
+		if debug.Debug {
+			fmt.Println(err)
+		}
+		return types.Cookies{}, "network_error"
 	}
 	defer resp.Body.Close()
 
-	if errorCheck(cookies) {
-		return types.Cookies{}
+	if errType := errorCheck(cookies); errType != "" {
+		return types.Cookies{}, errType
 	}
 
 	tokens := helpers.ExtractCookies(resp)
 
-	return tokens
+	return tokens, ""
 }
 
-func errorCheck(cookies types.Cookies) bool {
+// errorCheck inspects the login/error page to classify failures.
+// Returns one of: "", "invalid_captcha", "invalid_credentials", "max_attempts".
+func errorCheck(cookies types.Cookies) string {
 	client := helpers.GetHTTPClient()
 	req, err := http.NewRequest("GET", "https://vtop.vit.ac.in/vtop/login/error", nil)
 	if err != nil && debug.Debug {
@@ -66,41 +72,58 @@ func errorCheck(cookies types.Cookies) bool {
 	}
 
 	if strings.Contains(string(bodyText), "Invalid Captcha") {
-		fmt.Println("\nInvalid Captcha. The captcha solver can sometimes confuse between B and 8, please retry...")
-		return true
+		if debug.Debug {
+			fmt.Println("\nInvalid Captcha detected during login.")
+		}
+		return "invalid_captcha"
 	}
 	if strings.Contains(string(bodyText), "Invalid LoginId/Password") {
 		fmt.Println("\nInvalid LoginId/Password. Please check your cli-top config and try again...")
-		return true
+		return "invalid_credentials"
 	}
 
 	if strings.Contains(string(bodyText), "Invalid Username/Password") {
 		fmt.Println("\nInvalid Username/Password. Please check your cli-top config and try again...")
-		return true
+		return "invalid_credentials"
 	}
 
 	if strings.Contains(string(bodyText), "Maximum Fail Attempts") {
 		fmt.Println("\nNumber Of Maximum Fail Attempts Reached. Use Forgot Password on VTOP to reset your password.")
-		return true
+		return "max_attempts"
 	}
 
-	return false
+	return ""
 }
 
 func Login(regNo string, password string) types.Cookies {
-	vtopTokens, captcha := getLoginPage()
-	// fmt.Println(captcha)
+	const maxCaptchaRetries = 3
 
 	userInfo := types.LogIn{
 		Username: regNo,
 		Password: password,
 	}
 
-	loginCreds := performLogin(userInfo, vtopTokens, captcha)
-	// fmt.Println(loginCreds)
-	vtopTokens.JSESSIONID = loginCreds.JSESSIONID
+	for attempt := 0; attempt < maxCaptchaRetries; attempt++ {
+		vtopTokens, captcha := getLoginPage()
+		loginCreds, errType := performLogin(userInfo, vtopTokens, captcha)
 
-	return vtopTokens
+		if errType == "" {
+			vtopTokens.JSESSIONID = loginCreds.JSESSIONID
+			return vtopTokens
+		}
+
+		if errType == "invalid_captcha" {
+			if debug.Debug {
+				fmt.Printf("Login attempt %d failed due to invalid captcha, retrying...\n", attempt+1)
+			}
+			continue
+		}
+
+		return types.Cookies{}
+	}
+
+	fmt.Println("\nCaptcha could not be solved after multiple attempts. Please try again later.")
+	return types.Cookies{}
 }
 
 func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
