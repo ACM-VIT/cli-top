@@ -13,7 +13,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/fatih/color"
@@ -35,21 +34,7 @@ var courseNameFlag string
 var syllabusCourseFlag string
 
 func configFilePath() string {
-	const fileName = "cli-top-config.env"
-	if cwd, err := os.Getwd(); err == nil {
-		cwdPath := filepath.Join(cwd, fileName)
-		if _, err := os.Stat(cwdPath); err == nil {
-			return cwdPath
-		}
-	}
-
-	if exePath, err := os.Executable(); err == nil {
-		exeDir := filepath.Dir(exePath)
-		exePath := filepath.Join(exeDir, fileName)
-		return exePath
-	}
-
-	return fileName
+	return helpers.ConfigFilePath()
 }
 
 func getOrCreateUUID() string {
@@ -187,6 +172,7 @@ func startfn() {
 			fmt.Println("File exists:", filePath)
 		}
 		err := godotenv.Load(filePath)
+		helpers.LoadSemesterCacheFromEnv()
 		if err != nil && debug.Debug {
 			fmt.Println("Error loading .env file")
 		}
@@ -213,6 +199,9 @@ func startfn() {
 
 func vtop_login() (types.Cookies, string) {
 	err := godotenv.Load(configFilePath())
+	helpers.LoadSemesterCacheFromEnv()
+	helpers.LoadSemesterCacheFromEnv()
+	helpers.LoadSemesterCacheFromEnv()
 	if err != nil && debug.Debug {
 		fmt.Println("Error loading .env file, please enter your credentials using the \"login\" command.")
 	}
@@ -620,6 +609,7 @@ var logoutCmd = &cobra.Command{
 	Short: "Logout from VTOP",
 	Run: helpers.CommandRunner("logout", func(cmd *cobra.Command, args []string) {
 		err := godotenv.Load(configFilePath())
+		helpers.LoadSemesterCacheFromEnv()
 		if err != nil && debug.Debug {
 			fmt.Println("Error loading .env file:", err)
 			return

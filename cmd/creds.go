@@ -2,9 +2,8 @@ package cmd
 
 import (
 	"cli-top/debug"
+	"cli-top/helpers"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -12,12 +11,7 @@ import (
 )
 
 func exeConfigPath() string {
-	const fileName = "cli-top-config.env"
-	if exePath, err := os.Executable(); err == nil {
-		exeDir := filepath.Dir(exePath)
-		return filepath.Join(exeDir, fileName)
-	}
-	return "cli-top-config.env"
+	return helpers.ConfigFilePath()
 }
 
 var credCmd = &cobra.Command{

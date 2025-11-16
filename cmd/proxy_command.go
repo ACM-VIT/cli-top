@@ -149,8 +149,6 @@ func runProxyCommand(args []string) {
 
 	var tee io.Writer
 	if isInteractiveProxyCommand(command) {
-		// Mirror interactive prompts to the original stdout so downstream proxies
-		// (which listen on stdout) can auto-respond to menus.
 		tee = os.Stdout
 	}
 

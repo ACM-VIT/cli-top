@@ -84,7 +84,8 @@ RETRY:
 
 func getVtopLoginFunc() func() (types.Cookies, string) {
 	return func() (types.Cookies, string) {
-		_ = godotenv.Load("cli-top-config.env")
+		_ = godotenv.Load(ConfigFilePath())
+		LoadSemesterCacheFromEnv()
 		userInfo := types.LogIn{
 			Username: os.Getenv("VTOP_USERNAME"),
 			Password: os.Getenv("PASSWORD"),
