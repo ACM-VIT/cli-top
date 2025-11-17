@@ -23,3 +23,5 @@ cli-top*
 # Calendar files
 *.ics
 /.vs
+
+.cache

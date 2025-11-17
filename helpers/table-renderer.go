@@ -331,6 +331,7 @@ func TableSelectorFuzzy(subject string, nestedList [][]string, initialQuery stri
 }
 
 func PrintTable(nestedList [][]string, indexStatus int) int {
+	stopActiveHeadlineAnimation()
 	if len(nestedList) == 0 {
 		fmt.Println("Ummm are you sure you are printing the right thing?")
 		return 1
