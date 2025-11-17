@@ -294,7 +294,7 @@ jobs:
       - build-windows
       - build-mac
       - build-android
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    if: (github.event_name == 'workflow_dispatch' || github.event_name == 'push') && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release')
     runs-on: ubuntu-latest
     env:
       WEBSITE_REPO: technical-director-acmvit/cli-top-website
