@@ -6,6 +6,26 @@ Once your pull request from your fork's `dev` branch to the upstream `dev` branc
 
 ---
 
+## Website Release Automation
+
+The `GoBuilder.yml` workflow now pushes the packaged binaries directly to the public [`cli-top-website`](https://github.com/technical-director-acmvit/cli-top-website) repo and opens a pull request with the updated download links. To let the automation run end-to-end you must:
+
+1. **Add a `WEBSITE_REPO_TOKEN` repository secret** that contains a Personal Access Token with `repo` scope. The PAT must have push/PR permissions on `technical-director-acmvit/cli-top-website`.
+2. **Keep `release_metadata.json` up to date** on the private CLI repository before triggering `GoBuilder`.
+   - `version` must match `debug/debug.go`.
+   - `releaseDate` can be blank; it defaults to the current UTC date.
+   - `killSwitch` lets you bump the remote kill-switch value (defaults to `4`).
+   - `changes` is the bullet list shown on the website and in the CLI update notification.
+
+When the workflow completes it will automatically:
+
+- Download the multi-platform artifacts produced by the build jobs.
+- Zip/rename them into `buildFiles/vX.Y.Z` inside `cli-top-website`.
+- Update `latest.json` and prepend a release entry to `releases.json` using `release_metadata.json`.
+- Push the changes to a branch named `auto/release-vX.Y.Z` and open (or update) a PR on the website repo. You only need to review and merge it.
+
+---
+
 ### 1. Sync Your Local Repository
 
 - Fetch the latest changes from upstream:
@@ -41,6 +61,25 @@ Once your pull request from your fork's `dev` branch to the upstream `dev` branc
   git add debug/debug.go
   git commit -m "Bump version to vX.Y.Z"
   ```
+---
+
+### 1.1 Update `release_metadata.json`
+
+- Edit the `release_metadata.json` file at the repository root:
+  ```json
+  {
+    "version": "2.9.10",
+    "releaseDate": "2025-11-17",
+    "killSwitch": 4,
+    "changes": [
+      "Now you see this notification!",
+      "Hotfix for auto-update",
+      "Table responsiveness improvements"
+    ]
+  }
+  ```
+- Ensure the `version` matches `debug/debug.go`. Set the release notes bullets you want the website + CLI highlight to display. Commit this file alongside the version bump if anything changed.
+
 ---
 
 ### 2. Merge Upstream `dev` Into Upstream `main`

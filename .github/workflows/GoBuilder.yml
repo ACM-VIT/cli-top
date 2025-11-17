@@ -286,3 +286,214 @@ jobs:
         with:
           name: cli-top-android
           path: ./build/android/cli-top
+
+  publish-website:
+    name: Publish Website Release
+    needs:
+      - build-linux
+      - build-windows
+      - build-mac
+      - build-android
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    env:
+      WEBSITE_REPO: technical-director-acmvit/cli-top-website
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure website token is configured
+        run: |
+          if [ -z "${{ secrets.WEBSITE_REPO_TOKEN }}" ]; then
+            echo "::error ::Missing WEBSITE_REPO_TOKEN secret"
+            exit 1
+          fi
+
+      - name: Extract version
+        id: extract_version_publish
+        run: |
+          set -euo pipefail
+          VERSION=$(sed -n 's/var Version string = "\(.*\)"/\1/p' debug/debug.go | tr -d '\r')
+          if [ -z "$VERSION" ]; then
+            echo "::error ::Unable to determine version from debug/debug.go"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Load website release metadata
+        id: release_metadata
+        run: |
+          set -euo pipefail
+          METADATA_FILE="release_metadata.json"
+          if [ ! -f "$METADATA_FILE" ]; then
+            echo "::error ::release_metadata.json not found"
+            exit 1
+          fi
+
+          VERSION="${{ steps.extract_version_publish.outputs.version }}"
+          FILE_VERSION=$(jq -r '.version // ""' "$METADATA_FILE")
+          if [ -n "$FILE_VERSION" ] && [ "$FILE_VERSION" != "$VERSION" ]; then
+            echo "::error ::release_metadata.json version ($FILE_VERSION) does not match debug/debug.go ($VERSION)"
+            exit 1
+          fi
+
+          jq -e '.changes | if type == "array" then empty else error("changes must be an array") end' "$METADATA_FILE" > /dev/null
+
+          RELEASE_DATE=$(jq -r '.releaseDate // ""' "$METADATA_FILE")
+          if [ -z "$RELEASE_DATE" ]; then
+            RELEASE_DATE=$(date -u +%Y-%m-%d)
+          fi
+
+          KILL_SWITCH=$(jq -r '.killSwitch // ""' "$METADATA_FILE")
+          if [ -z "$KILL_SWITCH" ]; then
+            KILL_SWITCH="4"
+          fi
+          if ! [[ "$KILL_SWITCH" =~ ^[0-9]+$ ]]; then
+            echo "::error ::killSwitch must be numeric"
+            exit 1
+          fi
+
+          RESOLVED_FILE="$GITHUB_WORKSPACE/.release_metadata_resolved.json"
+          jq --arg rd "$RELEASE_DATE" --arg v "$VERSION" --arg ks "$KILL_SWITCH" '
+            .releaseDate = $rd
+            | .version = $v
+            | .killSwitch = ($ks | tonumber)
+          ' "$METADATA_FILE" > "$RESOLVED_FILE"
+
+          echo "metadata_file=$RESOLVED_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cli-top-linux
+          path: artifacts/linux
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cli-top-windows
+          path: artifacts/windows
+
+      - name: Download Windows installer
+        uses: actions/download-artifact@v4
+        with:
+          name: cli-top-windows-installer
+          path: artifacts/windows-installer
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cli-top-macos
+          path: artifacts/macos
+
+      - name: Download Android artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cli-top-android
+          path: artifacts/android
+
+      - name: Prepare release packages
+        run: |
+          set -euo pipefail
+          mkdir -p packaged
+
+          LINUX_BIN=$(find artifacts/linux -type f -name 'cli-top' -print -quit)
+          MAC_BIN=$(find artifacts/macos -type f -name 'cli-top' -print -quit)
+          ANDROID_BIN=$(find artifacts/android -type f -name 'cli-top' -print -quit)
+          WINDOWS_BIN=$(find artifacts/windows -type f -name 'cli-top.exe' -print -quit)
+          INSTALLER_BIN=$(find artifacts/windows-installer -type f -name '*.exe' -print -quit)
+
+          if [ -z "$LINUX_BIN" ] || [ -z "$MAC_BIN" ] || [ -z "$ANDROID_BIN" ] || [ -z "$WINDOWS_BIN" ] || [ -z "$INSTALLER_BIN" ]; then
+            echo "::error ::One or more artifacts missing"
+            exit 1
+          fi
+
+          zip -j packaged/cli-top-linux.zip "$LINUX_BIN"
+          zip -j packaged/cli-top-macos.zip "$MAC_BIN"
+          zip -j packaged/cli-top-android.zip "$ANDROID_BIN"
+          zip -j packaged/cli-top-windows.zip "$WINDOWS_BIN"
+          cp "$INSTALLER_BIN" packaged/cli-top-windows-installer.exe
+
+      - name: Checkout website repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.WEBSITE_REPO }}
+          path: website
+          token: ${{ secrets.WEBSITE_REPO_TOKEN }}
+
+      - name: Sync website build files and metadata
+        id: sync_website
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.extract_version_publish.outputs.version }}"
+          METADATA_FILE="${{ steps.release_metadata.outputs.metadata_file }}"
+          RELEASE_DATE=$(jq -r '.releaseDate' "$METADATA_FILE")
+          KILL_SWITCH=$(jq -r '.killSwitch' "$METADATA_FILE")
+          CHANGES=$(jq -c '.changes' "$METADATA_FILE")
+
+          TARGET_DIR="website/buildFiles/v${VERSION}"
+          mkdir -p "$TARGET_DIR"
+          cp packaged/cli-top-linux.zip "$TARGET_DIR/cli-top-linux_v${VERSION}.zip"
+          cp packaged/cli-top-windows.zip "$TARGET_DIR/cli-top-windows_v${VERSION}.zip"
+          cp packaged/cli-top-macos.zip "$TARGET_DIR/cli-top-macos_v${VERSION}.zip"
+          cp packaged/cli-top-android.zip "$TARGET_DIR/cli-top-android_v${VERSION}.zip"
+          cp packaged/cli-top-windows-installer.exe "$TARGET_DIR/cli-top-windows-installer_v${VERSION}.exe"
+
+          cd website
+
+          tmp=$(mktemp)
+          jq --arg v "$VERSION" --arg ks "$KILL_SWITCH" '.version = $v | .killSwitch = ($ks | tonumber)' latest.json > "$tmp"
+          mv "$tmp" latest.json
+
+          jq -n --arg v "$VERSION" --arg rd "$RELEASE_DATE" --argjson changes "$CHANGES" '
+            {
+              version: $v,
+              releaseDate: $rd,
+              changes: $changes
+            }
+          ' > /tmp/release-entry.json
+          tmp=$(mktemp)
+          jq --slurpfile entry /tmp/release-entry.json '
+            .releases |= ($entry + [ .releases[] | select(.version != $entry[0].version) ])
+          ' releases.json > "$tmp"
+          mv "$tmp" releases.json
+
+      - name: Commit website changes
+        id: commit_website
+        env:
+          VERSION: ${{ steps.extract_version_publish.outputs.version }}
+        run: |
+          set -euo pipefail
+          cd website
+          git config user.name "cli-top-bot"
+          git config user.email "cli-top@users.noreply.github.com"
+          BRANCH="auto/release-v${VERSION}"
+          git checkout -B "$BRANCH"
+          git add buildFiles latest.json releases.json
+          if git diff --cached --quiet; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "Add CLI-TOP v${VERSION} assets"
+          git push origin "$BRANCH"
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Open website pull request
+        if: steps.commit_website.outputs.has_changes == 'true'
+        env:
+          VERSION: ${{ steps.extract_version_publish.outputs.version }}
+          BRANCH: ${{ steps.commit_website.outputs.branch }}
+          GH_TOKEN: ${{ secrets.WEBSITE_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd website
+          PR_BODY="This PR adds the CLI-TOP v${VERSION} build artifacts and updates the release metadata.\n\n- Linux, Windows, macOS, and Android binaries\n- Windows installer\n- latest.json & releases.json entries\n"
+          EXISTING=$(gh pr list --repo ${{ env.WEBSITE_REPO }} --head "$BRANCH" --json url --jq '.[0].url')
+          if [ -n "$EXISTING" ]; then
+            gh pr edit "$EXISTING" --repo ${{ env.WEBSITE_REPO }} --title "Release v${VERSION}" --body "$PR_BODY"
+          else
+            gh pr create --repo ${{ env.WEBSITE_REPO }} --head "$BRANCH" --title "Release v${VERSION}" --base main --body "$PR_BODY"
+          fi
