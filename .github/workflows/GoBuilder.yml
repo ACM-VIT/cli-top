@@ -339,7 +339,7 @@ jobs:
             exit 1
           fi
 
-          jq -e '.changes | if type == "array" then empty else error("changes must be an array") end' "$METADATA_FILE" > /dev/null
+          jq -e '(.changes | type) == "array"' "$METADATA_FILE" > /dev/null
 
           RELEASE_DATE=$(jq -r '.releaseDate // ""' "$METADATA_FILE")
           if [ -z "$RELEASE_DATE" ]; then
