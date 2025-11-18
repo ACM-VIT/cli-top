@@ -456,7 +456,13 @@ jobs:
           ' > /tmp/release-entry.json
           tmp=$(mktemp)
           jq --slurpfile entry /tmp/release-entry.json '
-            .releases |= ($entry + [ .releases[] | select(.version != $entry[0].version) ])
+            if type == "object" and has("releases") then
+              .releases = ($entry + [ .releases[] | select(.version != $entry[0].version) ])
+            elif type == "array" then
+              { releases: ($entry + [ .[] | select(.version != $entry[0].version) ]) }
+            else
+              { releases: $entry }
+            end
           ' releases.json > "$tmp"
           mv "$tmp" releases.json
 
