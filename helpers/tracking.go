@@ -2,8 +2,10 @@ package helpers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -13,6 +15,13 @@ import (
 )
 
 const maxRetries = 3
+
+const (
+	versionTrackingMaxAttempts = 3
+	versionTrackingBaseTimeout = 10 * time.Second
+	versionTrackingTimeoutStep = 5 * time.Second
+	versionTrackingRetryDelay  = 250 * time.Millisecond
+)
 
 func RegisterUUID(uuid string) error {
 	data := types.RegisterData{UUID: uuid}
@@ -79,4 +88,73 @@ func RegisterUUID(uuid string) error {
 		fmt.Println("Registration failed after retries. UUID remains unregistered.")
 	}
 	return fmt.Errorf("failed to register UUID after %d attempts", maxRetries)
+}
+
+// SendVersionTrackingData delivers telemetry about which command/version was executed.
+// It retries transient network failures with short timeouts so CLI users are not blocked
+// by slow analytics endpoints.
+func SendVersionTrackingData(data types.VersionTrackingData) {
+	if data.UUID == "" {
+		return
+	}
+
+	payload, err := json.Marshal(data)
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error marshaling version tracking data:", err)
+		}
+		return
+	}
+
+	client := GetHTTPClient()
+	endpoint := CalendarServerURL + "/version-track"
+	var lastErr error
+
+	for attempt := 1; attempt <= versionTrackingMaxAttempts; attempt++ {
+		timeout := versionTrackingBaseTimeout + time.Duration(attempt-1)*versionTrackingTimeoutStep
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		req, reqErr := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
+		if reqErr != nil {
+			cancel()
+			if debug.Debug {
+				fmt.Println("Error creating version tracking request:", reqErr)
+			}
+			return
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("x-api-key", data.UUID)
+
+		resp, respErr := client.Do(req)
+		if respErr != nil {
+			lastErr = respErr
+			cancel()
+			if debug.Debug {
+				fmt.Printf("Attempt %d/%d failed sending version tracking data: %v\n", attempt, versionTrackingMaxAttempts, respErr)
+			}
+		} else {
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+			cancel()
+
+			if resp.StatusCode == http.StatusOK {
+				if debug.Debug {
+					fmt.Println("Version tracking data sent successfully.")
+				}
+				return
+			}
+
+			lastErr = fmt.Errorf("version tracking request failed with status %d", resp.StatusCode)
+			if resp.StatusCode < http.StatusInternalServerError {
+				break
+			}
+		}
+
+		if attempt < versionTrackingMaxAttempts {
+			time.Sleep(time.Duration(attempt) * versionTrackingRetryDelay)
+		}
+	}
+
+	if lastErr != nil && debug.Debug {
+		fmt.Println("Version tracking failed:", lastErr)
+	}
 }

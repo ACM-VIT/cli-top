@@ -66,7 +66,7 @@ func init() {
 
 func ExecuteInteractiveCourseAllocationView(regNo string, cookies types.Cookies, courseAllocationPageURL string) {
 	if !helpers.ValidateLogin(cookies) {
-		fmt.Println("User not logged in or session expired.")
+		helpers.Println("User not logged in or session expired.")
 		return
 	}
 
@@ -103,12 +103,12 @@ func ExecuteInteractiveCourseAllocationView(regNo string, cookies types.Cookies,
 
 	initialDoc, err := goquery.NewDocumentFromReader(strings.NewReader(initialPageHTML))
 	if err != nil {
-		fmt.Printf("Error parsing initial page HTML: %v\n", err)
+		helpers.Printf("Error parsing initial page HTML: %v\n", err)
 		return
 	}
 
 	if initialDoc.Find(curriculumDropdownSelector).Length() == 0 {
-		fmt.Printf("ERROR: The curriculum category dropdown was NOT FOUND on the page fetched from '%s'.\n", courseAllocationPageURL)
+		helpers.Printf("ERROR: The curriculum category dropdown was NOT FOUND on the page fetched from '%s'.\n", courseAllocationPageURL)
 		return
 	}
 
@@ -203,7 +203,7 @@ func selectCurriculumCategory(initialDoc *goquery.Document, csrfToken, authID, b
 		return types.Category{}, actionExitApp
 	}
 	if !selectionResult.Selected || selectionResult.Index < 1 || selectionResult.Index > len(categories) {
-		fmt.Println("Invalid selection.")
+		helpers.Println("Invalid selection.")
 		return types.Category{}, actionError
 	}
 	return categories[selectionResult.Index-1], actionSelected
@@ -217,19 +217,19 @@ func selectCourseFromCategory(category types.Category, csrfToken, authID, baseUR
 	formDataCourses := helpers.FormatBodyDataClient(courseListParams)
 	courseListHTMLBytes, _, err := helpers.FetchReqClient(httpClient, regNo, cookies, baseURL+getCoursesListEndpoint, "", formDataCourses, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
-		fmt.Printf("Error fetching course list for category %s: %v\n", category.Name, err)
+		helpers.Printf("Error fetching course list for category %s: %v\n", category.Name, err)
 		return types.Course{}, actionError
 	}
 	courseListHTML := string(courseListHTMLBytes)
 	if len(courseListHTML) < 10 && (strings.Contains(strings.ToLower(courseListHTML), "error")) ||
 		strings.Contains(courseListHTML, "Session Timed Out") || strings.Contains(strings.ToLower(courseListHTML), "login required") {
-		fmt.Printf("Error or session issue fetching courses for %s.\n", category.Name)
+		helpers.Printf("Error or session issue fetching courses for %s.\n", category.Name)
 		return types.Course{}, actionError
 	}
 
 	courseListDoc, err := goquery.NewDocumentFromReader(strings.NewReader(courseListHTML))
 	if err != nil {
-		fmt.Printf("Error parsing course list for category %s: %v\n", category.Name, err)
+		helpers.Printf("Error parsing course list for category %s: %v\n", category.Name, err)
 		return types.Course{}, actionError
 	}
 	var courses []types.Course
@@ -240,7 +240,7 @@ func selectCourseFromCategory(category types.Category, csrfToken, authID, baseUR
 		}
 	})
 	if len(courses) == 0 {
-		fmt.Printf("No courses found for category: %s.\n", category.Name)
+		helpers.Printf("No courses found for category: %s.\n", category.Name)
 		return types.Course{}, actionGoBack
 	}
 	tableData := [][]string{{"COURSE (CODE - TITLE)"}}
@@ -266,13 +266,13 @@ func displayCourseAllocationDetails(course types.Course, csrfToken, authID, base
 	formDataDetails := helpers.FormatBodyDataClient(courseDetailParams)
 	courseDetailHTMLBytes, _, err := helpers.FetchReqClient(httpClient, regNo, cookies, baseURL+getCoursesDetailEndpoint, "", formDataDetails, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
-		fmt.Printf("Error fetching course details for %s: %v\n", course.Name, err)
+		helpers.Printf("Error fetching course details for %s: %v\n", course.Name, err)
 		return actionError
 	}
 	courseDetailHTML := string(courseDetailHTMLBytes)
 	if len(courseDetailHTML) < 10 && (strings.Contains(strings.ToLower(courseDetailHTML), "error")) ||
 		strings.Contains(courseDetailHTML, "Session Timed Out") || strings.Contains(strings.ToLower(courseDetailHTML), "login required") {
-		fmt.Printf("Error or session issue fetching details for %s.\n", course.Name)
+		helpers.Printf("Error or session issue fetching details for %s.\n", course.Name)
 		return actionError
 	}
 
@@ -309,13 +309,13 @@ func displayCourseAllocationDetails(course types.Course, csrfToken, authID, base
 			}
 			helpers.PrintTable(tableData, 0)
 		} else {
-			//fmt.Println("Details table found, but no rows matched expected structure (4 cells).")
+			//helpers.Println("Details table found, but no rows matched expected structure (4 cells).")
 		}
 	}
-	fmt.Println("\nPress 'b' to go back to course list, or 'q' to exit.")
+	helpers.Println("\nPress 'b' to go back to course list, or 'q' to exit.")
 	reader := bufio.NewReader(os.Stdin)
 	for {
-		fmt.Print("> ")
+		helpers.Print("> ")
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(strings.ToLower(input))
 		if input == "b" {
@@ -324,6 +324,6 @@ func displayCourseAllocationDetails(course types.Course, csrfToken, authID, base
 		if input == "q" {
 			return actionExitApp
 		}
-		fmt.Println("Invalid input. 'b' for back, 'q' for quit.")
+		helpers.Println("Invalid input. 'b' for back, 'q' for quit.")
 	}
 }

@@ -28,7 +28,7 @@ func fetchStudentDetails(cookies types.Cookies, regNo string) (types.StudentDeta
 	body, err := helpers.FetchReq(regNo, cookies, url, "", payload, "POST", "")
 	if err != nil {
 		if debug.Debug {
-			fmt.Println("Error fetching student details:", err)
+			helpers.Println("Error fetching student details:", err)
 		}
 		return types.StudentDetails{}, err
 	}
@@ -36,7 +36,7 @@ func fetchStudentDetails(cookies types.Cookies, regNo string) (types.StudentDeta
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
 	if err != nil {
 		if debug.Debug {
-			fmt.Println("Error parsing response body:", err)
+			helpers.Println("Error parsing response body:", err)
 		}
 		return types.StudentDetails{}, err
 	}
@@ -62,10 +62,10 @@ func Profile(cookies types.Cookies, regNo string) {
 	studentDetails, err := fetchStudentDetails(cookies, regNo)
 	if err != nil {
 		if debug.Debug {
-			fmt.Printf("Error fetching profile: %v\n", err)
+			helpers.Printf("Error fetching profile: %v\n", err)
 		} else {
-			fmt.Println(err)
-			fmt.Println()
+			helpers.Println(err)
+			helpers.Println()
 			return
 		}
 	}
@@ -77,7 +77,7 @@ func Profile(cookies types.Cookies, regNo string) {
 		{"VIT Email", studentDetails.VITEmail},
 		{"School Name", studentDetails.SchoolName},
 	}
-	fmt.Println()
+	helpers.Println()
 	helpers.PrintTable(tableData, 0)
-	fmt.Println()
+	helpers.Println()
 }

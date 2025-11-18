@@ -48,13 +48,13 @@ func getOrCreateUUID() string {
 		unregisteredUUID = uuid.New().String()
 		viper.Set("UNREGISTERED_UUID", unregisteredUUID)
 		if err := viper.WriteConfigAs(configFilePath()); err != nil && debug.Debug {
-			fmt.Println("Error saving unregistered UUID to config:", err)
+			helpers.Println("Error saving unregistered UUID to config:", err)
 		}
 	}
 
 	if err := helpers.RegisterUUID(unregisteredUUID); err != nil {
 		if debug.Debug {
-			fmt.Println("Error registering UUID with server:", err)
+			helpers.Println("Error registering UUID with server:", err)
 		}
 		return unregisteredUUID
 	}
@@ -62,7 +62,7 @@ func getOrCreateUUID() string {
 	viper.Set("UUID", unregisteredUUID)
 	viper.Set("UNREGISTERED_UUID", "")
 	if err := viper.WriteConfigAs(configFilePath()); err != nil && debug.Debug {
-		fmt.Println("Error updating registered UUID in config:", err)
+		helpers.Println("Error updating registered UUID in config:", err)
 	}
 
 	return unregisteredUUID
@@ -134,7 +134,7 @@ func trackCommand(command string) {
 		viper.Set("UUID", newUUID)
 		viper.Set("UNREGISTERED_UUID", "")
 		if err := viper.WriteConfigAs(configFilePath()); err != nil && debug.Debug {
-			fmt.Println("Error updating registered UUID in config:", err)
+			helpers.Println("Error updating registered UUID in config:", err)
 		}
 	} else if resp.StatusCode != http.StatusOK {
 		if debug.Debug {
@@ -169,15 +169,15 @@ func startfn() {
 
 	if _, err := os.Stat(filePath); err == nil {
 		if debug.Debug {
-			fmt.Println("File exists:", filePath)
+			helpers.Println("File exists:", filePath)
 		}
 		err := godotenv.Load(filePath)
 		helpers.LoadSemesterCacheFromEnv()
 		if err != nil && debug.Debug {
-			fmt.Println("Error loading .env file")
+			helpers.Println("Error loading .env file")
 		}
 		if debug.Debug {
-			fmt.Println(os.Getenv("PASSWORD"))
+			helpers.Println(os.Getenv("PASSWORD"))
 		}
 
 		if os.Getenv("VTOP_USERNAME") != "" && os.Getenv("PASSWORD") != "" {
@@ -186,14 +186,14 @@ func startfn() {
 	} else {
 		// File not found in cwd or exe dir
 		if debug.Debug {
-			fmt.Println("File does not exist:", filePath)
+			helpers.Println("File does not exist:", filePath)
 		}
-		fmt.Println("Please login using the \"login\" command")
+		helpers.Println("Please login using the \"login\" command")
 	}
 
 	userUUID := getOrCreateUUID()
 	if debug.Debug {
-		fmt.Println("User UUID:", userUUID)
+		helpers.Println("User UUID:", userUUID)
 	}
 }
 
@@ -201,7 +201,7 @@ func vtop_login() (types.Cookies, string) {
 	err := godotenv.Load(configFilePath())
 	helpers.LoadSemesterCacheFromEnv()
 	if err != nil && debug.Debug {
-		fmt.Println("Error loading .env file, please enter your credentials using the \"login\" command.")
+		helpers.Println("Error loading .env file, please enter your credentials using the \"login\" command.")
 	}
 
 	userInfo := types.LogIn{
@@ -213,7 +213,7 @@ func vtop_login() (types.Cookies, string) {
 
 	password, err := decryptPassword(userInfo.Password, key)
 	if err != nil && debug.Debug {
-		fmt.Println("Error decrypting password:", err)
+		helpers.Println("Error decrypting password:", err)
 	}
 
 	loginSecrets := login.Login(userInfo.Username, password)
@@ -222,10 +222,10 @@ func vtop_login() (types.Cookies, string) {
 
 	saveCookiesToFile(cookies, userInfo, key)
 	if err != nil && debug.Debug {
-		fmt.Println("Error saving cookies:", err)
+		helpers.Println("Error saving cookies:", err)
 	}
 	if debug.Debug {
-		fmt.Println("(Main) VTOP Cookies", cookies)
+		helpers.Println("(Main) VTOP Cookies", cookies)
 	}
 
 	return cookies, userInfo.RegNo
@@ -240,7 +240,7 @@ func saveCookiesToFile(cookies types.Cookies, userInfo types.LogIn, Key string) 
 	viper.Set("PASSWORD", "\""+userInfo.Password+"\"")
 	viper.Set("KEY", "\""+Key+"\"")
 	if err := viper.WriteConfigAs(configFilePath()); err != nil && debug.Debug {
-		fmt.Println("Error writing to .env file:", err)
+		helpers.Println("Error writing to .env file:", err)
 	}
 	if userInfo.RegNo != "" {
 		helpers.InvalidateSemesterCache(userInfo.RegNo)
@@ -250,11 +250,11 @@ func saveCookiesToFile(cookies types.Cookies, userInfo types.LogIn, Key string) 
 func readCookiesFromFile() (types.Cookies, string) {
 	if debugFlag {
 		debug.Debug = true
-		fmt.Println("Debug mode on")
+		helpers.Println("Debug mode on")
 	}
 	err := godotenv.Load(configFilePath())
 	if err != nil && debug.Debug {
-		fmt.Println("Error loading .env file, please enter your credentials using the \"login\" command.")
+		helpers.Println("Error loading .env file, please enter your credentials using the \"login\" command.")
 	}
 	cookies := types.Cookies{
 		SERVERID:   os.Getenv("SERVERID"),
@@ -278,6 +278,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		if cmd.Name() != "login" && cmd.Name() != "logout" && cmd.Name() != "proxy" {
+			commandName := cmd.Name()
 			go func() {
 				userUUID := viper.GetString("UUID")
 				if userUUID == "" {
@@ -286,49 +287,12 @@ var rootCmd = &cobra.Command{
 
 				data := types.VersionTrackingData{
 					UUID:      userUUID,
-					Command:   cmd.Name(),
+					Command:   commandName,
 					Version:   debug.Version,
 					Timestamp: time.Now().Format(time.RFC3339),
 				}
 
-				jsonData, err := json.Marshal(data)
-				if err != nil {
-					if debug.Debug {
-						log.Println("Error marshaling version tracking data:", err)
-					}
-					return
-				}
-
-				serverURL := helpers.CalendarServerURL + "/version-track"
-
-				req, err := http.NewRequest("POST", serverURL, bytes.NewBuffer(jsonData))
-				if err != nil {
-					if debug.Debug {
-						log.Println("Error creating version tracking request:", err)
-					}
-					return
-				}
-				req.Header.Set("Content-Type", "application/json")
-				req.Header.Set("x-api-key", userUUID)
-
-				client := &http.Client{
-					Timeout: 5 * time.Second,
-					Transport: &http.Transport{
-						DisableKeepAlives: true,
-					},
-				}
-
-				go func() {
-					resp, err := client.Do(req)
-					if err != nil {
-						if debug.Debug {
-							log.Println("Error sending version tracking data:", err)
-						}
-						return
-					}
-					defer resp.Body.Close()
-					io.Copy(io.Discard, resp.Body)
-				}()
+				helpers.SendVersionTrackingData(data)
 			}()
 		}
 	},
@@ -336,11 +300,11 @@ var rootCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		if debugFlag {
 			debug.Debug = true
-			fmt.Println("Debug mode on")
+			helpers.Println("Debug mode on")
 		}
 
 		if versionFlag {
-			fmt.Println("Version:", debug.Version)
+			helpers.Println("Version:", debug.Version)
 			return
 		}
 
@@ -375,24 +339,24 @@ Use "{{.CommandPath}} <subcommand> --help" for more information about a subcomma
 func Execute() {
 	killSwitch := helpers.CheckKillSwitch()
 	if killSwitch == 2 {
-		fmt.Println("This version of cli-top has been decommissioned.")
+		helpers.Println("This version of cli-top has been decommissioned.")
 		return
 	} else if killSwitch == 3 {
 		err := helpers.OpenURLInBrowser("https://vtop.vit.ac.in")
 		if err != nil {
-			fmt.Println("An unexpected error has occurred", err)
+			helpers.Println("An unexpected error has occurred", err)
 		}
 		return
 	}
 
 	err := godotenv.Load(configFilePath())
 	if err != nil && debug.Debug {
-		fmt.Println("Error loading .env file:", err)
+		helpers.Println("Error loading .env file:", err)
 	}
 
 	userUUID := getOrCreateUUID()
 	if debug.Debug {
-		fmt.Println("User UUID:", userUUID)
+		helpers.Println("User UUID:", userUUID)
 	}
 
 	if !updateFlag && os.Args[len(os.Args)-1] != "-u" && os.Args[len(os.Args)-1] != "--update" {
@@ -453,7 +417,7 @@ func Execute() {
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
-		fmt.Println(err)
+		helpers.Println(err)
 		os.Exit(1)
 	}
 }
@@ -609,14 +573,14 @@ var logoutCmd = &cobra.Command{
 		err := godotenv.Load(configFilePath())
 		helpers.LoadSemesterCacheFromEnv()
 		if err != nil && debug.Debug {
-			fmt.Println("Error loading .env file:", err)
+			helpers.Println("Error loading .env file:", err)
 			return
 		}
 
 		uuid := os.Getenv("UUID")
 
 		if uuid == "" {
-			fmt.Println("UUID not found; nothing to preserve.")
+			helpers.Println("UUID not found; nothing to preserve.")
 			return
 		}
 
@@ -628,7 +592,7 @@ var logoutCmd = &cobra.Command{
 		f, err := os.Create(configFilePath())
 		if err != nil {
 			if debug.Debug {
-				fmt.Println("Error creating .env file:", err)
+				helpers.Println("Error creating .env file:", err)
 			}
 			return
 		}
@@ -637,12 +601,12 @@ var logoutCmd = &cobra.Command{
 		for key, value := range env {
 			_, err = f.WriteString(fmt.Sprintf("%s=%s\n", key, value))
 			if err != nil && debug.Debug {
-				fmt.Println("Error writing to .env file:", err)
+				helpers.Println("Error writing to .env file:", err)
 				return
 			}
 		}
 
-		fmt.Println("Logged out successfully.")
+		helpers.Println("Logged out successfully.")
 	}),
 }
 

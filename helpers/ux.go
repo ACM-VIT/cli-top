@@ -44,6 +44,10 @@ func ShouldMuteUI() bool {
 func CommandRunner(label string, run func(cmd *cobra.Command, args []string)) func(cmd *cobra.Command, args []string) {
 	return func(cmd *cobra.Command, args []string) {
 		muted := ShouldMuteUI()
+		// Suppress UX chrome for specific commands like logout
+		if strings.EqualFold(label, "logout") {
+			muted = true
+		}
 		start := time.Now()
 		defer cleanupHeadlineAnimation()
 		if !muted {
@@ -54,6 +58,7 @@ func CommandRunner(label string, run func(cmd *cobra.Command, args []string)) fu
 
 		if !muted {
 			stopActiveHeadlineAnimation()
+			flushHeadlineNewline()
 			elapsed := time.Since(start).Round(10 * time.Millisecond)
 			successLine := fmt.Sprintf("✓ %s (%s)", strings.ToUpper(label), elapsed)
 			color.New(color.FgHiGreen).Printf("\n%s\n\n", successLine)
@@ -75,7 +80,8 @@ func startOrPrintHeadline(label string) {
 		return
 	}
 	headline := renderHeadline(label)
-	fmt.Fprintf(color.Output, "\n%s\n", headline)
+	// Print headline followed by a single blank line for spacing
+	fmt.Fprintf(color.Output, "\n%s\n\n", headline)
 }
 
 func renderHeadline(label string) string {
@@ -195,7 +201,6 @@ func startHeadlineAnimation(label string) func() {
 			close(done)
 			<-stopped
 			markHeadlineNeedsNewline()
-			flushHeadlineNewline()
 		})
 	}
 }
@@ -218,10 +223,12 @@ func stopActiveHeadlineAnimation() {
 
 func StopHeadlineForOutput() {
 	stopActiveHeadlineAnimation()
+	flushHeadlineNewline()
 }
 
 func cleanupHeadlineAnimation() {
 	stopActiveHeadlineAnimation()
+	flushHeadlineNewline()
 }
 
 func markHeadlineNeedsNewline() {
@@ -244,6 +251,6 @@ func flushHeadlineNewline() {
 	}
 	headlineNewlineMu.Unlock()
 	if needed {
-		fmt.Fprint(color.Output, "\n")
+		fmt.Fprint(color.Output, "\r\n")
 	}
 }

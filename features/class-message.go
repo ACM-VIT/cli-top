@@ -24,23 +24,23 @@ func GetClassMessage(regNo string, cookies types.Cookies) {
 	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentClassMessage"
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, "", "UTC", "POST", "")
 	if err != nil && debug.Debug {
-		fmt.Println(err)
+		helpers.Println(err)
 		return
 	}
 
 	messages, err := extractClassMessages(bodyText)
 	if err != nil && debug.Debug {
-		fmt.Println("Error extracting messages:", err)
+		helpers.Println("Error extracting messages:", err)
 		return
 	}
 
 	if len(messages) == 1 {
-		fmt.Println("No class messages found")
+		helpers.Println("No class messages found")
 		return
 	}
-	fmt.Println()
+	helpers.Println()
 	helpers.PrintTable(messages, 1)
-	fmt.Println()
+	helpers.Println()
 }
 
 func extractClassMessages(bodyText []byte) ([][]string, error) {
