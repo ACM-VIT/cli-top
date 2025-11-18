@@ -37,14 +37,14 @@ func GetAttendance(regNo string, cookies types.Cookies, sem_choice int) {
 	semDetails, err := helpers.GetSemDetails(cookies, regNo)
 	if err != nil {
 		if debug.Debug {
-			fmt.Printf("Error fetching semesters: %v\n", err)
+			helpers.Printf("Error fetching semesters: %v\n", err)
 		}
-		fmt.Println("Please login using the cli-top login command.")
+		helpers.Println("Please login using the cli-top login command.")
 		return
 	}
 
 	if len(semDetails) == 0 {
-		fmt.Println("No semesters found.")
+		helpers.Println("No semesters found.")
 		return
 	}
 
@@ -58,7 +58,7 @@ func GetAttendance(regNo string, cookies types.Cookies, sem_choice int) {
 		bodyText, err := helpers.FetchReq(regNo, cookies, url, semID, "UTC", "POST", "")
 		if err != nil {
 			if debug.Debug {
-				fmt.Printf("Error fetching attendance for Semester %s: %v\n", semDetails[i].SemName, err)
+				helpers.Printf("Error fetching attendance for Semester %s: %v\n", semDetails[i].SemName, err)
 			}
 			continue // Try the previous semester
 		}
@@ -66,7 +66,7 @@ func GetAttendance(regNo string, cookies types.Cookies, sem_choice int) {
 		doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
 		if err != nil {
 			if debug.Debug {
-				fmt.Printf("Error parsing HTML document for Semester %s: %v\n", semDetails[i].SemName, err)
+				helpers.Printf("Error parsing HTML document for Semester %s: %v\n", semDetails[i].SemName, err)
 			}
 			continue // Try the previous semester
 		}
@@ -77,25 +77,25 @@ func GetAttendance(regNo string, cookies types.Cookies, sem_choice int) {
 		if len(attendanceList) > 1 {
 			found = true
 			if debug.Debug {
-				fmt.Printf("Selected Semester: %s (%s)\n", semDetails[i].SemName, semID)
+				helpers.Printf("Selected Semester: %s (%s)\n", semDetails[i].SemName, semID)
 			}
 			break
 		} else {
 			if debug.Debug {
-				fmt.Printf("No attendance data found for Semester: %s (%s). Trying previous semester.\n", semDetails[i].SemName, semID)
+				helpers.Printf("No attendance data found for Semester: %s (%s). Trying previous semester.\n", semDetails[i].SemName, semID)
 			}
 		}
 	}
 
 	// If no attendance data found in any semester
 	if !found {
-		fmt.Println("No attendance data available in any semester.")
+		helpers.Println("No attendance data available in any semester.")
 		return
 	}
 
-	fmt.Println()
+	helpers.Println()
 	helpers.PrintTable(attendanceList, 1)
-	fmt.Println()
+	helpers.Println()
 }
 
 func findAndSaveAttendance(doc *goquery.Document) [][]string {
@@ -139,7 +139,7 @@ func findAndSaveAttendance(doc *goquery.Document) [][]string {
 			totalInt, err2 := strconv.Atoi(total)
 			if err1 != nil || err2 != nil {
 				if debug.Debug {
-					fmt.Printf("Error converting attendance numbers for subject %s: attended='%s', total='%s'\n", sub_name, attended, total)
+					helpers.Printf("Error converting attendance numbers for subject %s: attended='%s', total='%s'\n", sub_name, attended, total)
 				}
 				return
 			}
@@ -158,9 +158,9 @@ func findAndSaveAttendance(doc *goquery.Document) [][]string {
 		})
 	} else {
 		if debug.Debug {
-			fmt.Println("Table with ID 'AttendanceDetailDataTable' not found.")
+			helpers.Println("Table with ID 'AttendanceDetailDataTable' not found.")
 		}
-		fmt.Println("No attendance table found for the selected semester.")
+		helpers.Println("No attendance table found for the selected semester.")
 	}
 
 	return attendanceList

@@ -9,6 +9,7 @@ import (
 // Returns true if the user is logged in, otherwise prints a message and returns false
 func ValidateLogin(cookies types.Cookies) bool {
 	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
+		StopHeadlineForOutput()
 		fmt.Println("Please login first using the cli-top login command")
 		return false
 	}

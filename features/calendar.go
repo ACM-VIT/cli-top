@@ -20,33 +20,33 @@ func PrintCal(regNo string, cookies types.Cookies, sem_choice int, classGrpFlag 
 	semester, err := helpers.SelectSemester(regNo, cookies, sem_choice)
 	if err != nil {
 		if err.Error() == "selection canceled by user" {
-			fmt.Println("Selection canceled")
+			helpers.Println("Selection canceled")
 			return
 		}
 		if debug.Debug {
-			fmt.Println(err)
+			helpers.Println(err)
 		}
-		fmt.Println("Error selecting semester:", err)
+		helpers.Println("Error selecting semester:", err)
 		return
 	}
 
 	grp_list := getClassGroups(regNo, cookies, semester)
 	if len(grp_list) == 0 {
-		fmt.Println("No class groups found")
+		helpers.Println("No class groups found")
 		return
 	}
 
 	grp_list = append([][]string{{"CLASS GROUP"}}, grp_list...)
 	result := helpers.TableSelector("class group", grp_list, strconv.Itoa(classGrpFlag))
 	if result.ExitRequest || !result.Selected {
-		fmt.Println("Selection canceled")
+		helpers.Println("Selection canceled")
 		return
 	}
 	grp := result.Index
 
 	datelist := getDateList(regNo, cookies, semester, grp_list[grp][1])
 	if len(datelist) == 0 {
-		fmt.Println("No months found")
+		helpers.Println("No months found")
 		return
 	}
 	processDates(regNo, cookies, semester, grp_list[grp][1], datelist, 1)
@@ -64,11 +64,11 @@ func getClassGroups(regNo string, cookies types.Cookies, semester types.Semester
 	formData := helpers.FormatBodyData(payloadMap)
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, semester.SemID, formData, "POST", "")
 	if err != nil && debug.Debug {
-		fmt.Println(err)
+		helpers.Println(err)
 	}
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
 	if err != nil && debug.Debug {
-		fmt.Println(err)
+		helpers.Println(err)
 	}
 	return extractclassgrp(doc)
 }
@@ -86,11 +86,11 @@ func getDateList(regNo string, cookies types.Cookies, semester types.Semester, g
 	formData := helpers.FormatBodyData(payloadMap)
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, semester.SemID, formData, "POST", "")
 	if err != nil && debug.Debug {
-		fmt.Println(err)
+		helpers.Println(err)
 	}
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
 	if err != nil && debug.Debug {
-		fmt.Println(err)
+		helpers.Println(err)
 	}
 	return readmonths(doc)
 }
@@ -100,7 +100,7 @@ func processDates(regNo string, cookies types.Cookies, semester types.Semester, 
 	year := datelist[0][7:]
 	var color_list [][]int
 	if flag == 1 {
-		fmt.Println("\033[31mRed-Exam Day\033[0m\n\033[34mBlue-Holiday\033[0m\n\033[32mGreen-Instructional Day\033[0m\n\033[33mYellow-Today\033[0m")
+		helpers.Println("\033[31mRed-Exam Day\033[0m\n\033[34mBlue-Holiday\033[0m\n\033[32mGreen-Instructional Day\033[0m\n\033[33mYellow-Today\033[0m")
 	}
 	isLeapYear := func(year int) bool {
 		if year%4 == 0 {
@@ -114,7 +114,7 @@ func processDates(regNo string, cookies types.Cookies, semester types.Semester, 
 	// Convert year string to integer
 	yearInt, err := strconv.Atoi(year)
 	if err != nil {
-		fmt.Println("Invalid year:", year)
+		helpers.Println("Invalid year:", year)
 		return nil, -1, -1
 	}
 
@@ -144,7 +144,7 @@ func processDates(regNo string, cookies types.Cookies, semester types.Semester, 
 	startMonthStr := datelist[0][3:6]
 	startMonth, ok := monthMap[startMonthStr]
 	if !ok {
-		fmt.Println("Invalid month:", startMonthStr)
+		helpers.Println("Invalid month:", startMonthStr)
 		return nil, -1, -1
 	}
 	// Create the nested array with each sublist having the number of days of the month
@@ -179,7 +179,7 @@ func processDates(regNo string, cookies types.Cookies, semester types.Semester, 
 			bodyText, err := helpers.FetchReq(regNo, cookies, url, semester.SemID, formData, "POST", "")
 			if err != nil {
 				if debug.Debug {
-					fmt.Println(err)
+					helpers.Println(err)
 				}
 				monthDocs[idx].err = err
 				return
@@ -187,7 +187,7 @@ func processDates(regNo string, cookies types.Cookies, semester types.Semester, 
 			doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
 			if err != nil {
 				if debug.Debug {
-					fmt.Println(err)
+					helpers.Println(err)
 				}
 				monthDocs[idx].err = err
 				return
@@ -293,16 +293,16 @@ func renderMonths(months []string, year string, nestedColour [][]int) {
 	yearHeader := fmt.Sprintf(" %s%s", strings.Repeat(" ", spaceSize), year)
 	maxLength := 20
 	yearHeader = fmt.Sprintf("%-*s", (maxLength*len(months)+len(yearHeader))/2, yearHeader)
-	fmt.Println(yearHeader)
-	fmt.Println()
+	helpers.Println(yearHeader)
+	helpers.Println()
 	for row := 0; row < len(calendars[0]); row++ {
 		for i := 0; i < len(months); i++ {
-			fmt.Print(calendars[i][row])
+			helpers.Print(calendars[i][row])
 			if i < len(months)-1 {
-				fmt.Print("    ")
+				helpers.Print("    ")
 			}
 		}
-		fmt.Println()
+		helpers.Println()
 	}
 }
 

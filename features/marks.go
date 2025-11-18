@@ -40,7 +40,7 @@ func GetMarks(regNo string, cookies types.Cookies, semID string, semChoice int) 
 	semester, err := helpers.SelectSemester(regNo, cookies, semChoice)
 	if err != nil {
 		helpers.HandleError("fetching semesters", err)
-		fmt.Println()
+		helpers.Println()
 		return
 	}
 
@@ -53,12 +53,12 @@ func GetMarks(regNo string, cookies types.Cookies, semID string, semChoice int) 
 
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, semester.SemID, payload, "POST", "marks")
 	if err != nil && debug.Debug {
-		fmt.Println(err)
+		helpers.Println(err)
 	}
 
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
 	if err != nil && debug.Debug {
-		fmt.Println(err)
+		helpers.Println(err)
 	}
 
 	courseDetails := subjectDetails(doc)
@@ -66,17 +66,17 @@ func GetMarks(regNo string, cookies types.Cookies, semID string, semChoice int) 
 	elements := findElementsByClass(doc, MarksCustomTableSelector)
 
 	if len(elements) == 0 {
-		fmt.Println()
+		helpers.Println()
 		in := "No Data Found"
 		out := fmt.Sprintf("\033[1;31m%s\033[0m", in)
-		fmt.Println(out)
+		helpers.Println(out)
 		return
 	}
 
 	for idx, course := range courseDetails {
 		if idx >= len(elements) {
 			if debug.Debug {
-				fmt.Printf("No corresponding table found for course: %s\n", course.CourseTitle)
+				helpers.Printf("No corresponding table found for course: %s\n", course.CourseTitle)
 			}
 			continue
 		}
@@ -86,17 +86,17 @@ func GetMarks(regNo string, cookies types.Cookies, semID string, semChoice int) 
 
 		OneSubTable, weightageMark, maxMarkSum := ExtractMarks(selectedElement)
 		if err != nil && debug.Debug {
-			fmt.Println(OneSubTable)
-			fmt.Println(err)
+			helpers.Println(OneSubTable)
+			helpers.Println(err)
 		}
 		if len(OneSubTable) == 0 {
-			fmt.Printf("No Data Found for %s\n\n", selectedCourseDetail.CourseTitle)
+			helpers.Printf("No Data Found for %s\n\n", selectedCourseDetail.CourseTitle)
 			continue
 		}
 
 		courseDetail := fmt.Sprintf("\033[1;34m%s\033[0m", selectedCourseDetail.CourseTitle)
-		fmt.Println(courseDetail)
-		fmt.Println()
+		helpers.Println(courseDetail)
+		helpers.Println()
 
 		headers := []string{"Title", "Max Marks", "Weightage %", "Status", "Scored Mark", "Weightage Mark"}
 
@@ -106,13 +106,13 @@ func GetMarks(regNo string, cookies types.Cookies, semID string, semChoice int) 
 
 		weightageMarkStr := fmt.Sprintf("\033[32m%.2f\033[0m", weightageMark)
 		maxMarkSumStr := fmt.Sprintf("\033[32m%d\033[0m", maxMarkSum)
-		fmt.Printf("\n%s/%s\n\n", weightageMarkStr, maxMarkSumStr)
+		helpers.Printf("\n%s/%s\n\n", weightageMarkStr, maxMarkSumStr)
 	}
 
 	doc.Find(MarksGPASpanSelector).Each(func(i int, s *goquery.Selection) {
 		gpa := s.Text()
-		fmt.Println("\x1b[32;1mCourse not included in GPA/CGPA\x1b[0m")
-		fmt.Println(gpa)
+		helpers.Println("\x1b[32;1mCourse not included in GPA/CGPA\x1b[0m")
+		helpers.Println(gpa)
 	})
 }
 

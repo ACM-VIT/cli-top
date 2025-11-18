@@ -31,7 +31,7 @@ func GetLeaveStatus(regNo string, cookies types.Cookies) {
 	_, err := helpers.FetchReq(regNo, cookies, url1, "", payload1, "POST", "")
 	if err != nil {
 		if debug.Debug {
-			fmt.Println("Error fetching leave status menu:", err)
+			helpers.Println("Error fetching leave status menu:", err)
 		}
 		return
 	}
@@ -45,7 +45,7 @@ func GetLeaveStatus(regNo string, cookies types.Cookies) {
 	bodyText, err := helpers.FetchReq(regNo, cookies, url2, "", payload2, "POST", "")
 	if err != nil {
 		if debug.Debug {
-			fmt.Println("Error fetching leave status data:", err)
+			helpers.Println("Error fetching leave status data:", err)
 		}
 		return
 	}
@@ -53,7 +53,7 @@ func GetLeaveStatus(regNo string, cookies types.Cookies) {
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
 	if err != nil {
 		if debug.Debug {
-			fmt.Println("Error parsing HTML:", err)
+			helpers.Println("Error parsing HTML:", err)
 		}
 		return
 	}
@@ -80,9 +80,9 @@ func GetLeaveStatus(regNo string, cookies types.Cookies) {
 		}
 	})
 
-	fmt.Println()
+	helpers.Println()
 	if len(leaveRequests) == 0 {
-		fmt.Println("No leave requests found.")
+		helpers.Println("No leave requests found.")
 		return
 	}
 	var allRequests [][]string
@@ -100,5 +100,5 @@ func GetLeaveStatus(regNo string, cookies types.Cookies) {
 	}
 
 	helpers.PrintTable(allRequests, 0)
-	fmt.Println()
+	helpers.Println()
 }
