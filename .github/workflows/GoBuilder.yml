@@ -493,13 +493,27 @@ jobs:
           VERSION: ${{ steps.extract_version_publish.outputs.version }}
           BRANCH: ${{ steps.commit_website.outputs.branch }}
           GH_TOKEN: ${{ secrets.WEBSITE_REPO_TOKEN }}
+          WEBSITE_REPO: ${{ env.WEBSITE_REPO }}
+          METADATA_FILE: ${{ steps.release_metadata.outputs.metadata_file }}
         run: |
           set -euo pipefail
           cd website
-          PR_BODY="This PR adds the CLI-TOP v${VERSION} build artifacts and updates the release metadata.\n\n- Linux, Windows, macOS, and Android binaries\n- Windows installer\n- latest.json & releases.json entries\n"
-          EXISTING=$(gh pr list --repo ${{ env.WEBSITE_REPO }} --head "$BRANCH" --json url --jq '.[0].url')
+
+          RELEASE_NOTES=""
+          if [ -f "$METADATA_FILE" ]; then
+            RELEASE_NOTES=$(jq -r '.changes | map("- " + .) | join("\n")' "$METADATA_FILE")
+          fi
+          if [ -z "$RELEASE_NOTES" ]; then
+            RELEASE_NOTES="- (no release notes provided)"
+          fi
+
+          ASSETS="- Linux, Windows, macOS, and Android binaries\n- Windows installer\n- latest.json & releases.json entries"
+
+          PR_BODY=$(printf "This PR adds the CLI-TOP v%s build artifacts and refreshes the public release metadata.\n\n## Release Notes\n%s\n\n## Updated Assets\n%s\n" "$VERSION" "$RELEASE_NOTES" "$ASSETS")
+
+          EXISTING=$(gh pr list --repo "$WEBSITE_REPO" --head "$BRANCH" --json url --jq '.[0].url')
           if [ -n "$EXISTING" ]; then
-            gh pr edit "$EXISTING" --repo ${{ env.WEBSITE_REPO }} --title "Release v${VERSION}" --body "$PR_BODY"
+            gh pr edit "$EXISTING" --repo "$WEBSITE_REPO" --title "Release v${VERSION}" --body "$PR_BODY"
           else
-            gh pr create --repo ${{ env.WEBSITE_REPO }} --head "$BRANCH" --title "Release v${VERSION}" --base main --body "$PR_BODY"
+            gh pr create --repo "$WEBSITE_REPO" --head "$BRANCH" --title "Release v${VERSION}" --base main --body "$PR_BODY"
           fi
