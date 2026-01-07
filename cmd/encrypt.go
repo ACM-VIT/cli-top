@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"cli-top/debug"
+	"cli-top/helpers"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -13,7 +14,7 @@ func GenerateAESKey() string {
 	key := make([]byte, 32)
 	_, err := rand.Read(key)
 	if err != nil && debug.Debug {
-		fmt.Println("error generating key")
+		helpers.Println("error generating key")
 	}
 
 	keyBase64 := base64.URLEncoding.EncodeToString(key)[:32]
@@ -22,7 +23,7 @@ func GenerateAESKey() string {
 
 func encryptPassword(password string, key string) (string, error) {
 	if debug.Debug {
-		fmt.Println("key", key)
+		helpers.Println("key", key)
 	}
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil && debug.Debug {

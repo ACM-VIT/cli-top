@@ -6,7 +6,7 @@ import (
 )
 
 var Debug bool = false
-var Version string = "2.9.11"
+var Version string = "2.9.12"
 
 func Log(message string) {
 	if Debug {

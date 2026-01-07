@@ -501,7 +501,7 @@ func GetTimeTable(regNo string, cookies types.Cookies, sem_choice int) {
 	semester, err := helpers.SelectSemester(regNo, cookies, sem_choice)
 	if err != nil {
 		if debug.Debug {
-			fmt.Println(err)
+			helpers.Println(err)
 		}
 		return
 	}
@@ -516,7 +516,7 @@ func GetTimeTable(regNo string, cookies types.Cookies, sem_choice int) {
 	url := "https://vtop.vit.ac.in/vtop/processViewTimeTable"
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, semester.SemID, "UTC", "POST", "")
 	if err != nil && debug.Debug {
-		fmt.Println(err)
+		helpers.Println(err)
 	}
 	doc, _ := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
 
@@ -548,19 +548,19 @@ func GetTimeTable(regNo string, cookies types.Cookies, sem_choice int) {
 
 	icsDir, err := helpers.GetOrCreateDownloadDir(filepath.Join("Other Downloads", "ICS File"))
 	if err != nil {
-		fmt.Println("Error creating ICS file directory:", err)
+		helpers.Println("Error creating ICS file directory:", err)
 		return
 	}
 	icsPath := filepath.Join(icsDir, "CLI-TOP_Timetable.ics")
 	icsContent := makeISC(timetable, semSec, month, year, workingSats)
 	if err := writetoFile(icsPath, icsContent); err != nil {
-		fmt.Println("Error generating ICS file:", err)
+		helpers.Println("Error generating ICS file:", err)
 	} else {
 		if link, err := helpers.UploadICSFile(icsPath, helpers.CalendarServerURL); err == nil {
-			fmt.Println("\nICS file generated and saved successfully.")
+			helpers.Println("\nICS file generated and saved successfully.")
 			helpers.GenerateCalendarImportLinks(link, "Timetable")
 		} else {
-			fmt.Println("Error uploading ICS file; please import manually.")
+			helpers.Println("Error uploading ICS file; please import manually.")
 		}
 	}
 }
@@ -764,7 +764,7 @@ func getCourseName(doc *goquery.Document) map[string]types.SubjectTime {
 			courseMap[courseName] = sub
 		})
 	} else {
-		fmt.Println("Table with class 'table' not found")
+		helpers.Println("Table with class 'table' not found")
 	}
 	return courseMap
 }
@@ -878,9 +878,9 @@ func printTT(timetable map[string][]types.Class, workingSaturdays []WorkingSatur
 				continue
 			}
 			if day == dayToHighlight {
-				fmt.Printf("%s\n\n", applyColor(day, Cyan+Bold))
+				helpers.Printf("%s\n\n", applyColor(day, Cyan+Bold))
 			} else {
-				fmt.Printf("%s\n\n", day)
+				helpers.Printf("%s\n\n", day)
 			}
 			sort.Slice(classes, func(i, j int) bool {
 				return classes[i].StartTime < classes[j].StartTime
@@ -910,7 +910,7 @@ func printTT(timetable map[string][]types.Class, workingSaturdays []WorkingSatur
 				tableData = append(tableData, row)
 			}
 			helpers.PrintTable(tableData, 0)
-			fmt.Println()
+			helpers.Println()
 			continue
 		}
 
@@ -942,13 +942,13 @@ func printTT(timetable map[string][]types.Class, workingSaturdays []WorkingSatur
 		}
 
 		if day == dayToHighlight {
-			fmt.Printf("%s\n\n", applyColor(day, Cyan+Bold))
+			helpers.Printf("%s\n\n", applyColor(day, Cyan+Bold))
 		} else {
-			fmt.Printf("%s\n\n", day)
+			helpers.Printf("%s\n\n", day)
 		}
 
 		if matchingDayOrder != "" {
-			fmt.Printf("%s %s\n\n", applyColor("Working Saturday", helpers.Yellow),
+			helpers.Printf("%s %s\n\n", applyColor("Working Saturday", helpers.Yellow),
 				applyColor(fmt.Sprintf("(Following %s schedule)", matchingDayOrder), helpers.Yellow))
 		}
 
@@ -980,6 +980,6 @@ func printTT(timetable map[string][]types.Class, workingSaturdays []WorkingSatur
 			tableData = append(tableData, row)
 		}
 		helpers.PrintTable(tableData, 0)
-		fmt.Println()
+		helpers.Println()
 	}
 }

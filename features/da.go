@@ -34,16 +34,16 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 	allSems, err := helpers.GetSemDetails(cookies, regNo)
 	if err != nil {
 		if debug.Debug {
-			fmt.Println("Error retrieving semester details:", err)
+			helpers.Println("Error retrieving semester details:", err)
 		}
 		allSems, err = helpers.GetSemDetailsBackup(cookies, regNo)
 		if err != nil {
-			fmt.Println("Error retrieving semester details:", err)
+			helpers.Println("Error retrieving semester details:", err)
 			return
 		}
 	}
 	if len(allSems) == 0 {
-		fmt.Println("No semesters found.")
+		helpers.Println("No semesters found.")
 		return
 	}
 
@@ -55,18 +55,18 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		listOfSubjects = getAllSubs(regNo, cookies, semID)
 		if len(listOfSubjects) > 0 {
 			if debug.Debug {
-				fmt.Printf("Selected Semester: %s (%s)\n", allSems[i].SemName, semID)
+				helpers.Printf("Selected Semester: %s (%s)\n", allSems[i].SemName, semID)
 			}
 			break
 		} else {
 			if debug.Debug {
-				fmt.Printf("No subjects found for Semester: %s (%s). Trying previous semester.\n", allSems[i].SemName, semID)
+				helpers.Printf("No subjects found for Semester: %s (%s). Trying previous semester.\n", allSems[i].SemName, semID)
 			}
 		}
 	}
 
 	if len(listOfSubjects) == 0 {
-		fmt.Println("No subjects available in any semester.")
+		helpers.Println("No subjects available in any semester.")
 		return
 	}
 
@@ -88,7 +88,7 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 			doc := getOneSub(regNo, cookies, detail.ID)
 			if doc == nil {
 				if debug.Debug {
-					fmt.Printf("Document for subject ID %s is nil. Skipping.\n", detail.ID)
+					helpers.Printf("Document for subject ID %s is nil. Skipping.\n", detail.ID)
 				}
 				return
 			}
@@ -143,14 +143,14 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 					(qpNormalized == "no" && lastUploadNormalized == "n/a") {
 					allUpcomingDAs = append(allUpcomingDAs, da)
 					if debug.Debug {
-						fmt.Printf("Identified Upcoming DA: Title='%s', QP='%s', DueDate='%s', Last_upload='%s'\n",
+						helpers.Printf("Identified Upcoming DA: Title='%s', QP='%s', DueDate='%s', Last_upload='%s'\n",
 							da.Title, da.QP, da.DueDate.Format(time.RFC3339), da.Last_upload)
 					}
 				} else if debug.Debug {
-					fmt.Printf("DA '%s' does not meet upcoming criteria.\n", da.Title)
+					helpers.Printf("DA '%s' does not meet upcoming criteria.\n", da.Title)
 				}
 			} else if debug.Debug {
-				fmt.Printf("DA '%s' is not upcoming. DueDate: '%s'\n", da.Title, da.DueDate.Format(time.RFC3339))
+				helpers.Printf("DA '%s' is not upcoming. DueDate: '%s'\n", da.Title, da.DueDate.Format(time.RFC3339))
 			}
 		}
 
@@ -172,7 +172,7 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 	}
 
 	if len(subjDAs) == 0 {
-		fmt.Println("No digital assignments available across subjects.")
+		helpers.Println("No digital assignments available across subjects.")
 		return
 	}
 
@@ -198,30 +198,30 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		// Create the Other Downloads/ICS File directory for DA deadlines
 		icsDir, err := helpers.GetOrCreateDownloadDir(filepath.Join("Other Downloads", "ICS File"))
 		if err != nil {
-			fmt.Println("Error creating ICS file directory:", err)
+			helpers.Println("Error creating ICS file directory:", err)
 		} else {
 			icsFileName := "All_DA_Deadlines.ics"
 			icsFilePath = filepath.Join(icsDir, icsFileName)
 
 			err := helpers.GenerateICSFileDateOnly(icsEvents, icsFilePath, "CLI-TOP DA")
 			if err != nil {
-				fmt.Println("Error generating ICS file:", err)
+				helpers.Println("Error generating ICS file:", err)
 			} else {
 				uploadedFileURL, err = helpers.UploadICSFile(icsFilePath, helpers.CalendarServerURL)
 				if err != nil {
-					fmt.Println("Error uploading ICS file:", err)
-					fmt.Println("Please import the 'All_DA_Deadlines.ics' file manually from your Downloads folder.")
+					helpers.Println("Error uploading ICS file:", err)
+					helpers.Println("Please import the 'All_DA_Deadlines.ics' file manually from your Downloads folder.")
 				} else {
 					icsGenerated = true
 					if debug.Debug {
-						fmt.Println("ICS file uploaded successfully. URL:", uploadedFileURL)
+						helpers.Println("ICS file uploaded successfully. URL:", uploadedFileURL)
 					}
 				}
 			}
 		}
 	} else {
 		if debug.Debug {
-			fmt.Println("No upcoming DAs found. Skipping ICS generation.")
+			helpers.Println("No upcoming DAs found. Skipping ICS generation.")
 		}
 	}
 
@@ -235,14 +235,14 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 
 		if isProxyMode {
 			helpers.PrintTable(subjectsTable, 1)
-			fmt.Println("\nProxy mode detected — skipping interactive DA selection.")
+			helpers.Println("\nProxy mode detected — skipping interactive DA selection.")
 			return
 		}
 
-		fmt.Println("\nPlease select a subject by entering the corresponding number:")
+		helpers.Println("\nPlease select a subject by entering the corresponding number:")
 		subjectChoice := helpers.TableSelector("subject", subjectsTable, "0")
 		if subjectChoice.ExitRequest || !subjectChoice.Selected {
-			fmt.Println("Selection canceled")
+			helpers.Println("Selection canceled")
 			return
 		}
 
@@ -311,18 +311,18 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 
 		if len(singleSubDownload) > 1 {
 			if isProxyMode {
-				fmt.Println("Proxy mode detected — skipping DA download prompt.")
+				helpers.Println("Proxy mode detected — skipping DA download prompt.")
 				return
 			}
 			downloadChoice := helpers.TableSelector("DA", singleSubDownload, "0")
 			if downloadChoice.ExitRequest || !downloadChoice.Selected {
-				fmt.Println("Selection canceled")
+				helpers.Println("Selection canceled")
 				return
 			}
 
 			selectedDA := singleSubDownload[downloadChoice.Index]
 			if selectedDA[4] == "No" {
-				fmt.Println("No question papers available for this DA.")
+				helpers.Println("No question papers available for this DA.")
 				return
 			}
 
@@ -356,7 +356,7 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 			}
 
 			if selectedCode == "" || selectedClassID == "" {
-				fmt.Println("Download link not found for the selected DA.")
+				helpers.Println("Download link not found for the selected DA.")
 				return
 			}
 
@@ -375,16 +375,16 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 			body, headers, err := helpers.FetchReqClient(client, regNo, cookies, baseURL, "", formData, "POST", "application/x-www-form-urlencoded")
 			if err != nil {
 				if debug.Debug {
-					fmt.Println("Error fetching DA download:", err)
+					helpers.Println("Error fetching DA download:", err)
 				}
-				fmt.Println("Failed to download the selected DA.")
+				helpers.Println("Failed to download the selected DA.")
 				return
 			}
 
 			defaultName := "downloadedFile.pdf"
 			ext := helpers.GetFileExtension(defaultName, body, headers)
 			if debug.Debug {
-				fmt.Printf("Determined file extension: %s\n", ext)
+				helpers.Printf("Determined file extension: %s\n", ext)
 			}
 
 			var selectedSubjectName string
@@ -404,7 +404,7 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 			fileName := fmt.Sprintf("%s%s", selectedDA[0], ext)
 			daDir, err := helpers.GetOrCreateDownloadDir("DA")
 			if err != nil {
-				fmt.Println("Error creating DA download directory:", err)
+				helpers.Println("Error creating DA download directory:", err)
 				return
 			}
 
@@ -414,7 +414,7 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 
 			// Create the course directory
 			if err := os.MkdirAll(courseDir, os.ModePerm); err != nil {
-				fmt.Println("Error creating course directory:", err)
+				helpers.Println("Error creating course directory:", err)
 				return
 			}
 
@@ -422,14 +422,14 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 
 			err = helpers.SaveFile(body, filePath)
 			if err != nil {
-				fmt.Println("Error saving file:", err)
+				helpers.Println("Error saving file:", err)
 				return
 			}
-			fmt.Printf("File saved to: %s\n", filePath)
+			helpers.Printf("File saved to: %s\n", filePath)
 
-			fmt.Println()
-			fmt.Printf("\033]8;;file://%s\a\033[34mClick Here\033[0m\033]8;;\a\n", filePath)
-			fmt.Println()
+			helpers.Println()
+			helpers.Printf("\033]8;;file://%s\a\033[34mClick Here\033[0m\033]8;;\a\n", filePath)
+			helpers.Println()
 
 			openFile(filePath)
 		}
@@ -455,13 +455,13 @@ func openFile(filePath string) {
 			} else if _, err := exec.LookPath("gio"); err == nil {
 				cmd = exec.Command("gio", "open", filePath)
 			} else {
-				fmt.Println("No supported command found to open the file automatically. Please open it manually:", filePath)
+				helpers.Println("No supported command found to open the file automatically. Please open it manually:", filePath)
 				return
 			}
 		}
 	}
 	if err := cmd.Start(); err != nil {
-		fmt.Printf("Error opening file: %v\n", err)
+		helpers.Printf("Error opening file: %v\n", err)
 	}
 }
 
@@ -470,17 +470,17 @@ func getAllSubs(regNo string, cookies types.Cookies, semID string) []types.DAsub
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, semID, "UTC", "POST", "")
 	if err != nil {
 		if debug.Debug {
-			fmt.Printf("Error fetching subjects: %v\n", err)
+			helpers.Printf("Error fetching subjects: %v\n", err)
 		}
-		fmt.Println("Failed to fetch subjects.")
+		helpers.Println("Failed to fetch subjects.")
 		return nil
 	}
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
 	if err != nil {
 		if debug.Debug {
-			fmt.Printf("Error parsing subjects document: %v\n", err)
+			helpers.Printf("Error parsing subjects document: %v\n", err)
 		}
-		fmt.Println("Failed to parse subjects data.")
+		helpers.Println("Failed to parse subjects data.")
 		return nil
 	}
 	return allSubDetails(doc)
@@ -505,7 +505,7 @@ func allSubDetails(doc *goquery.Document) []types.DAsubject {
 		allsubs = append(allsubs, tempsub)
 	})
 	if debug.Debug {
-		fmt.Printf("Found %d unique subjects.\n", len(allsubs))
+		helpers.Printf("Found %d unique subjects.\n", len(allsubs))
 	}
 	return allsubs
 }
@@ -522,17 +522,17 @@ func getOneSub(regNo string, cookies types.Cookies, code string) *goquery.Docume
 	subBody, err := helpers.FetchReq(regNo, cookies, url, "", formData, "POST", "")
 	if err != nil {
 		if debug.Debug {
-			fmt.Printf("Error fetching subject details for code %s: %v\n", code, err)
+			helpers.Printf("Error fetching subject details for code %s: %v\n", code, err)
 		}
-		fmt.Printf("Failed to fetch details for subject code: %s\n", code)
+		helpers.Printf("Failed to fetch details for subject code: %s\n", code)
 		return nil
 	}
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(subBody)))
 	if err != nil {
 		if debug.Debug {
-			fmt.Printf("Error parsing subject details document for code %s: %v\n", code, err)
+			helpers.Printf("Error parsing subject details document for code %s: %v\n", code, err)
 		}
-		fmt.Printf("Failed to parse details for subject code: %s\n", code)
+		helpers.Printf("Failed to parse details for subject code: %s\n", code)
 		return nil
 	}
 	return doc
@@ -586,7 +586,7 @@ func pendingDAs(doc *goquery.Document, subject types.DAsubject) (types.LatestDA,
 					date, err := time.Parse("02-Jan-2006", dueDateStr)
 					if err != nil {
 						if debug.Debug {
-							fmt.Printf("Error parsing date %s: %v\n", dueDateStr, err)
+							helpers.Printf("Error parsing date %s: %v\n", dueDateStr, err)
 						}
 						dueDate = time.Time{}
 					} else {
@@ -652,7 +652,7 @@ func pendingDAs(doc *goquery.Document, subject types.DAsubject) (types.LatestDA,
 
 				events.DAs = append(events.DAs, tempDA)
 				if debug.Debug {
-					fmt.Printf("Parsed DA: %+v\n", tempDA)
+					helpers.Printf("Parsed DA: %+v\n", tempDA)
 				}
 			})
 		}

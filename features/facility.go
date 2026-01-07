@@ -33,15 +33,15 @@ func RegisterPhyFacility(regNo string, cookies types.Cookies) {
 
 	killSwitch := helpers.CheckKillSwitch()
 	if killSwitch == 4 {
-		// fmt.Println("This feature is currently disabled by the administrator (killswitch=4). View-only mode enabled.")
+		// helpers.Println("This feature is currently disabled by the administrator (killswitch=4). View-only mode enabled.")
 		registrations, err := ListRegistrations(regNo, cookies)
 		if err != nil {
-			fmt.Println("Error fetching registrations:", err)
+			helpers.Println("Error fetching registrations:", err)
 			registrations = []types.Registration{}
 		}
 		facilities, err := fetchAvailableFacilities(regNo, cookies)
 		if err != nil {
-			fmt.Println("Error fetching facilities:", err)
+			helpers.Println("Error fetching facilities:", err)
 		}
 		displayFacilities(facilities, registrations)
 		return
@@ -49,21 +49,21 @@ func RegisterPhyFacility(regNo string, cookies types.Cookies) {
 
 	registrations, err := ListRegistrations(regNo, cookies)
 	if err != nil {
-		fmt.Println("Error fetching registrations:", err)
+		helpers.Println("Error fetching registrations:", err)
 		registrations = []types.Registration{}
 	}
 
 	facilities, err := fetchAvailableFacilities(regNo, cookies)
 	if err != nil {
-		fmt.Println("Error fetching facilities:", err)
+		helpers.Println("Error fetching facilities:", err)
 	}
 
 	if len(facilities) == 0 && len(registrations) == 0 {
-		fmt.Println("No facilities or registrations found.")
+		helpers.Println("No facilities or registrations found.")
 		return
 	}
 	if err != nil {
-		fmt.Println("Error fetching registrations:", err)
+		helpers.Println("Error fetching registrations:", err)
 		registrations = []types.Registration{}
 	}
 	for _, reg := range registrations {
@@ -90,27 +90,27 @@ func RegisterPhyFacility(regNo string, cookies types.Cookies) {
 	displayFacilities(facilities, registrations)
 
 	if killSwitch == 4 {
-		// fmt.Println("Registration feature is currently in view-only mode.")
+		// helpers.Println("Registration feature is currently in view-only mode.")
 		return
 	}
 
 	selectedFacility, err := promptFacilitySelection(facilities, nil)
 	if err != nil {
-		fmt.Println("Registration aborted:", err)
+		helpers.Println("Registration aborted:", err)
 		return
 	}
 
 	err = performRegistration(regNo, cookies, selectedFacility)
 	if err != nil {
-		fmt.Println("Error during registration:", err)
+		helpers.Println("Error during registration:", err)
 		return
 	}
 
-	fmt.Println("Registration completed successfully.")
+	helpers.Println("Registration completed successfully.")
 
 	updatedRegistrations, err := ListRegistrations(regNo, cookies)
 	if err != nil {
-		fmt.Println("Error fetching updated registrations:", err)
+		helpers.Println("Error fetching updated registrations:", err)
 		return
 	}
 
@@ -123,7 +123,7 @@ func RegisterPhyFacility(regNo string, cookies types.Cookies) {
 		}
 	}
 
-	fmt.Println("\nYour Current Registrations:")
+	helpers.Println("\nYour Current Registrations:")
 	displayFacilities(facilities, updatedRegistrations)
 }
 
@@ -141,7 +141,7 @@ func fetchAvailableFacilities(regNo string, cookies types.Cookies) ([]types.Faci
 	body, err := helpers.FetchReq(regNo, cookies, url, "", payload, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		if debug.Debug {
-			fmt.Println("Error fetching facilities:", err)
+			helpers.Println("Error fetching facilities:", err)
 		}
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func fetchAvailableFacilities(regNo string, cookies types.Cookies) ([]types.Faci
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
 	if err != nil {
 		if debug.Debug {
-			fmt.Println("Error parsing HTML response:", err)
+			helpers.Println("Error parsing HTML response:", err)
 		}
 		return nil, err
 	}
@@ -172,7 +172,7 @@ func fetchAvailableFacilities(regNo string, cookies types.Cookies) ([]types.Faci
 		cells := s.Find(FacilityCellSelector)
 		if cells.Length() < 4 {
 			if debug.Debug {
-				fmt.Printf("Skipping row %d: insufficient cells\n", i)
+				helpers.Printf("Skipping row %d: insufficient cells\n", i)
 			}
 			return
 		}
@@ -191,12 +191,12 @@ func fetchAvailableFacilities(regNo string, cookies types.Cookies) ([]types.Faci
 		if !exists {
 			onclick = ""
 			if debug.Debug {
-				fmt.Printf("No onclick attribute found for facility: %s\n", name)
+				helpers.Printf("No onclick attribute found for facility: %s\n", name)
 			}
 		}
 
 		if debug.Debug {
-			fmt.Printf("Facility: %s, onclick attribute: %s\n", name, onclick)
+			helpers.Printf("Facility: %s, onclick attribute: %s\n", name, onclick)
 		}
 
 		matches := buttonRegex.FindStringSubmatch(onclick)
@@ -204,12 +204,12 @@ func fetchAvailableFacilities(regNo string, cookies types.Cookies) ([]types.Faci
 		if len(matches) == 2 {
 			miscID = matches[1]
 			if debug.Debug {
-				fmt.Printf("Extracted miscID: %s for facility: %s\n", miscID, name)
+				helpers.Printf("Extracted miscID: %s for facility: %s\n", miscID, name)
 			}
 		} else {
 			miscID = ""
 			if debug.Debug {
-				fmt.Printf("Unable to extract miscID for facility: %s\n", name)
+				helpers.Printf("Unable to extract miscID for facility: %s\n", name)
 			}
 		}
 
@@ -226,9 +226,9 @@ func fetchAvailableFacilities(regNo string, cookies types.Cookies) ([]types.Faci
 	})
 
 	if debug.Debug {
-		fmt.Printf("Parsed %d facilities.\n", len(facilities))
+		helpers.Printf("Parsed %d facilities.\n", len(facilities))
 		for _, f := range facilities {
-			fmt.Printf("Facility: %s, Fees: %s, Seats Available: %d, MiscID: %s, Registered: %v\n",
+			helpers.Printf("Facility: %s, Fees: %s, Seats Available: %d, MiscID: %s, Registered: %v\n",
 				f.Name, f.Fees, f.SeatsAvailable, f.MiscID, f.Registered)
 		}
 	}
@@ -250,7 +250,7 @@ func ListRegistrations(regNo string, cookies types.Cookies) ([]types.Registratio
 	body, err := helpers.FetchReq(regNo, cookies, url, "", payload, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		if debug.Debug {
-			fmt.Println("Error fetching registrations:", err)
+			helpers.Println("Error fetching registrations:", err)
 		}
 		return nil, err
 	}
@@ -258,7 +258,7 @@ func ListRegistrations(regNo string, cookies types.Cookies) ([]types.Registratio
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
 	if err != nil {
 		if debug.Debug {
-			fmt.Println("Error parsing HTML response:", err)
+			helpers.Println("Error parsing HTML response:", err)
 		}
 		return nil, err
 	}
@@ -271,7 +271,7 @@ func ListRegistrations(regNo string, cookies types.Cookies) ([]types.Registratio
 
 	if registrationsHeader.Length() == 0 {
 		if debug.Debug {
-			fmt.Println("Registration section not found in the response.")
+			helpers.Println("Registration section not found in the response.")
 		}
 		return registrations, nil
 	}
@@ -279,7 +279,7 @@ func ListRegistrations(regNo string, cookies types.Cookies) ([]types.Registratio
 	registrationsTable := registrationsHeader.NextAllFiltered("div.box-body").Find("table.dataTable").First()
 	if registrationsTable.Length() == 0 {
 		if debug.Debug {
-			fmt.Println("Registration table not found in the response.")
+			helpers.Println("Registration table not found in the response.")
 		}
 		return registrations, nil
 	}
@@ -303,9 +303,9 @@ func ListRegistrations(regNo string, cookies types.Cookies) ([]types.Registratio
 		registrations = append(registrations, registration)
 	})
 	if debug.Debug {
-		fmt.Printf("Parsed %d registrations.\n", len(registrations))
+		helpers.Printf("Parsed %d registrations.\n", len(registrations))
 		for _, reg := range registrations {
-			fmt.Printf("Registered Facility: %s, Status: %s, Paid: %v\n", reg.FacilityName, reg.StatusMessage, reg.IsPaid)
+			helpers.Printf("Registered Facility: %s, Status: %s, Paid: %v\n", reg.FacilityName, reg.StatusMessage, reg.IsPaid)
 		}
 	}
 
@@ -314,7 +314,7 @@ func ListRegistrations(regNo string, cookies types.Cookies) ([]types.Registratio
 
 func displayFacilities(facilities []types.Facility, registrations []types.Registration) {
 	if len(facilities) == 0 && len(registrations) > 0 {
-		fmt.Println("\nYour Current Registrations:")
+		helpers.Println("\nYour Current Registrations:")
 		nestedList := [][]string{
 			{"No.", "Facility Name", "Status"},
 		}
@@ -334,9 +334,9 @@ func displayFacilities(facilities []types.Facility, registrations []types.Regist
 			})
 		}
 
-		fmt.Println()
+		helpers.Println()
 		helpers.PrintTable(nestedList, 2)
-		fmt.Println()
+		helpers.Println()
 		return
 	}
 
@@ -375,20 +375,20 @@ func displayFacilities(facilities []types.Facility, registrations []types.Regist
 		})
 	}
 
-	fmt.Println()
+	helpers.Println()
 	helpers.PrintTable(nestedList, 2)
-	fmt.Println()
+	helpers.Println()
 }
 
 func promptFacilitySelection(facilities []types.Facility, registrationsMap map[string]bool) (types.Facility, error) {
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
-		fmt.Print("Enter the number of the facility you want to register for (or type 'exit' to cancel): ")
+		helpers.Print("Enter the number of the facility you want to register for (or type 'exit' to cancel): ")
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			if debug.Debug {
-				fmt.Println("Error reading input:", err)
+				helpers.Println("Error reading input:", err)
 			}
 			return types.Facility{}, fmt.Errorf("failed to read input")
 		}
@@ -400,26 +400,26 @@ func promptFacilitySelection(facilities []types.Facility, registrationsMap map[s
 
 		selection, err := strconv.Atoi(input)
 		if err != nil || selection < 1 || selection > len(facilities) {
-			fmt.Println("Invalid selection. Please enter a valid facility number.")
+			helpers.Println("Invalid selection. Please enter a valid facility number.")
 			continue
 		}
 
 		selectedFacility := facilities[selection-1]
 		if selectedFacility.Registered {
-			fmt.Println("You are already registered for this facility.")
+			helpers.Println("You are already registered for this facility.")
 			continue
 		}
 		if selectedFacility.MiscID == "" || selectedFacility.SeatsAvailable <= 0 {
-			fmt.Println("Selected facility is full or cannot be registered. Please choose another facility.")
+			helpers.Println("Selected facility is full or cannot be registered. Please choose another facility.")
 			continue
 		}
 
-		fmt.Printf("You have selected '%s' with %d seats available.\n", selectedFacility.Name, selectedFacility.SeatsAvailable)
-		fmt.Print("Do you want to proceed with registration? (yes/no): ")
+		helpers.Printf("You have selected '%s' with %d seats available.\n", selectedFacility.Name, selectedFacility.SeatsAvailable)
+		helpers.Print("Do you want to proceed with registration? (yes/no): ")
 		confirmInput, err := reader.ReadString('\n')
 		if err != nil {
 			if debug.Debug {
-				fmt.Println("Error reading confirmation:", err)
+				helpers.Println("Error reading confirmation:", err)
 			}
 			return types.Facility{}, fmt.Errorf("failed to read confirmation")
 		}
@@ -430,7 +430,7 @@ func promptFacilitySelection(facilities []types.Facility, registrationsMap map[s
 		} else if confirmInput == "no" || confirmInput == "n" {
 			return types.Facility{}, fmt.Errorf("user declined the registration")
 		} else {
-			fmt.Println("Invalid input. Please respond with 'yes' or 'no'.")
+			helpers.Println("Invalid input. Please respond with 'yes' or 'no'.")
 			continue
 		}
 	}
@@ -438,7 +438,7 @@ func promptFacilitySelection(facilities []types.Facility, registrationsMap map[s
 
 func performRegistration(regNo string, cookies types.Cookies, facility types.Facility) error {
 	if facility.ID == "" || facility.MiscID == "" {
-		fmt.Println("Cannot proceed with registration due to missing facility identifiers.")
+		helpers.Println("Cannot proceed with registration due to missing facility identifiers.")
 		return fmt.Errorf("missing facility identifiers")
 	}
 
@@ -457,7 +457,7 @@ func performRegistration(regNo string, cookies types.Cookies, facility types.Fac
 	body, err := helpers.FetchReq(regNo, cookies, url, "", payload, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		if debug.Debug {
-			fmt.Println("Error initiating physical education facility registration:", err)
+			helpers.Println("Error initiating physical education facility registration:", err)
 		}
 		return err
 	}
@@ -465,7 +465,7 @@ func performRegistration(regNo string, cookies types.Cookies, facility types.Fac
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
 	if err != nil {
 		if debug.Debug {
-			fmt.Println("Error parsing HTML response:", err)
+			helpers.Println("Error parsing HTML response:", err)
 		}
 		return err
 	}
@@ -475,13 +475,13 @@ func performRegistration(regNo string, cookies types.Cookies, facility types.Fac
 	})
 
 	if registrationsHeader.Length() == 0 {
-		fmt.Println("Registration confirmation section not found in the response.")
+		helpers.Println("Registration confirmation section not found in the response.")
 		return fmt.Errorf("registration confirmation section not found")
 	}
 
 	registrationsTable := registrationsHeader.NextAllFiltered("div.box-body").Find("table.dataTable").First()
 	if registrationsTable.Length() == 0 {
-		fmt.Println("Registration table not found in the response. Unable to verify registration.")
+		helpers.Println("Registration table not found in the response. Unable to verify registration.")
 		return fmt.Errorf("registration table not found")
 	}
 
@@ -504,11 +504,11 @@ func performRegistration(regNo string, cookies types.Cookies, facility types.Fac
 	})
 
 	if registrationSuccess {
-		fmt.Println("Facility Registration Response:")
-		fmt.Println(confirmationMessage)
+		helpers.Println("Facility Registration Response:")
+		helpers.Println(confirmationMessage)
 		return nil
 	} else {
-		fmt.Println("Registration might have failed. Confirmation message not found.")
+		helpers.Println("Registration might have failed. Confirmation message not found.")
 		return fmt.Errorf("registration confirmation not found for facility: %s", facility.Name)
 	}
 }

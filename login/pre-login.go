@@ -14,13 +14,13 @@ func getSessionServer() types.Cookies {
 	client := helpers.GetHTTPClient()
 	req, err := http.NewRequest("GET", "https://vtop.vit.ac.in/", nil)
 	if err != nil && debug.Debug {
-		fmt.Println(err)
+		helpers.Println(err)
 	}
 	helpers.SetVtopHeaders(req)
 	req.Header.Set("Sec-Fetch-Site", "none")
 	resp, err := client.Do(req)
 	if err != nil && debug.Debug {
-		fmt.Println(err)
+		helpers.Println(err)
 	}
 	defer resp.Body.Close()
 
@@ -38,7 +38,7 @@ func getLoginPage() (types.Cookies, string) {
 	var data = strings.NewReader(fmt.Sprintf(`_csrf=%s&flag=VTOP`, cookies.CSRF))
 	req, err := http.NewRequest("POST", "https://vtop.vit.ac.in/vtop/prelogin/setup", data)
 	if err != nil && debug.Debug {
-		fmt.Println(err)
+		helpers.Println(err)
 	}
 	helpers.SetVtopHeaders(req)
 	req.Header.Set("Cache-Control", "max-age=0")
@@ -49,15 +49,15 @@ func getLoginPage() (types.Cookies, string) {
 	req.Header.Set("Cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", cookies.JSESSIONID, cookies.SERVERID))
 	resp, err := client.Do(req)
 	if err != nil && debug.Debug {
-		fmt.Println(err)
+		helpers.Println(err)
 	}
 	defer resp.Body.Close()
 
 	bodyText, err := io.ReadAll(resp.Body)
 	if err != nil && debug.Debug {
-		fmt.Println(err)
+		helpers.Println(err)
 	}
-	// fmt.Printf("%s\n", bodyText)
+	// helpers.Printf("%s\n", bodyText)
 
 	stringBody := string(bodyText)
 	captchaImage := helpers.ExtractImage(stringBody)
@@ -65,11 +65,11 @@ func getLoginPage() (types.Cookies, string) {
 		// Vtop does not always send a captcha image, so try again
 		return getLoginPage()
 	}
-	// fmt.Println("getLoginPage() - Captcha:", captchaImage)
+	// helpers.Println("getLoginPage() - Captcha:", captchaImage)
 
 	captcha := helpers.SolveCaptcha(captchaImage)
 	if strings.Contains(captcha, "disabled") {
-		fmt.Println("Captcha auto-solver has been disabled. \nPlease manually solve the captcha and answer here:")
+		helpers.Println("Captcha auto-solver has been disabled. \nPlease manually solve the captcha and answer here:")
 		fmt.Scanln(&captcha)
 	}
 

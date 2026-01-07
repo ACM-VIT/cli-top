@@ -5,9 +5,9 @@ import (
 	"cli-top/debug"
 	"cli-top/helpers"
 	"cli-top/types"
-	"fmt"
-	"github.com/PuerkitoBio/goquery"
 	"strings"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 const (
@@ -22,17 +22,17 @@ func PrintHostelInfo(regNo string, cookies types.Cookies, url string) {
 	}
 	body, err := helpers.FetchReq(regNo, cookies, url, "", "", "POST", "")
 	if err != nil && debug.Debug {
-		fmt.Println("Error fetching HTML:", err)
+		helpers.Println("Error fetching HTML:", err)
 		return
 	}
 
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
 	if err != nil && debug.Debug {
-		fmt.Println("Error parsing HTML:", err)
+		helpers.Println("Error parsing HTML:", err)
 		return
 	}
 
-	fmt.Println("Student Accommodation Info")
+	helpers.Println("Student Accommodation Info")
 
 	table := doc.Find(HostelTableSelector + " " + HostelRowsSelector)
 	lastFiveRows := table.Slice(-5, table.Length())

@@ -4,7 +4,6 @@ import (
 	"cli-top/debug"
 	"cli-top/helpers"
 	"cli-top/types"
-	"fmt"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -35,13 +34,13 @@ func PrintCgpa(regNo string, cookies types.Cookies, url string) {
 	// Fetch the CGPA data
 	body, err := helpers.FetchReq(regNo, cookies, url, "", "", "POST", "")
 	if err != nil && debug.Debug {
-		fmt.Println("Error fetching CGPA data:", err)
+		helpers.Println("Error fetching CGPA data:", err)
 		return
 	}
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
 	if err != nil && debug.Debug {
-		fmt.Println("Error parsing HTML:", err)
+		helpers.Println("Error parsing HTML:", err)
 		return
 	}
 
@@ -76,13 +75,13 @@ func PrintCgpa(regNo string, cookies types.Cookies, url string) {
 	}
 
 	// Print the grades table
-	fmt.Println()
-	fmt.Printf("\nCredits Registered: %s\n", creditsRegistered)
-	fmt.Printf("Credits Earned: %s\n", creditsEarned)
-	fmt.Printf("CGPA: \033[32m%s\033[0m\n", cgpa) // Highlight CGPA in green
-	fmt.Println()
+	helpers.Println()
+	helpers.Printf("\nCredits Registered: %s\n", creditsRegistered)
+	helpers.Printf("Credits Earned: %s\n", creditsEarned)
+	helpers.Printf("CGPA: \033[32m%s\033[0m\n", cgpa) // Highlight CGPA in green
+	helpers.Println()
 	helpers.PrintTable(gradesTableData, 0)
-	fmt.Println()
+	helpers.Println()
 
 	// Print the credits and CGPA information in line format
 }

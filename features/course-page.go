@@ -42,22 +42,22 @@ func ExecuteCoursePageOldDownload(regNo string, cookies types.Cookies, semesterF
 	var selectedSem types.Semester
 	if err != nil {
 		if debug.Debug {
-			fmt.Println("Error fetching sem details:", err)
+			helpers.Println("Error fetching sem details:", err)
 		}
 		semDetails, err = helpers.GetSemDetailsBackup(cookies, regNo)
 		if err != nil {
 			if debug.Debug {
-				fmt.Println("Error fetching semester details in backup", err)
+				helpers.Println("Error fetching semester details in backup", err)
 			}
-			fmt.Println("Error fetching semester details in backup")
+			helpers.Println("Error fetching semester details in backup")
 			return
 		}
 	}
 	if len(semDetails) == 0 {
 		if debug.Debug {
-			fmt.Println("Error fetching semester details", err)
+			helpers.Println("Error fetching semester details", err)
 		}
-		fmt.Println("No semesters found. Please check your registration number or try again later.")
+		helpers.Println("No semesters found. Please check your registration number or try again later.")
 		return
 	}
 
@@ -69,24 +69,24 @@ func ExecuteCoursePageOldDownload(regNo string, cookies types.Cookies, semesterF
 
 	choice := helpers.TableSelector("semester", nested_sem_list, strconv.Itoa(semesterFlag))
 	if choice.ExitRequest {
-		fmt.Println("Selection canceled by user.")
+		helpers.Println("Selection canceled by user.")
 		return
 	}
 	if !choice.Selected || choice.Index < 1 || choice.Index > len(semDetails) {
-		fmt.Println("Invalid semester selection. Please try again.")
+		helpers.Println("Invalid semester selection. Please try again.")
 		return
 	}
 	selectedSem = semDetails[choice.Index-1]
 
 	if err != nil {
 		if err.Error() == "selection canceled by user" {
-			fmt.Println("Selection canceled")
+			helpers.Println("Selection canceled")
 			return
 		}
 		if debug.Debug {
-			fmt.Println(err)
+			helpers.Println(err)
 		}
-		fmt.Println("Error selecting semester:", err)
+		helpers.Println("Error selecting semester:", err)
 		return
 	}
 
@@ -97,29 +97,29 @@ func ExecuteCoursePageOldDownload(regNo string, cookies types.Cookies, semesterF
 func coursePageOldAfterSemSelection(regNo string, cookies types.Cookies, selectedSemester types.Semester, courseFlag int, facultyFlag string) {
 	selectedCourse, err := fetchAndSelectCourseOld(regNo, cookies, selectedSemester.SemID, courseFlag)
 	if err != nil {
-		fmt.Println("Error selecting course:", err)
+		helpers.Println("Error selecting course:", err)
 		return
 	}
 
 	slotIds, err := fetchSlotIds(regNo, cookies, selectedSemester.SemID, selectedCourse.ID)
 	if err != nil {
-		fmt.Println("Error fetching slots:", err)
+		helpers.Println("Error fetching slots:", err)
 		return
 	}
 
 	if len(slotIds) == 0 {
-		fmt.Println("No slots available for the selected course.")
+		helpers.Println("No slots available for the selected course.")
 		return
 	}
 
 	faculties, err := fetchFacultiesForAllSlotsConcurrently(regNo, cookies, selectedSemester.SemID, selectedCourse.ID, slotIds)
 	if err != nil {
-		fmt.Println("Error fetching faculties:", err)
+		helpers.Println("Error fetching faculties:", err)
 		return
 	}
 
 	if len(faculties) == 0 {
-		fmt.Println("No faculties found for the selected course across all slots.")
+		helpers.Println("No faculties found for the selected course across all slots.")
 		return
 	}
 
@@ -127,27 +127,27 @@ func coursePageOldAfterSemSelection(regNo string, cookies types.Cookies, selecte
 	if err != nil {
 		// Check if this is a selection canceled error or a real error
 		if err.Error() == "selection canceled by user" {
-			fmt.Println("Selection canceled")
+			helpers.Println("Selection canceled")
 			return
 		}
-		fmt.Println("Error selecting faculty:", err)
+		helpers.Println("Error selecting faculty:", err)
 		return
 	}
 
 	htmlContent, err := fetchCourseMaterialsPage(regNo, cookies, selectedFaculty)
 	if err != nil {
-		fmt.Println("Error fetching course materials page:", err)
+		helpers.Println("Error fetching course materials page:", err)
 		return
 	}
 
 	materials, err := parseCourseMaterialsPage(htmlContent)
 	if err != nil {
-		fmt.Println("Error parsing course materials:", err)
+		helpers.Println("Error parsing course materials:", err)
 		return
 	}
 
 	if len(materials) == 0 {
-		fmt.Println("No course materials with reference materials available for download.")
+		helpers.Println("No course materials with reference materials available for download.")
 		return
 	}
 
@@ -155,17 +155,17 @@ func coursePageOldAfterSemSelection(regNo string, cookies types.Cookies, selecte
 
 	selectedMaterials, err := selectCourseMaterials(materials)
 	if err != nil {
-		fmt.Println("Error selecting materials:", err)
+		helpers.Println("Error selecting materials:", err)
 		return
 	}
 
 	err = downloadMaterialsIndividually(regNo, cookies, selectedCourse, selectedFaculty, materials, selectedMaterials)
 	if err != nil {
-		fmt.Printf("Error downloading materials: %v\n", err)
+		helpers.Printf("Error downloading materials: %v\n", err)
 		return
 	}
 
-	fmt.Println("\nDownload complete!")
+	helpers.Println("\nDownload complete!")
 }
 
 func fetchAndSelectCourseOld(regNo string, cookies types.Cookies, semSubId string, courseFlag int) (types.Course, error) {
@@ -276,7 +276,7 @@ func fetchFacultiesForAllSlotsConcurrently(regNo string, cookies types.Cookies, 
 			faculties, err := fetchFaculties(regNo, cookies, semSubId, classId, slotId)
 			if err != nil {
 				if debug.Debug {
-					fmt.Printf("Error fetching faculties for slot %s: %v\n", slotId, err)
+					helpers.Printf("Error fetching faculties for slot %s: %v\n", slotId, err)
 				}
 				mu.Lock()
 				errorsOccurred = true
@@ -778,7 +778,7 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 	}
 
 	if helpers.IsRateLimitExceeded() {
-		fmt.Println("Rate limit exceeded. Please try again later.")
+		helpers.Println("Rate limit exceeded. Please try again later.")
 		return fmt.Errorf("rate limit exceeded")
 	}
 
@@ -848,8 +848,8 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 
 	for _, material := range selectedMaterials {
 		if material.WebLink != "" {
-			fmt.Printf("Web Material available for '%s'\n", material.Topic)
-			fmt.Printf("Link: %s\n", material.WebLink)
+			helpers.Printf("Web Material available for '%s'\n", material.Topic)
+			helpers.Printf("Link: %s\n", material.WebLink)
 		}
 
 		topicName := helpers.SanitizeFilename(material.Topic)
@@ -931,7 +931,7 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 					}
 
 					if debug.Debug {
-						fmt.Printf("Attempt %d: Error downloading material ID %s: %v\n", attempt, refMat.MaterialID, downloadErr)
+						helpers.Printf("Attempt %d: Error downloading material ID %s: %v\n", attempt, refMat.MaterialID, downloadErr)
 					}
 
 					backoffTime := time.Duration(attempt*attempt) * 500 * time.Millisecond
@@ -941,7 +941,7 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 
 				if downloadErr != nil || !isSuccessfulDownload(body) {
 					if debug.Debug {
-						fmt.Printf("Failed to download material ID %s after %d attempts: %v\n", refMat.MaterialID, retries, downloadErr)
+						helpers.Printf("Failed to download material ID %s after %d attempts: %v\n", refMat.MaterialID, retries, downloadErr)
 					}
 
 					failedMu.Lock()
@@ -1017,7 +1017,7 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 		err := helpers.SaveFile(result.Body, result.FilePath)
 		if err != nil {
 			if debug.Debug {
-				fmt.Printf("Error saving file: %v\n", err)
+				helpers.Printf("Error saving file: %v\n", err)
 			}
 			failedMu.Lock()
 			failedDownloads = append(failedDownloads, FailedDownload{
@@ -1044,7 +1044,7 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 	var permanentlyFailedDownloads []FailedDownload
 
 	if len(failedDownloads) > 0 {
-		fmt.Printf("\nRetrying %d failed downloads...\n", len(failedDownloads))
+		helpers.Printf("\nRetrying %d failed downloads...\n", len(failedDownloads))
 		retryBar := progressbar.NewOptions(len(failedDownloads),
 			progressbar.OptionSetDescription("Retrying failed downloads..."),
 			progressbar.OptionSetElapsedTime(true),
@@ -1196,27 +1196,27 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 	totalFiles := totalRefMaterials
 	successfulFiles := totalFiles - len(permanentlyFailedDownloads)
 
-	fmt.Printf("\n\nDownload Summary:\n")
-	fmt.Printf("Total files: %d\n", totalFiles)
-	fmt.Printf("Successfully downloaded: %d\n", successfulFiles)
+	helpers.Printf("\n\nDownload Summary:\n")
+	helpers.Printf("Total files: %d\n", totalFiles)
+	helpers.Printf("Successfully downloaded: %d\n", successfulFiles)
 
 	if len(permanentlyFailedDownloads) > 0 {
-		fmt.Printf("Failed to download: %d\n\n", len(permanentlyFailedDownloads))
-		fmt.Println("The following files could not be downloaded:")
+		helpers.Printf("Failed to download: %d\n\n", len(permanentlyFailedDownloads))
+		helpers.Println("The following files could not be downloaded:")
 
 		for i, fd := range permanentlyFailedDownloads {
-			fmt.Printf("%d. Topic: %s\n", i+1, fd.Topic)
-			fmt.Printf("   File: %s\n", fd.RefMat.Name)
-			fmt.Printf("   Error: %s\n", fd.Error)
-			fmt.Println()
+			helpers.Printf("%d. Topic: %s\n", i+1, fd.Topic)
+			helpers.Printf("   File: %s\n", fd.RefMat.Name)
+			helpers.Printf("   Error: %s\n", fd.Error)
+			helpers.Println()
 		}
 
-		fmt.Println("\nYou can try downloading these files individually later.")
+		helpers.Println("\nYou can try downloading these files individually later.")
 	} else {
-		fmt.Println("All files were downloaded successfully!")
+		helpers.Println("All files were downloaded successfully!")
 	}
 
-	fmt.Printf("Files have been saved to: %s\n", fullDirPath)
+	helpers.Printf("Files have been saved to: %s\n", fullDirPath)
 	helpers.OpenFolder(fullDirPath)
 	return nil
 }

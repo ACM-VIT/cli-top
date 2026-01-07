@@ -30,7 +30,7 @@ func GetGrades(regNo string, cookies types.Cookies, semId string, semChoice int)
 	semester, err := helpers.SelectSemester(regNo, cookies, semChoice)
 	if err != nil {
 		helpers.HandleError("fetching semesters", err)
-		fmt.Println()
+		helpers.Println()
 		return
 	}
 
@@ -38,7 +38,7 @@ func GetGrades(regNo string, cookies types.Cookies, semId string, semChoice int)
 	if err != nil {
 		helpers.HandleError("fetching grades", err)
 		if debug.Debug {
-			fmt.Println(err)
+			helpers.Println(err)
 		}
 	}
 
@@ -46,7 +46,7 @@ func GetGrades(regNo string, cookies types.Cookies, semId string, semChoice int)
 	if err != nil {
 		helpers.HandleError("parsing HTML", err)
 		if debug.Debug {
-			fmt.Println(err)
+			helpers.Println(err)
 		}
 	}
 
@@ -58,7 +58,7 @@ func findAndSaveGrade(doc *goquery.Document) {
 	table := doc.Find(GradeTableSelector)
 
 	if table.Length() == 0 {
-		fmt.Println("Data not found")
+		helpers.Println("Data not found")
 		return
 	}
 
@@ -122,12 +122,12 @@ func findAndSaveGrade(doc *goquery.Document) {
 	gradesData = filterEmptyRows(gradesData, len(headers))
 
 	helpers.PrintTable(gradesData, 1)
-	fmt.Println()
+	helpers.Println()
 
 	doc.Find("span[style='font-size: 18px; font-weight: bold;']").Each(func(i int, s *goquery.Selection) {
 		gpa := s.Text()
-		fmt.Println("\x1b[32;1m**Course not included in GPA/CGPA\x1b[0m")
-		fmt.Println(gpa)
+		helpers.Println("\x1b[32;1m**Course not included in GPA/CGPA\x1b[0m")
+		helpers.Println(gpa)
 	})
 }
 

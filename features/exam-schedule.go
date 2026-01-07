@@ -32,14 +32,14 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 	allSems, err := helpers.GetSemDetails(cookies, regNo)
 	if err != nil {
 		if debug.Debug {
-			fmt.Println("Error retrieving semester details:", err)
+			helpers.Println("Error retrieving semester details:", err)
 		}
-		fmt.Println("Failed to retrieve semester details.")
+		helpers.Println("Failed to retrieve semester details.")
 		return
 	}
 
 	if len(allSems) == 0 {
-		fmt.Println("No semester details found.")
+		helpers.Println("No semester details found.")
 		return
 	}
 
@@ -51,19 +51,19 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 		bodyText, err := helpers.FetchReq(regNo, cookies, url, semID, "UTC", "POST", "")
 		if err != nil {
 			if debug.Debug {
-				fmt.Printf("Error fetching exam schedule for Semester %s: %v\n", allSems[i].SemName, err)
+				helpers.Printf("Error fetching exam schedule for Semester %s: %v\n", allSems[i].SemName, err)
 			}
 			continue
 		}
 
 		if debug.Debug {
-			fmt.Printf("HTML Response for Semester %s:\n%s\n", allSems[i].SemName, string(bodyText))
+			helpers.Printf("HTML Response for Semester %s:\n%s\n", allSems[i].SemName, string(bodyText))
 		}
 
 		doc, err := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
 		if err != nil {
 			if debug.Debug {
-				fmt.Printf("Error parsing HTML document for Semester %s: %v\n", allSems[i].SemName, err)
+				helpers.Printf("Error parsing HTML document for Semester %s: %v\n", allSems[i].SemName, err)
 			}
 			continue
 		}
@@ -71,25 +71,25 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 		allExams, err = parseExamSchedule(doc)
 		if err != nil {
 			if debug.Debug {
-				fmt.Printf("Error parsing exam schedule for Semester %s: %v\n", allSems[i].SemName, err)
+				helpers.Printf("Error parsing exam schedule for Semester %s: %v\n", allSems[i].SemName, err)
 			}
 			continue
 		}
 
 		if len(allExams) > 0 {
 			if debug.Debug {
-				fmt.Printf("Selected Semester: %s (%s)\n", allSems[i].SemName, semID)
+				helpers.Printf("Selected Semester: %s (%s)\n", allSems[i].SemName, semID)
 			}
 			break
 		} else {
 			if debug.Debug {
-				fmt.Printf("No exams found for Semester: %s (%s). Trying previous semester.\n", allSems[i].SemName, semID)
+				helpers.Printf("No exams found for Semester: %s (%s). Trying previous semester.\n", allSems[i].SemName, semID)
 			}
 		}
 	}
 
 	if len(allExams) == 0 {
-		fmt.Println("No exams scheduled in this Semester.")
+		helpers.Println("No exams scheduled in this Semester.")
 		return
 	}
 
@@ -112,31 +112,31 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 
 	totalExams := len(cat1Exams) + len(cat2Exams) + len(mtExams) + len(fatExams)
 	if totalExams == 0 {
-		fmt.Println("No exams scheduled yet. Try checking VTOP.")
+		helpers.Println("No exams scheduled yet. Try checking VTOP.")
 		return
 	}
 
 	// Display the grouped exams
 	if len(cat1Exams) > 0 {
-		fmt.Println("\nCAT1 EXAMS")
-		fmt.Println()
+		helpers.Println("\nCAT1 EXAMS")
+		helpers.Println()
 		displayExamScheduleTable(cat1Exams)
 	}
 	if len(cat2Exams) > 0 {
-		fmt.Println("\nCAT2 EXAMS")
-		fmt.Println()
+		helpers.Println("\nCAT2 EXAMS")
+		helpers.Println()
 		displayExamScheduleTable(cat2Exams)
 	}
 
 	if len(mtExams) > 0 {
-		fmt.Println("\nMID-TERM EXAMS")
-		fmt.Println()
+		helpers.Println("\nMID-TERM EXAMS")
+		helpers.Println()
 		displayExamScheduleTable(mtExams)
 	}
 
 	if len(fatExams) > 0 {
-		fmt.Println("\nFAT EXAMS")
-		fmt.Println()
+		helpers.Println("\nFAT EXAMS")
+		helpers.Println()
 		displayExamScheduleTable(fatExams)
 	}
 
@@ -164,7 +164,7 @@ func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
 		if s.Find("td.panelHead-secondary").Length() > 0 {
 			headerText := strings.TrimSpace(s.Find("td.panelHead-secondary").Text())
 			if debug.Debug {
-				fmt.Printf("Found exam section header: %s\n", headerText)
+				helpers.Printf("Found exam section header: %s\n", headerText)
 			}
 			currentExamType = headerText
 			return
@@ -173,7 +173,7 @@ func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
 		cells := s.Find(ExamCellSelector)
 		if cells.Length() < 8 {
 			if debug.Debug {
-				fmt.Printf("Skipping row %d with insufficient cells (%d)\n", i+1, cells.Length())
+				helpers.Printf("Skipping row %d with insufficient cells (%d)\n", i+1, cells.Length())
 			}
 			return
 		}
@@ -181,7 +181,7 @@ func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
 		serialNo := safeGetCellText(cells, 0)
 		if _, err := strconv.Atoi(serialNo); err != nil {
 			if debug.Debug {
-				fmt.Printf("Skipping non-data row %d with serial '%s'\n", i+1, serialNo)
+				helpers.Printf("Skipping non-data row %d with serial '%s'\n", i+1, serialNo)
 			}
 			return
 		}
@@ -203,7 +203,7 @@ func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
 		examDate, err := time.ParseInLocation("02-Jan-2006", examDateStr, now.Location())
 		if err != nil {
 			if debug.Debug {
-				fmt.Printf("Error parsing exam date '%s': %v\n", examDateStr, err)
+				helpers.Printf("Error parsing exam date '%s': %v\n", examDateStr, err)
 			}
 			return
 		}
@@ -246,7 +246,7 @@ func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
 				fatCount++
 			}
 		}
-		fmt.Printf("Parsed exams: FAT=%d, CAT1=%d, CAT2=%d, MT=%d\n", fatCount, cat1Count, cat2Count, mtCount)
+		helpers.Printf("Parsed exams: FAT=%d, CAT1=%d, CAT2=%d, MT=%d\n", fatCount, cat1Count, cat2Count, mtCount)
 	}
 
 	return allExams, nil
@@ -285,7 +285,7 @@ func generateICSFile(exams []types.ExamEvent) {
 		cleanedTime = strings.TrimSpace(re.ReplaceAllString(cleanedTime, ""))
 		timeRange := strings.Split(cleanedTime, " - ")
 		if len(timeRange) != 2 {
-			fmt.Printf("Invalid time range format for exam '%s' (%s)\n", exam.CourseTitle, exam.CourseCode)
+			helpers.Printf("Invalid time range format for exam '%s' (%s)\n", exam.CourseTitle, exam.CourseCode)
 			continue
 		}
 		startStr := strings.TrimSpace(timeRange[0])
@@ -297,7 +297,7 @@ func generateICSFile(exams []types.ExamEvent) {
 		endTime, err2 := time.Parse(inputTimeLayout, endStr)
 
 		if err1 != nil || err2 != nil {
-			fmt.Println("Error parsing time range:", err1, err2)
+			helpers.Println("Error parsing time range:", err1, err2)
 			continue
 		}
 
@@ -340,7 +340,7 @@ func generateICSFile(exams []types.ExamEvent) {
 	// Create the Other Downloads/ICS File directory
 	icsDir, err := helpers.GetOrCreateDownloadDir(filepath.Join("Other Downloads", "ICS File"))
 	if err != nil {
-		fmt.Println("Error creating ICS file directory:", err)
+		helpers.Println("Error creating ICS file directory:", err)
 		return
 	}
 
@@ -349,15 +349,15 @@ func generateICSFile(exams []types.ExamEvent) {
 
 	err = helpers.VenueAdd(icsEvents, icsFilePath, "CLI-TOP Exams")
 	if err != nil {
-		fmt.Println("Error generating ICS file:", err)
+		helpers.Println("Error generating ICS file:", err)
 	} else {
 		uploadedFileURL, err := helpers.UploadICSFile(icsFilePath, helpers.CalendarServerURL)
 		if err != nil {
-			fmt.Println("Error uploading ICS file:", err)
-			fmt.Println("Please import the 'Exam_Schedule.ics' file manually from your Downloads folder.")
+			helpers.Println("Error uploading ICS file:", err)
+			helpers.Println("Please import the 'Exam_Schedule.ics' file manually from your Downloads folder.")
 		} else {
-			fmt.Println()
-			fmt.Println("ICS file generated and saved successfully.")
+			helpers.Println()
+			helpers.Println("ICS file generated and saved successfully.")
 			helpers.GenerateCalendarImportLinks(uploadedFileURL, "Exams")
 		}
 	}
@@ -412,7 +412,7 @@ func displayExamScheduleTable(exams []types.ExamEvent) {
 		})
 	}
 	if len(tableData) == 1 {
-		fmt.Println("No upcoming exams scheduled!")
+		helpers.Println("No upcoming exams scheduled!")
 	} else {
 		helpers.PrintTable(tableData, 1)
 	}
