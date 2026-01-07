@@ -29,6 +29,16 @@ func ConfigFilePath() string {
 			}
 		}
 
+		var exeDir string
+		if exePath, err := os.Executable(); err == nil {
+			exeDir = filepath.Dir(exePath)
+			candidate := filepath.Join(exeDir, configFileName)
+			if _, err := os.Stat(candidate); err == nil {
+				cachedConfigPath = candidate
+				return
+			}
+		}
+
 		if userConfigDir, err := os.UserConfigDir(); err == nil {
 			configDir := filepath.Join(userConfigDir, configDirName)
 			if err := os.MkdirAll(configDir, 0o700); err == nil {
@@ -42,8 +52,7 @@ func ConfigFilePath() string {
 			return
 		}
 
-		if exePath, err := os.Executable(); err == nil {
-			exeDir := filepath.Dir(exePath)
+		if exeDir != "" {
 			cachedConfigPath = filepath.Join(exeDir, configFileName)
 			return
 		}
