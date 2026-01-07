@@ -46,13 +46,13 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag
 
 	selectedCourse, err := fetchAndSelectCourse(regNo, cookies, courseFlag)
 	if err != nil {
-		fmt.Println("Error selecting course:", err)
+		helpers.Println("Error selecting course:", err)
 		return
 	}
 
 	materials, faculty, err := fetchFacultieswithMaterials(regNo, cookies, selectedCourse.ID, selectedCourse.Name, facultyFlag)
 	if err != nil {
-		fmt.Println("Error fetching faculties:", err)
+		helpers.Println("Error fetching faculties:", err)
 		return
 	}
 
@@ -60,17 +60,17 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag
 
 	selectedMaterials, err := selectCourseMaterials(materials)
 	if err != nil {
-		fmt.Println("Error selecting materials:", err)
+		helpers.Println("Error selecting materials:", err)
 		return
 	}
 
 	err = downloadMaterialsHope(regNo, cookies, selectedCourse, materials, selectedMaterials, faculty)
 	if err != nil {
-		fmt.Printf("Error downloading materials: %v\n", err)
+		helpers.Printf("Error downloading materials: %v\n", err)
 		return
 	}
 
-	fmt.Println("\nDownload complete!")
+	helpers.Println("\nDownload complete!")
 }
 
 func fetchAndSelectCourse(regNo string, cookies types.Cookies, courseFlag int) (types.Course, error) {
@@ -494,25 +494,25 @@ func displayCourseMaterials(materials []types.CourseMaterial) {
 			})
 		}
 	}
-	fmt.Println()
+	helpers.Println()
 	helpers.PrintTable(nestedList, 1)
 }
 
 func selectCourseMaterials(materials []types.CourseMaterial) ([]types.CourseMaterial, error) {
 	for {
-		fmt.Println()
-		fmt.Print("Enter the index numbers of the topics to download (e.g., 1,2-5,8,5,3), or 0 for bulk download: ")
+		helpers.Println()
+		helpers.Print("Enter the index numbers of the topics to download (e.g., 1,2-5,8,5,3), or 0 for bulk download: ")
 
 		reader := bufio.NewReader(os.Stdin)
 		input, err := reader.ReadString('\n')
 		if err != nil && debug.Debug {
-			fmt.Println("Error reading input:", err)
+			helpers.Println("Error reading input:", err)
 			return nil, err
 		}
 
 		input = strings.TrimSpace(input)
 		if input == "" {
-			fmt.Println("No input provided.")
+			helpers.Println("No input provided.")
 			continue
 		}
 
@@ -522,11 +522,11 @@ func selectCourseMaterials(materials []types.CourseMaterial) ([]types.CourseMate
 
 		selectedIndices, invalidInputs := parseIndices(input, len(materials))
 		if len(invalidInputs) > 0 {
-			fmt.Println("Invalid indices:", strings.Join(invalidInputs, ", "))
+			helpers.Println("Invalid indices:", strings.Join(invalidInputs, ", "))
 		}
 
 		if len(selectedIndices) == 0 {
-			fmt.Println("No valid indices selected.")
+			helpers.Println("No valid indices selected.")
 			continue
 		}
 
@@ -600,7 +600,7 @@ func downloadMaterialsHope(regNo string, cookies types.Cookies, selectedCourse t
 	}
 
 	if helpers.IsRateLimitExceeded() {
-		fmt.Println("Rate limit exceeded. Please try again later.")
+		helpers.Println("Rate limit exceeded. Please try again later.")
 		return fmt.Errorf("rate limit exceeded")
 	}
 
@@ -641,8 +641,8 @@ func downloadMaterialsHope(regNo string, cookies types.Cookies, selectedCourse t
 	totalRefMaterials := 0
 	for _, material := range selectedMaterials {
 		if material.WebLink != "" {
-			fmt.Printf("Web Material available for '%s'\n", material.Topic)
-			fmt.Printf("Link: %s\n", material.WebLink)
+			helpers.Printf("Web Material available for '%s'\n", material.Topic)
+			helpers.Printf("Link: %s\n", material.WebLink)
 		}
 		for _, rm := range material.ReferenceMaterials {
 			if strings.TrimSpace(rm.MaterialID) != "" {
@@ -851,7 +851,7 @@ func downloadMaterialsHope(regNo string, cookies types.Cookies, selectedCourse t
 	}()
 
 	for e := range errChan {
-		fmt.Println("Error:", e)
+		helpers.Println("Error:", e)
 	}
 
 	helpers.OpenFolder(fullDirPath)

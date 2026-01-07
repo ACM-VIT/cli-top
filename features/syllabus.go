@@ -92,7 +92,7 @@ func DownloadSyllabus(courseCode, courseName string, cookies types.Cookies, auth
 	if err := os.WriteFile(outputPath, pdfBytes, 0644); err != nil {
 		return "", fmt.Errorf("failed to save file: %w", err)
 	}
-	fmt.Printf("Successfully downloaded syllabus for course %s. File saved at: %s\n", courseCode, outputPath)
+	helpers.Printf("Successfully downloaded syllabus for course %s. File saved at: %s\n", courseCode, outputPath)
 	return outputPath, nil
 }
 
@@ -195,7 +195,7 @@ func ExecuteSyllabusDownload(regNo string, cookies types.Cookies, courseSearch s
 	for _, category := range categories {
 		courses, err := getCoursesForCategory(regNo, cookies, category.ID)
 		if err != nil {
-			fmt.Printf("Error fetching courses for category %s: %v\n", category.Name, err)
+			helpers.Printf("Error fetching courses for category %s: %v\n", category.Name, err)
 			continue
 		}
 
@@ -211,7 +211,7 @@ func ExecuteSyllabusDownload(regNo string, cookies types.Cookies, courseSearch s
 	}
 
 	if len(allCourses) == 0 {
-		fmt.Println("No courses found in any category.")
+		helpers.Println("No courses found in any category.")
 		return
 	}
 
@@ -229,7 +229,7 @@ func ExecuteSyllabusDownload(regNo string, cookies types.Cookies, courseSearch s
 	// Use fuzzy search for course selection with the provided courseSearch query flag
 	selectedCourseIndex := helpers.TableSelectorFuzzy("Course", courseTable, courseSearch, helpers.FuzzySearchWithAcronym)
 	if selectedCourseIndex.ExitRequest || !selectedCourseIndex.Selected {
-		fmt.Println("Selection canceled")
+		helpers.Println("Selection canceled")
 		return
 	}
 

@@ -5,7 +5,6 @@ import (
 	"cli-top/debug"
 	"cli-top/helpers"
 	"cli-top/types"
-	"fmt"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -26,13 +25,13 @@ func GetReceipt(regNo string, cookies types.Cookies) {
 
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, "", "", "POST", "")
 	if err != nil && debug.Debug {
-		fmt.Println("Error fetching data:", err)
+		helpers.Println("Error fetching data:", err)
 		return
 	}
 
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
 	if err != nil && debug.Debug {
-		fmt.Println("Error parsing HTML:", err)
+		helpers.Println("Error parsing HTML:", err)
 		return
 	}
 	var receipts [][]string

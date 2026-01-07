@@ -177,7 +177,7 @@ The function creates a new HTTP client and request to fetch version information 
 2. Version Comparison
 ```go
 if !strings.Contains(string(bodyText), debug.Version) {
-    fmt.Println("A new version of cli-top is available.\nCheck out: https://cli-top.acmvit.in/ for the latest release.")
+    helpers.Println("A new version of cli-top is available.\nCheck out: https://cli-top.acmvit.in/ for the latest release.")
 }
 ```
 The function performs a simple string comparison to determine if an update is available. This comparison relies on the debug.Version constant being present in the response if the user has the latest version.
@@ -340,7 +340,7 @@ PrintTable(data, 1)
 // Interactive selection with fuzzy search
 result := TableSelectorFuzzy("Item", data, "", nil)
 if result.Selected {
-    fmt.Printf("Selected item: %s\n", data[result.Index][1])
+    helpers.Printf("Selected item: %s\n", data[result.Index][1])
 }
 ```
 
@@ -1999,7 +1999,7 @@ Extracts and processes response body text.
 ```go
 // Extract cookies from response
 cookies := ExtractCookies(response)
-fmt.Printf("JSESSIONID: %s\n", cookies.JSESSIONID)
+helpers.Printf("JSESSIONID: %s\n", cookies.JSESSIONID)
 
 // Extract CSRF token
 csrf := ExtractCSRF(bodyString)

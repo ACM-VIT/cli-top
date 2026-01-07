@@ -5,9 +5,9 @@ import (
 	"cli-top/debug"
 	"cli-top/helpers"
 	"cli-top/types"
-	"fmt"
-	"github.com/PuerkitoBio/goquery"
 	"strings"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 const (
@@ -24,13 +24,13 @@ func GetLibraryDues(regNo string, cookies types.Cookies) {
 
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, "", "", "POST", "")
 	if err != nil && debug.Debug {
-		fmt.Println("Error fetching data:", err)
+		helpers.Println("Error fetching data:", err)
 		return
 	}
 
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
 	if err != nil && debug.Debug {
-		fmt.Println("Error parsing HTML:", err)
+		helpers.Println("Error parsing HTML:", err)
 		return
 	}
 
@@ -49,7 +49,7 @@ func GetLibraryDues(regNo string, cookies types.Cookies) {
 	})
 
 	// Render the table
-	fmt.Println()
+	helpers.Println()
 	helpers.PrintTable(AllDuesTable, 1)
-	fmt.Println()
+	helpers.Println()
 }

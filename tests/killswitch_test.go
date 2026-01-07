@@ -132,7 +132,7 @@ func TestKillSwitchScenarios(t *testing.T) {
 					package main
 					import "fmt"
 					func main() {
-						fmt.Println("This version of cli-top has been decommissioned.")
+						helpers.Println("This version of cli-top has been decommissioned.")
 					}
 				`
 				tmpGo := filepath.Join(tmpDir, "main.go")

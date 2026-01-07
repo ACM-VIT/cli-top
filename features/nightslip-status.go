@@ -30,7 +30,7 @@ func GetNightSlipStatus(regNo string, cookies types.Cookies) {
 	_, err := helpers.FetchReq(regNo, cookies, url1, "", payload1, "POST", "")
 	if err != nil {
 		if debug.Debug {
-			fmt.Println("Error fetching night slip status menu:", err)
+			helpers.Println("Error fetching night slip status menu:", err)
 		}
 		return
 	}
@@ -44,21 +44,21 @@ func GetNightSlipStatus(regNo string, cookies types.Cookies) {
 	bodyText, err := helpers.FetchReq(regNo, cookies, url2, "", payload2, "POST", "")
 	if err != nil {
 		if debug.Debug {
-			fmt.Println("Error fetching night slip status data:", err)
+			helpers.Println("Error fetching night slip status data:", err)
 		}
 		return
 	}
 
 	if debug.Debug {
-		fmt.Println("---- Response Body Start ----")
-		fmt.Println(string(bodyText))
-		fmt.Println("---- Response Body End ----")
+		helpers.Println("---- Response Body Start ----")
+		helpers.Println(string(bodyText))
+		helpers.Println("---- Response Body End ----")
 	}
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
 	if err != nil {
 		if debug.Debug {
-			fmt.Println("Error parsing HTML:", err)
+			helpers.Println("Error parsing HTML:", err)
 		}
 		return
 	}
@@ -93,10 +93,10 @@ func GetNightSlipStatus(regNo string, cookies types.Cookies) {
 		}
 	})
 
-	fmt.Println()
+	helpers.Println()
 	if len(nightSlipRequests) == 0 {
-		fmt.Println("No nightslip requests found.")
-		fmt.Println("")
+		helpers.Println("No nightslip requests found.")
+		helpers.Println("")
 		return
 	}
 
@@ -117,5 +117,5 @@ func GetNightSlipStatus(regNo string, cookies types.Cookies) {
 	}
 
 	helpers.PrintTable(allRequests, 0)
-	fmt.Println()
+	helpers.Println()
 }
