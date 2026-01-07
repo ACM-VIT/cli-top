@@ -6,7 +6,10 @@ import (
 	"sync"
 )
 
-const configFileName = "cli-top-config.env"
+const (
+	configFileName = "cli-top-config.env"
+	configDirName  = "cli-top"
+)
 
 var (
 	configPathOnce   sync.Once
@@ -24,6 +27,19 @@ func ConfigFilePath() string {
 				cachedConfigPath = candidate
 				return
 			}
+		}
+
+		if userConfigDir, err := os.UserConfigDir(); err == nil {
+			configDir := filepath.Join(userConfigDir, configDirName)
+			if err := os.MkdirAll(configDir, 0o700); err == nil {
+				cachedConfigPath = filepath.Join(configDir, configFileName)
+				return
+			}
+		}
+
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			cachedConfigPath = filepath.Join(homeDir, configFileName)
+			return
 		}
 
 		if exePath, err := os.Executable(); err == nil {
