@@ -1,8 +1,8 @@
 {
-  "version": "2.9.11",
-  "releaseDate": "2025-11-17",
-  "killSwitch": 4,
+  "version": "2.9.12",
+  "releaseDate": "2026-01-8",
+  "killSwitch": 0,
   "changes": [
-    "Added shimmer on run (and this!)"
+    "Bug fixes and improvements"
   ]
 }
