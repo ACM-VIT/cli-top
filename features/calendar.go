@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -436,12 +437,10 @@ func generateCalendarLines(month string, colour []int) []string {
 		lines = append(lines, currentLine.String())
 	}
 
-	// Ensure all lines are exactly calColWidth chars
 	for i := range lines {
-		if len(lines[i]) < calColWidth {
-			lines[i] = fmt.Sprintf("%-*s", calColWidth, lines[i])
-		} else if len(lines[i]) > calColWidth {
-			lines[i] = lines[i][:calColWidth]
+		visibleLen := utf8.RuneCountInString(helpers.StripAnsiCodes(lines[i]))
+		if visibleLen < calColWidth {
+			lines[i] = lines[i] + strings.Repeat(" ", calColWidth-visibleLen)
 		}
 	}
 
