@@ -1,8 +1,8 @@
 {
-  "version": "2.9.12",
-  "releaseDate": "2026-01-8",
+  "version": "2.9.13",
+  "releaseDate": "2026-01-25",
   "killSwitch": 0,
   "changes": [
-    "Bug fixes and improvements"
+    "Fixed calendar out of range"
   ]
 }
