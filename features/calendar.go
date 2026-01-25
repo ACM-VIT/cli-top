@@ -12,6 +12,8 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+const calColWidth = 21 // "Su Mo Tu We Th Fr Sa " is 21 chars
+
 func PrintCal(regNo string, cookies types.Cookies, sem_choice int, classGrpFlag int) {
 	if !helpers.ValidateLogin(cookies) {
 		return
@@ -99,29 +101,9 @@ func processDates(regNo string, cookies types.Cookies, semester types.Semester, 
 	var months []string
 	year := datelist[0][7:]
 	var color_list [][]int
+
 	if flag == 1 {
 		helpers.Println("\033[31mRed-Exam Day\033[0m\n\033[34mBlue-Holiday\033[0m\n\033[32mGreen-Instructional Day\033[0m\n\033[33mYellow-Today\033[0m")
-	}
-	isLeapYear := func(year int) bool {
-		if year%4 == 0 {
-			if year%100 == 0 {
-				return year%400 == 0
-			}
-			return true
-		}
-		return false
-	}
-	// Convert year string to integer
-	yearInt, err := strconv.Atoi(year)
-	if err != nil {
-		helpers.Println("Invalid year:", year)
-		return nil, -1, -1
-	}
-
-	daysInMonth := []int{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
-	if isLeapYear(yearInt + 1) {
-		daysInMonth[1] = 29 // February has 29 days in a leap year
-
 	}
 
 	// Map to convert month abbreviations to integers
@@ -140,17 +122,80 @@ func processDates(regNo string, cookies types.Cookies, semester types.Semester, 
 		"DEC": 11,
 	}
 
-	// Find the starting month from datelist
+	isLeapYear := func(y int) bool {
+		if y%4 == 0 {
+			if y%100 == 0 {
+				return y%400 == 0
+			}
+			return true
+		}
+		return false
+	}
+
+	daysInMonthFor := func(mon int, y int) int {
+		switch mon {
+		case 0: // Jan
+			return 31
+		case 1: // Feb
+			if isLeapYear(y) {
+				return 29
+			}
+			return 28
+		case 2:
+			return 31
+		case 3:
+			return 30
+		case 4:
+			return 31
+		case 5:
+			return 30
+		case 6:
+			return 31
+		case 7:
+			return 31
+		case 8:
+			return 30
+		case 9:
+			return 31
+		case 10:
+			return 30
+		case 11:
+			return 31
+		default:
+			return 30
+		}
+	}
+
+	// yearInt is still returned for compatibility
+	yearInt, err := strconv.Atoi(year)
+	if err != nil {
+		helpers.Println("Invalid year:", year)
+		return nil, -1, -1
+	}
+
 	startMonthStr := datelist[0][3:6]
 	startMonth, ok := monthMap[startMonthStr]
 	if !ok {
 		helpers.Println("Invalid month:", startMonthStr)
 		return nil, -1, -1
 	}
-	// Create the nested array with each sublist having the number of days of the month
+
+	// Create the nested array with correct days per month/year from each date string
 	return_list := [][]int{}
 	for i := 0; i < len(datelist); i++ {
-		monthSize := daysInMonth[(startMonth+i)%12]
+		monStr := datelist[i][3:6]
+		yStr := datelist[i][7:]
+		mon, ok := monthMap[monStr]
+		if !ok {
+			helpers.Println("Invalid month:", monStr)
+			return nil, -1, -1
+		}
+		yInt, err := strconv.Atoi(yStr)
+		if err != nil {
+			helpers.Println("Invalid year:", yStr)
+			return nil, -1, -1
+		}
+		monthSize := daysInMonthFor(mon, yInt)
 		monthelement := make([]int, monthSize)
 		return_list = append(return_list, monthelement)
 	}
@@ -200,7 +245,7 @@ func processDates(regNo string, cookies types.Cookies, semester types.Semester, 
 	for i, date := range datelist {
 		if year != date[7:] {
 			addPadding(&color_list)
-			if flag == 1 {
+			if flag == 1 && len(months) > 0 {
 				renderMonths(months, year, color_list)
 			}
 			months = []string{}
@@ -215,10 +260,12 @@ func processDates(regNo string, cookies types.Cookies, semester types.Semester, 
 		months = append(months, date[3:6])
 		year = date[7:]
 	}
+
 	addPadding(&color_list)
-	if flag == 1 {
+	if flag == 1 && len(months) > 0 {
 		renderMonths(months, year, color_list)
 	}
+
 	return return_list, startMonth, yearInt
 }
 
@@ -234,70 +281,92 @@ func addPadding(color_list *[][]int) {
 func extractTypeOfDay(doc *goquery.Document, arr []int) []int {
 	var typeOfDay []int
 	count := -1
+
 	doc.Find("td").Each(func(i int, s *goquery.Selection) {
 		k := 0
 		t := 0
 		s.Find("span").Each(func(j int, span *goquery.Selection) {
-			if len(span.Text()) > 0 {
-				if _, err := strconv.Atoi(strings.TrimSpace(span.Text())); err != nil {
-				} else {
-					count++
-				}
-				if strings.Contains(span.Text(), "Holiday") {
-					t = -1
-					k = 1
-				} else if strings.Contains(span.Text(), "No Instructional Day") {
-					t = -1
-					k = 1
-				} else if strings.Contains(span.Text(), "Exam") {
-					t = -1
-					k = 2
-				} else if strings.Contains(span.Text(), "Instructional Day") {
-					t = 0
-					k = 3
-				} else if strings.Contains(span.Text(), "Day Order") {
-					k = 3
-					if strings.Contains(span.Text(), "Monday") {
-						t = 1
-					} else if strings.Contains(span.Text(), "Tuesday") {
-						t = 2
-					} else if strings.Contains(span.Text(), "Wednesday") {
-						t = 3
-					} else if strings.Contains(span.Text(), "Thursday") {
-						t = 4
-					} else if strings.Contains(span.Text(), "Friday") {
-						t = 5
-					}
-				} else {
-					t = -1
-					k = 1
-				}
-			} else {
+			txt := strings.TrimSpace(span.Text())
+			if len(txt) == 0 {
 				return
 			}
+
+			if _, err := strconv.Atoi(txt); err == nil {
+				count++
+			}
+
+			if strings.Contains(txt, "Holiday") {
+				t = -1
+				k = 1
+			} else if strings.Contains(txt, "No Instructional Day") {
+				t = -1
+				k = 1
+			} else if strings.Contains(txt, "Exam") {
+				t = -1
+				k = 2
+			} else if strings.Contains(txt, "Instructional Day") {
+				t = 0
+				k = 3
+			} else if strings.Contains(txt, "Day Order") {
+				k = 3
+				switch {
+				case strings.Contains(txt, "Monday"):
+					t = 1
+				case strings.Contains(txt, "Tuesday"):
+					t = 2
+				case strings.Contains(txt, "Wednesday"):
+					t = 3
+				case strings.Contains(txt, "Thursday"):
+					t = 4
+				case strings.Contains(txt, "Friday"):
+					t = 5
+				default:
+					t = 0
+				}
+			} else {
+				t = -1
+				k = 1
+			}
 		})
+
 		typeOfDay = append(typeOfDay, k)
-		if count != -1 {
+
+		if count >= 0 && count < len(arr) {
 			arr[count] = t
 		}
 	})
+
 	return typeOfDay
 }
 
 func renderMonths(months []string, year string, nestedColour [][]int) {
 	calendars := make([][]string, len(months))
+	maxRows := 0
+
 	for i, month := range months {
 		calendars[i] = generateCalendarLines(month, nestedColour[i])
+		if len(calendars[i]) > maxRows {
+			maxRows = len(calendars[i])
+		}
 	}
-	spaceSize := (len(months) * 24 / 2) - 2
-	yearHeader := fmt.Sprintf(" %s%s", strings.Repeat(" ", spaceSize), year)
-	maxLength := 20
-	yearHeader = fmt.Sprintf("%-*s", (maxLength*len(months)+len(yearHeader))/2, yearHeader)
-	helpers.Println(yearHeader)
+
+	totalWidth := len(months)*calColWidth + (len(months)-1)*4
+	leftPad := 0
+	if totalWidth > len(year) {
+		leftPad = (totalWidth - len(year)) / 2
+	}
+	helpers.Println(strings.Repeat(" ", leftPad) + year)
 	helpers.Println()
-	for row := 0; row < len(calendars[0]); row++ {
+
+	blank := fmt.Sprintf("%-*s", calColWidth, "")
+
+	for row := 0; row < maxRows; row++ {
 		for i := 0; i < len(months); i++ {
-			helpers.Print(calendars[i][row])
+			if row < len(calendars[i]) {
+				helpers.Print(calendars[i][row])
+			} else {
+				helpers.Print(blank)
+			}
 			if i < len(months)-1 {
 				helpers.Print("    ")
 			}
@@ -311,14 +380,32 @@ func generateCalendarLines(month string, colour []int) []string {
 	now := time.Now()
 	todayMonth := strings.ToUpper(now.Month().String()[:3])
 	todayDay := now.Day()
+
+	if len(colour) < 42 {
+		pad := make([]int, 42-len(colour))
+		colour = append(colour, pad...)
+	} else if len(colour) > 42 {
+		colour = colour[:42]
+	}
+
 	monthHeader := month
-	maxLength := 20
-	padding := (maxLength - len(monthHeader)/2) / 2
-	monthHeader = fmt.Sprintf("%s%s%s", strings.Repeat(" ", padding), monthHeader, strings.Repeat(" ", padding))
+	left := 0
+	if calColWidth > len(monthHeader) {
+		left = (calColWidth - len(monthHeader)) / 2
+	}
+	monthHeader = strings.Repeat(" ", left) + monthHeader
+	if len(monthHeader) < calColWidth {
+		monthHeader = fmt.Sprintf("%-*s", calColWidth, monthHeader)
+	} else if len(monthHeader) > calColWidth {
+		monthHeader = monthHeader[:calColWidth]
+	}
+
 	lines = append(lines, monthHeader)
 	lines = append(lines, "Su Mo Tu We Th Fr Sa ")
+
 	var currentLine strings.Builder
 	dayOfMonth := 1
+
 	for i, day := range colour {
 		if i%7 == 0 && i != 0 {
 			lines = append(lines, currentLine.String())
@@ -348,14 +435,16 @@ func generateCalendarLines(month string, colour []int) []string {
 	if currentLine.Len() > 0 {
 		lines = append(lines, currentLine.String())
 	}
+
+	// Ensure all lines are exactly calColWidth chars
 	for i := range lines {
-		if len(lines[i]) < maxLength {
-			lines[i] = fmt.Sprintf("%-*s", maxLength, lines[i])
+		if len(lines[i]) < calColWidth {
+			lines[i] = fmt.Sprintf("%-*s", calColWidth, lines[i])
+		} else if len(lines[i]) > calColWidth {
+			lines[i] = lines[i][:calColWidth]
 		}
 	}
-	if len(lines) == 8 {
-		lines = append(lines, strings.Repeat(" ", 21))
-	}
+
 	return lines
 }
 
