@@ -15,11 +15,23 @@ func FormatBodyData(bodyData map[string]string) string {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
-	values := url.Values{}
+	estimated := 0
 	for _, key := range keys {
-		values.Set(key, bodyData[key])
+		estimated += len(key) + len(bodyData[key]) + 2
 	}
-	return values.Encode()
+	var sb strings.Builder
+	if estimated > 0 {
+		sb.Grow(estimated)
+	}
+	for i, key := range keys {
+		if i > 0 {
+			sb.WriteByte('&')
+		}
+		sb.WriteString(url.QueryEscape(key))
+		sb.WriteByte('=')
+		sb.WriteString(url.QueryEscape(bodyData[key]))
+	}
+	return sb.String()
 }
 
 func FormatCookies(cookies map[string]string) string {
