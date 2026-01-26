@@ -11,9 +11,14 @@ import (
 	// "github.com/olekukonko/tablewriter"
 )
 
+var (
+	courseCodePrefixRegex = regexp.MustCompile(`^[A-Z]{4}\d{3}[A-Z]?\s*[─-]\s*`)
+	facultyERPIDRegex     = regexp.MustCompile(`^\d+\s*[─–—-]\s*`)
+	splitNameRegex        = regexp.MustCompile(`\s*[─–—-]\s*`)
+)
+
 func RemoveCourseCode(courseName string) string {
-	re := regexp.MustCompile(`^[A-Z]{4}\d{3}[A-Z]?\s*[─-]\s*`)
-	return re.ReplaceAllString(courseName, "")
+	return courseCodePrefixRegex.ReplaceAllString(courseName, "")
 }
 
 func TruncateString(str string, maxLength int) string {
@@ -34,13 +39,11 @@ func HighlightMatches(text, query string) string {
 }
 
 func RedactERPID(facultyName string) string {
-	re := regexp.MustCompile(`^\d+\s*[─–—-]\s*`)
-	return re.ReplaceAllString(facultyName, "")
+	return facultyERPIDRegex.ReplaceAllString(facultyName, "")
 }
 
 func SplitCourseName(courseName string) (string, string) {
-	re := regexp.MustCompile(`\s*[─–—-]\s*`)
-	idx := re.FindStringIndex(courseName)
+	idx := splitNameRegex.FindStringIndex(courseName)
 	if idx != nil {
 		courseCode := strings.TrimSpace(courseName[:idx[0]])
 		courseNamePart := strings.TrimSpace(courseName[idx[1]:])
@@ -50,8 +53,7 @@ func SplitCourseName(courseName string) (string, string) {
 }
 
 func SplitCourseNameFull(courseName string) []string {
-	re := regexp.MustCompile(`\s*[─–—-]\s*`)
-	parts := re.Split(courseName, -1)
+	parts := splitNameRegex.Split(courseName, -1)
 	for i := range parts {
 		parts[i] = strings.TrimSpace(parts[i])
 	}
@@ -59,8 +61,7 @@ func SplitCourseNameFull(courseName string) []string {
 }
 
 func SplitFacultyNameFull(facultyName string) []string {
-	re := regexp.MustCompile(`\s*[─–—-]\s*`)
-	parts := re.Split(facultyName, -1)
+	parts := splitNameRegex.Split(facultyName, -1)
 	for i := range parts {
 		parts[i] = strings.TrimSpace(parts[i])
 	}
