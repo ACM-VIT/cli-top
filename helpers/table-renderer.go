@@ -17,6 +17,12 @@ const (
 	minColumnWidth       = 12
 )
 
+var (
+	ansiCSIRegex             = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	ansiHyperlinkRegex       = regexp.MustCompile(`\x1b]8;;.*?\a(.*?)\x1b]8;;\a`)
+	ansiHyperlinkStartRegex  = regexp.MustCompile(`\x1b]8;;.*?\a`)
+)
+
 // TableSnapshot captures the raw data passed to PrintTable for structured reuse.
 type TableSnapshot struct {
 	Headers  []string   `json:"headers"`
@@ -71,16 +77,16 @@ func sanitizeTableData(src [][]string) [][]string {
 }
 
 func StripAnsiCodes(str string) string {
+	if !strings.ContainsRune(str, '\x1b') {
+		return str
+	}
 	// Remove standard ANSI CSI sequences (e.g. colors)
-	reCSI := regexp.MustCompile(`\x1b\[[0-9;]*m`)
-	str = reCSI.ReplaceAllString(str, "")
+	str = ansiCSIRegex.ReplaceAllString(str, "")
 	// Remove ANSI hyperlink sequences while keeping the visible text.
 	// Matches the pattern: ESC ]8;;<url> BEL <visible text> ESC ]8;; BEL
-	reHyper := regexp.MustCompile(`\x1b]8;;.*?\a(.*?)\x1b]8;;\a`)
-	str = reHyper.ReplaceAllString(str, "$1")
+	str = ansiHyperlinkRegex.ReplaceAllString(str, "$1")
 	// Remove any leftover hyperlink initiators if present.
-	reHyperIncomplete := regexp.MustCompile(`\x1b]8;;.*?\a`)
-	str = reHyperIncomplete.ReplaceAllString(str, "")
+	str = ansiHyperlinkStartRegex.ReplaceAllString(str, "")
 	return str
 }
 
