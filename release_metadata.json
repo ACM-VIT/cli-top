@@ -1,6 +1,6 @@
 {
-  "version": "2.9.15",
-  "releaseDate": "2026-01-25",
+  "version": "2.9.16",
+  "releaseDate": "2026-01-27",
   "killSwitch": 0,
   "changes": [
     "Update macOS build"
