@@ -17,18 +17,23 @@ func init() {
 		KeepAlive: 60 * time.Second,
 	}
 
+	sessionCache := tls.NewLRUClientSessionCache(128)
+
 	transport := &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
 		DialContext:           dialer.DialContext,
 		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          64,
-		MaxConnsPerHost:       64,
-		MaxIdleConnsPerHost:   32,
+		MaxIdleConns:          256,
+		MaxConnsPerHost:       128,
+		MaxIdleConnsPerHost:   64,
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   5 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
+		ReadBufferSize:        32 * 1024,
+		WriteBufferSize:       32 * 1024,
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
+			ClientSessionCache: sessionCache,
 		},
 	}
 
