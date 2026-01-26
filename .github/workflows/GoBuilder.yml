@@ -234,6 +234,18 @@ jobs:
   build-mac:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev')
     runs-on: macos-latest
+    env:
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_INSTALLER_IDENTITY: ${{ secrets.APPLE_INSTALLER_IDENTITY }}
+      MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+      MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+      MACOS_INSTALLER_CERT_P12: ${{ secrets.MACOS_INSTALLER_CERT_P12 }}
+      MACOS_INSTALLER_CERT_PASSWORD: ${{ secrets.MACOS_INSTALLER_CERT_PASSWORD }}
+      APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+      APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+      APPLE_NOTARY_API_KEY: ${{ secrets.APPLE_NOTARY_API_KEY }}
+      MACOS_PKG_IDENTIFIER: ${{ vars.MACOS_PKG_IDENTIFIER }}
+      MACOS_INSTALL_LOCATION: ${{ vars.MACOS_INSTALL_LOCATION }}
     steps:
       - uses: actions/checkout@v4
 
@@ -247,17 +259,128 @@ jobs:
           go mod tidy
           go get .
 
-      - name: Build MacOS Binary
+      - name: Extract version
+        id: extract_version_macos
         run: |
-          mkdir -p build/macos
-          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "-s -w" -o build/macos/cli-top .
+          set -euo pipefail
+          VERSION=$(sed -n 's/var Version string = "\(.*\)"/\1/p' debug/debug.go | tr -d '\r')
+          if [ -z "$VERSION" ]; then
+            echo "::error ::Unable to determine version from debug/debug.go"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Verify signing inputs
+        run: |
+          set -euo pipefail
+          REQUIRED_VARS=(
+            APPLE_SIGNING_IDENTITY
+            APPLE_INSTALLER_IDENTITY
+            MACOS_CERT_P12
+            MACOS_CERT_PASSWORD
+            MACOS_INSTALLER_CERT_P12
+            MACOS_INSTALLER_CERT_PASSWORD
+            APPLE_NOTARY_KEY_ID
+            APPLE_NOTARY_ISSUER_ID
+            APPLE_NOTARY_API_KEY
+            MACOS_PKG_IDENTIFIER
+          )
+          for VAR in "${REQUIRED_VARS[@]}"; do
+            if [ -z "${!VAR:-}" ]; then
+              echo "::error ::Missing required value: ${VAR}"
+              exit 1
+            fi
+          done
+          if [ -z "${MACOS_INSTALL_LOCATION:-}" ]; then
+            echo "MACOS_INSTALL_LOCATION=/usr/local/bin" >> "$GITHUB_ENV"
+          fi
+
+      - name: Import signing certificates
+        run: |
+          set -euo pipefail
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          KEYCHAIN_PATH="$RUNNER_TEMP/build-signing.keychain-db"
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+          echo "KEYCHAIN_PASSWORD=$KEYCHAIN_PASSWORD" >> "$GITHUB_ENV"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -t 21600 -u "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+          APP_CERT_PATH="$RUNNER_TEMP/app_cert.p12"
+          INSTALLER_CERT_PATH="$RUNNER_TEMP/installer_cert.p12"
+          printf "%s" "$MACOS_CERT_P12" | base64 -D > "$APP_CERT_PATH"
+          printf "%s" "$MACOS_INSTALLER_CERT_P12" | base64 -D > "$INSTALLER_CERT_PATH"
+
+          security import "$APP_CERT_PATH" -k "$KEYCHAIN_PATH" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          security import "$INSTALLER_CERT_PATH" -k "$KEYCHAIN_PATH" -P "$MACOS_INSTALLER_CERT_PASSWORD" -T /usr/bin/productbuild -T /usr/bin/pkgbuild
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+      - name: Build MacOS Universal Binary
+        run: |
+          set -euo pipefail
+          mkdir -p build/macos/amd64 build/macos/arm64
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "-s -w" -o build/macos/amd64/cli-top .
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "-s -w" -o build/macos/arm64/cli-top .
+          lipo -create -output build/macos/cli-top build/macos/amd64/cli-top build/macos/arm64/cli-top
           chmod +x build/macos/cli-top
 
-      - name: Upload MacOS Binary
+      - name: Codesign binary
+        run: |
+          set -euo pipefail
+          codesign --force --options runtime --timestamp --sign "$APPLE_SIGNING_IDENTITY" build/macos/cli-top
+          codesign --verify --verbose=2 build/macos/cli-top
+
+      - name: Package signed ZIP (legacy)
+        run: |
+          set -euo pipefail
+          zip -j build/macos/cli-top-macos.zip build/macos/cli-top
+
+      - name: Build signed PKG
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.extract_version_macos.outputs.version }}"
+          mkdir -p build/macos/pkgroot
+          cp build/macos/cli-top build/macos/pkgroot/cli-top
+          pkgbuild --root build/macos/pkgroot \
+            --install-location "${MACOS_INSTALL_LOCATION}" \
+            --identifier "${MACOS_PKG_IDENTIFIER}" \
+            --version "${VERSION}" \
+            build/macos/cli-top-unsigned.pkg
+          productbuild --sign "${APPLE_INSTALLER_IDENTITY}" \
+            --package build/macos/cli-top-unsigned.pkg \
+            build/macos/cli-top.pkg
+
+      - name: Notarize PKG
+        run: |
+          set -euo pipefail
+          NOTARY_KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
+          printf "%s" "$APPLE_NOTARY_API_KEY" | base64 -D > "$NOTARY_KEY_PATH"
+          chmod 600 "$NOTARY_KEY_PATH"
+          xcrun notarytool submit build/macos/cli-top.pkg \
+            --key "$NOTARY_KEY_PATH" \
+            --key-id "$APPLE_NOTARY_KEY_ID" \
+            --issuer "$APPLE_NOTARY_ISSUER_ID" \
+            --wait
+
+      - name: Staple PKG
+        run: |
+          set -euo pipefail
+          xcrun stapler staple build/macos/cli-top.pkg
+          spctl -a -vv --type install build/macos/cli-top.pkg
+
+      - name: Upload MacOS ZIP
         uses: actions/upload-artifact@v4
         with:
           name: cli-top-macos
-          path: ./build/macos/cli-top
+          path: ./build/macos/cli-top-macos.zip
+
+      - name: Upload MacOS PKG
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-top-macos-pkg
+          path: ./build/macos/cli-top.pkg
 
   build-android:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev')
@@ -388,6 +511,12 @@ jobs:
           name: cli-top-macos
           path: artifacts/macos
 
+      - name: Download macOS pkg artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cli-top-macos-pkg
+          path: artifacts/macos-pkg
+
       - name: Download Android artifact
         uses: actions/download-artifact@v4
         with:
@@ -400,18 +529,20 @@ jobs:
           mkdir -p packaged
 
           LINUX_BIN=$(find artifacts/linux -type f -name 'cli-top' -print -quit)
-          MAC_BIN=$(find artifacts/macos -type f -name 'cli-top' -print -quit)
+          MAC_ZIP=$(find artifacts/macos -type f -name '*.zip' -print -quit)
+          MAC_PKG=$(find artifacts/macos-pkg -type f -name '*.pkg' -print -quit)
           ANDROID_BIN=$(find artifacts/android -type f -name 'cli-top' -print -quit)
           WINDOWS_BIN=$(find artifacts/windows -type f -name 'cli-top.exe' -print -quit)
           INSTALLER_BIN=$(find artifacts/windows-installer -type f -name '*.exe' -print -quit)
 
-          if [ -z "$LINUX_BIN" ] || [ -z "$MAC_BIN" ] || [ -z "$ANDROID_BIN" ] || [ -z "$WINDOWS_BIN" ] || [ -z "$INSTALLER_BIN" ]; then
+          if [ -z "$LINUX_BIN" ] || [ -z "$MAC_ZIP" ] || [ -z "$MAC_PKG" ] || [ -z "$ANDROID_BIN" ] || [ -z "$WINDOWS_BIN" ] || [ -z "$INSTALLER_BIN" ]; then
             echo "::error ::One or more artifacts missing"
             exit 1
           fi
 
           zip -j packaged/cli-top-linux.zip "$LINUX_BIN"
-          zip -j packaged/cli-top-macos.zip "$MAC_BIN"
+          cp "$MAC_ZIP" packaged/cli-top-macos.zip
+          cp "$MAC_PKG" packaged/cli-top-macos.pkg
           zip -j packaged/cli-top-android.zip "$ANDROID_BIN"
           zip -j packaged/cli-top-windows.zip "$WINDOWS_BIN"
           cp "$INSTALLER_BIN" packaged/cli-top-windows-installer.exe
@@ -438,6 +569,7 @@ jobs:
           cp packaged/cli-top-linux.zip "$TARGET_DIR/cli-top-linux_v${VERSION}.zip"
           cp packaged/cli-top-windows.zip "$TARGET_DIR/cli-top-windows_v${VERSION}.zip"
           cp packaged/cli-top-macos.zip "$TARGET_DIR/cli-top-macos_v${VERSION}.zip"
+          cp packaged/cli-top-macos.pkg "$TARGET_DIR/cli-top-macos_v${VERSION}.pkg"
           cp packaged/cli-top-android.zip "$TARGET_DIR/cli-top-android_v${VERSION}.zip"
           cp packaged/cli-top-windows-installer.exe "$TARGET_DIR/cli-top-windows-installer_v${VERSION}.exe"
 
@@ -507,7 +639,7 @@ jobs:
             RELEASE_NOTES="- (no release notes provided)"
           fi
 
-          ASSETS="- Linux, Windows, macOS, and Android binaries\n- Windows installer\n- latest.json & releases.json entries"
+          ASSETS="- Linux, Windows, macOS (zip + pkg), and Android binaries\n- Windows installer\n- latest.json & releases.json entries"
 
           PR_BODY=$(printf "This PR adds the CLI-TOP v%s build artifacts and refreshes the public release metadata.\n\n## Release Notes\n%s\n\n## Updated Assets\n%s\n" "$VERSION" "$RELEASE_NOTES" "$ASSETS")
 
