@@ -1,8 +1,8 @@
 {
-  "version": "2.9.14",
+  "version": "2.9.15",
   "releaseDate": "2026-01-25",
   "killSwitch": 0,
   "changes": [
-    "Fixed calendar"
+    "Optimized for performance"
   ]
 }
