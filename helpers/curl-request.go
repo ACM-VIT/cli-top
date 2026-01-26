@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/lpernett/godotenv"
@@ -28,7 +29,7 @@ func FetchReq(regNo string, cookies types.Cookies, url string, semID string, pay
 		var req *http.Request
 		var err error
 		if method == "POST" {
-			req, err = http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer([]byte(payload)))
+			req, err = http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(payload))
 		} else if method == "GET" {
 			req, err = http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		} else {
