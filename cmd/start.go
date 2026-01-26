@@ -52,18 +52,11 @@ func getOrCreateUUID() string {
 		}
 	}
 
-	if err := helpers.RegisterUUID(unregisteredUUID); err != nil {
-		if debug.Debug {
+	go func(uuid string) {
+		if err := helpers.RegisterUUID(uuid); err != nil && debug.Debug {
 			helpers.Println("Error registering UUID with server:", err)
 		}
-		return unregisteredUUID
-	}
-
-	viper.Set("UUID", unregisteredUUID)
-	viper.Set("UNREGISTERED_UUID", "")
-	if err := viper.WriteConfigAs(configFilePath()); err != nil && debug.Debug {
-		helpers.Println("Error updating registered UUID in config:", err)
-	}
+	}(unregisteredUUID)
 
 	return unregisteredUUID
 }
