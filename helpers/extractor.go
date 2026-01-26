@@ -12,6 +12,13 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+var (
+	csrfLineRegex     = regexp.MustCompile(`.*csrfValue.*`)
+	csrfPatternRegex  = regexp.MustCompile(`var csrfValue = /\*(.*?)\*/'.*';`)
+	csrfAltRegex      = regexp.MustCompile(`var csrfValue = "([a-fA-F0-9-]+)";`)
+	regNoRegex        = regexp.MustCompile(`let id\s*=\s*"(.*?)";`)
+)
+
 func extractImageSrc(html string) (string, error) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
 	if err != nil && debug.Debug {
@@ -78,21 +85,18 @@ func ExtractBodyText(resp *http.Response) string {
 func ExtractCSRF(bodyString string) string {
 
 	// Define a regular expression that matches lines containing "csrfValue"
-	re := regexp.MustCompile(`.*csrfValue.*`)
-
 	// Find the matches
-	lines := re.FindAllString(bodyString, -1)
+	lines := csrfLineRegex.FindAllString(bodyString, -1)
 
 	csrf := ""
 	// Compile pattern for extracting csrfValue only once
-	csrfPattern := regexp.MustCompile(`var csrfValue = /\*(.*?)\*/'.*';`)
 
 	// Iterate over the lines
 	for _, line := range lines {
 		// fmt.Println("Found line:", line)
 
 		// Find the match
-		match := csrfPattern.FindStringSubmatch(line)
+		match := csrfPatternRegex.FindStringSubmatch(line)
 
 		// If a match was found, print the value of the variable
 		if len(match) > 1 {
@@ -109,12 +113,7 @@ func ExtractCSRF(bodyString string) string {
 }
 
 func ExtractCSRF2(bodyString string) string {
-
-	pattern := `var csrfValue = "([a-fA-F0-9-]+)";`
-
-	re := regexp.MustCompile(pattern)
-
-	matches := re.FindStringSubmatch(bodyString)
+	matches := csrfAltRegex.FindStringSubmatch(bodyString)
 	csrf := ""
 
 	if len(matches) > 1 {
@@ -130,10 +129,8 @@ func ExtractCSRF2(bodyString string) string {
 }
 func ExtractRegNo(bodyString string) (string, error) {
 	// Define a regular expression to match the assignment of id variable
-	re := regexp.MustCompile(`let id\s*=\s*"(.*?)";`)
-
 	// Find the first match
-	match := re.FindStringSubmatch(bodyString)
+	match := regNoRegex.FindStringSubmatch(bodyString)
 	if len(match) != 2 {
 		return "", fmt.Errorf("unable to extract id from HTML")
 	}
