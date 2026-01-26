@@ -432,7 +432,7 @@ Fallback function that attempts to retrieve semester data from an alternative en
 
 ### HTML Parsing Functions
 
-#### `FindAndSaveSemIds(doc *goquery.Document) ([]types.Semester, error)`
+#### `FindAndSaveSemIds(body []byte) ([]types.Semester, error)`
 Extracts semester information from HTML document using multiple selector strategies.
 
 **Implementation Details:**
