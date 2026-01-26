@@ -1,0 +1,25 @@
+{
+  "name": "cli-top",
+  "version": "2.9.14",
+  "description": "CLI tool for VTOP",
+  "bin": {
+    "cli-top": "npm/bin/cli-top.js"
+  },
+  "scripts": {
+    "postinstall": "node npm/scripts/install.js"
+  },
+  "files": [
+    "npm/bin",
+    "npm/scripts",
+    "README.md" 
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "dependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ACM-VIT/cli-top"
+  },
+  "license": "UNLICENSED"
+}

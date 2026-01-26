@@ -1,6 +1,7 @@
 package features
 
 import (
+	"bytes"
 	"cli-top/debug"
 	"cli-top/helpers"
 	"cli-top/types"
@@ -15,14 +16,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/PuerkitoBio/goquery"
+	"golang.org/x/net/html"
 )
 
-const (
-	DATableRowSelector    = "tr.tableContent"
-	DACustomTableSelector = "table.customTable"
-	DACellSelector        = "td"
-)
+var daDownloadRegex = regexp.MustCompile(`vtopDownload\('([^']+)'\)`)
 
 func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 	if !helpers.ValidateLogin(cookies) {
@@ -70,9 +67,9 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		return
 	}
 
-	if !helpers.ShouldMuteUI() {
-		helpers.Infof("\nFetching digital assignments for %d subject(s)...\n", len(listOfSubjects))
-	}
+	// if !helpers.ShouldMuteUI() {
+	// 	helpers.Infof("\nFetching digital assignments for %d subject(s)...\n", len(listOfSubjects))
+	// }
 
 	type subjectFetchResult struct {
 		data types.SubjectDAs
@@ -85,14 +82,14 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		idx := idx
 		detail := detail
 		parallel.Go(func() {
-			doc := getOneSub(regNo, cookies, detail.ID)
-			if doc == nil {
+			body := getOneSub(regNo, cookies, detail.ID)
+			if len(body) == 0 {
 				if debug.Debug {
 					helpers.Printf("Document for subject ID %s is nil. Skipping.\n", detail.ID)
 				}
 				return
 			}
-			_, singleSubAllDa := pendingDAs(doc, detail)
+			_, singleSubAllDa := pendingDAs(body, detail)
 			results[idx] = subjectFetchResult{data: singleSubAllDa, ok: true}
 		})
 	}
@@ -475,42 +472,88 @@ func getAllSubs(regNo string, cookies types.Cookies, semID string) []types.DAsub
 		helpers.Println("Failed to fetch subjects.")
 		return nil
 	}
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
-	if err != nil {
-		if debug.Debug {
-			helpers.Printf("Error parsing subjects document: %v\n", err)
-		}
-		helpers.Println("Failed to parse subjects data.")
-		return nil
-	}
-	return allSubDetails(doc)
+	return parseDASubjects(bodyText)
 }
 
-func allSubDetails(doc *goquery.Document) []types.DAsubject {
+func parseDASubjects(body []byte) []types.DAsubject {
 	var allsubs []types.DAsubject
 	subjectMap := make(map[string]bool)
-	doc.Find(DATableRowSelector).Each(func(i int, s *goquery.Selection) {
-		td := s.Find(DACellSelector)
-		if td.Length() < 5 {
-			return
+	z := html.NewTokenizer(bytes.NewReader(body))
+	var (
+		inRow    bool
+		inTD     bool
+		tdIndex  int
+		cellText strings.Builder
+		rowCells []string
+	)
+	for {
+		switch z.Next() {
+		case html.ErrorToken:
+			if debug.Debug {
+				helpers.Printf("Found %d unique subjects.\n", len(allsubs))
+			}
+			return allsubs
+		case html.StartTagToken, html.SelfClosingTagToken:
+			tagName, hasAttr := z.TagName()
+			switch string(tagName) {
+			case "tr":
+				if hasAttr {
+					class := ""
+					for {
+						key, val, more := z.TagAttr()
+						if string(key) == "class" {
+							class = string(val)
+						}
+						if !more {
+							break
+						}
+					}
+					if strings.Contains(class, "tableContent") {
+						inRow = true
+						tdIndex = -1
+						rowCells = rowCells[:0]
+					}
+				}
+			case "td":
+				if inRow {
+					inTD = true
+					tdIndex++
+					cellText.Reset()
+				}
+			}
+		case html.TextToken:
+			if inTD {
+				cellText.Write(z.Text())
+			}
+		case html.EndTagToken:
+			tagName, _ := z.TagName()
+			switch string(tagName) {
+			case "td":
+				if inTD {
+					inTD = false
+					rowCells = append(rowCells, cleanCellText(cellText.String()))
+				}
+			case "tr":
+				if inRow {
+					inRow = false
+					if len(rowCells) < 5 {
+						break
+					}
+					id := strings.TrimSpace(rowCells[1])
+					if id == "" || subjectMap[id] {
+						break
+					}
+					subjectMap[id] = true
+					code := strings.TrimSpace(rowCells[2])
+					name := strings.TrimSpace(rowCells[3])
+					allsubs = append(allsubs, types.DAsubject{Name: name, Code: code, ID: id})
+				}
+			}
 		}
-		id := strings.TrimSpace(td.Eq(1).Text())
-		if id == "" || subjectMap[id] {
-			return
-		}
-		subjectMap[id] = true
-		code := strings.TrimSpace(td.Eq(2).Text())
-		name := strings.TrimSpace(td.Eq(3).Text())
-		tempsub := types.DAsubject{Name: name, Code: code, ID: id}
-		allsubs = append(allsubs, tempsub)
-	})
-	if debug.Debug {
-		helpers.Printf("Found %d unique subjects.\n", len(allsubs))
 	}
-	return allsubs
 }
 
-func getOneSub(regNo string, cookies types.Cookies, code string) *goquery.Document {
+func getOneSub(regNo string, cookies types.Cookies, code string) []byte {
 	url := "https://vtop.vit.ac.in/vtop/examinations/processDigitalAssignment"
 	payloadMap := map[string]string{
 		"_csrf":        cookies.CSRF,
@@ -527,138 +570,299 @@ func getOneSub(regNo string, cookies types.Cookies, code string) *goquery.Docume
 		helpers.Printf("Failed to fetch details for subject code: %s\n", code)
 		return nil
 	}
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(subBody)))
-	if err != nil {
-		if debug.Debug {
-			helpers.Printf("Error parsing subject details document for code %s: %v\n", code, err)
-		}
-		helpers.Printf("Failed to parse details for subject code: %s\n", code)
-		return nil
-	}
-	return doc
+	return subBody
 }
 
-func pendingDAs(doc *goquery.Document, subject types.DAsubject) (types.LatestDA, types.SubjectDAs) {
+func pendingDAs(body []byte, subject types.DAsubject) (types.LatestDA, types.SubjectDAs) {
 	var events types.SubjectDAs
 	events.Subject = subject
 	var latestDA types.LatestDA
 	latestDA.Subject = subject
 	daMap := make(map[string]bool)
 
-	doc.Find(DACustomTableSelector).Each(func(i int, s *goquery.Selection) {
-		headers := []string{}
-		s.Find("tr.tableHeader td").Each(func(j int, th *goquery.Selection) {
-			headers = append(headers, strings.TrimSpace(th.Text()))
-		})
-		if len(headers) < 6 {
+	parseDAEvents(body, subject, &events, daMap)
+	return latestDA, events
+}
+
+func parseDAEvents(body []byte, subject types.DAsubject, events *types.SubjectDAs, daMap map[string]bool) {
+	z := html.NewTokenizer(bytes.NewReader(body))
+
+	var (
+		inTable       bool
+		tableDepth    int
+		tableIsTarget bool
+		inHeaderRow   bool
+		inDataRow     bool
+		inTD          bool
+		tdIndex       int
+		cellText      strings.Builder
+		headerCells   []string
+		rowCells      []string
+
+		rowDAcode    string
+		rowEditCode  string
+		rowQPLink    string
+		rowQPCode    string
+		rowQPClassID string
+	)
+
+	resetRow := func() {
+		tdIndex = -1
+		rowCells = rowCells[:0]
+		rowDAcode = ""
+		rowEditCode = ""
+		rowQPLink = ""
+		rowQPCode = ""
+		rowQPClassID = ""
+	}
+
+	for {
+		switch z.Next() {
+		case html.ErrorToken:
 			return
-		}
-		if headers[0] == "Sl.No." && headers[1] == "Title" && headers[4] == "Due Date" && headers[5] == "QP" {
-			s.Find("tr.fixedContent.tableContent").Each(func(k int, tr *goquery.Selection) {
-				td := tr.Find(DACellSelector)
-				if td.Length() < 9 {
-					return
+		case html.StartTagToken, html.SelfClosingTagToken:
+			tagName, hasAttr := z.TagName()
+			switch string(tagName) {
+			case "table":
+				if !inTable {
+					classAttr := ""
+					if hasAttr {
+						for {
+							key, val, more := z.TagAttr()
+							if string(key) == "class" {
+								classAttr = string(val)
+							}
+							if !more {
+								break
+							}
+						}
+					}
+					if strings.Contains(classAttr, "customTable") {
+						inTable = true
+						tableDepth = 1
+						tableIsTarget = false
+						headerCells = headerCells[:0]
+					}
+				} else {
+					tableDepth++
 				}
-
-				title := strings.TrimSpace(td.Eq(1).Text())
-				if title == "" || daMap[title] || title == subject.Code {
-					return
-				}
-				daMap[title] = true
-
-				var daCode string
-				codeInput := td.Eq(7).Find("input[name='code']")
-				if codeInput.Length() > 0 {
-					daCode = strings.TrimSpace(codeInput.AttrOr("value", ""))
-				}
-				if daCode == "" {
-					btn := td.Eq(7).Find("button")
-					if btn.Length() > 0 {
-						daCode = strings.TrimSpace(btn.AttrOr("data-editcode", ""))
+			case "tr":
+				if inTable && hasAttr {
+					classAttr := ""
+					for {
+						key, val, more := z.TagAttr()
+						if string(key) == "class" {
+							classAttr = string(val)
+						}
+						if !more {
+							break
+						}
+					}
+					if strings.Contains(classAttr, "tableHeader") {
+						inHeaderRow = true
+						headerCells = headerCells[:0]
+					} else if strings.Contains(classAttr, "tableContent") {
+						inDataRow = true
+						resetRow()
 					}
 				}
-
-				dueDateStr := strings.TrimSpace(td.Eq(4).Find("span").Text())
-				var dueDate time.Time
-				if dueDateStr == "-" || dueDateStr == "" {
-					dueDate = time.Time{}
-				} else {
-					date, err := time.Parse("02-Jan-2006", dueDateStr)
-					if err != nil {
-						if debug.Debug {
-							helpers.Printf("Error parsing date %s: %v\n", dueDateStr, err)
+			case "td":
+				if inTable && (inHeaderRow || inDataRow) {
+					inTD = true
+					tdIndex++
+					cellText.Reset()
+				}
+			case "a":
+				if inDataRow && tdIndex == 5 && hasAttr {
+					href := ""
+					for {
+						key, val, more := z.TagAttr()
+						if string(key) == "href" {
+							href = string(val)
 						}
+						if !more {
+							break
+						}
+					}
+					if href != "" {
+						matches := daDownloadRegex.FindStringSubmatch(href)
+						if len(matches) > 1 {
+							rowQPLink = matches[1]
+						}
+					}
+				}
+			case "button":
+				if inDataRow && hasAttr {
+					if tdIndex == 5 {
+						for {
+							key, val, more := z.TagAttr()
+							switch string(key) {
+							case "data-code":
+								rowQPCode = string(val)
+							case "data-classid":
+								rowQPClassID = string(val)
+							}
+							if !more {
+								break
+							}
+						}
+					} else if tdIndex == 7 {
+						for {
+							key, val, more := z.TagAttr()
+							if string(key) == "data-editcode" {
+								rowEditCode = string(val)
+							}
+							if !more {
+								break
+							}
+						}
+					}
+				}
+			case "input":
+				if inDataRow && tdIndex == 7 && hasAttr {
+					nameAttr := ""
+					valueAttr := ""
+					for {
+						key, val, more := z.TagAttr()
+						switch string(key) {
+						case "name":
+							nameAttr = string(val)
+						case "value":
+							valueAttr = string(val)
+						}
+						if !more {
+							break
+						}
+					}
+					if nameAttr == "code" {
+						rowDAcode = valueAttr
+					}
+				}
+			}
+		case html.TextToken:
+			if inTD {
+				cellText.Write(z.Text())
+			}
+		case html.EndTagToken:
+			tagName, _ := z.TagName()
+			switch string(tagName) {
+			case "td":
+				if inTD {
+					inTD = false
+					text := cleanCellText(cellText.String())
+					if inHeaderRow {
+						headerCells = append(headerCells, text)
+					} else if inDataRow {
+						rowCells = append(rowCells, text)
+					}
+				}
+			case "tr":
+				if inHeaderRow {
+					inHeaderRow = false
+					if len(headerCells) >= 6 &&
+						strings.EqualFold(headerCells[0], "Sl.No.") &&
+						strings.EqualFold(headerCells[1], "Title") &&
+						strings.EqualFold(headerCells[4], "Due Date") &&
+						strings.EqualFold(headerCells[5], "QP") {
+						tableIsTarget = true
+					}
+				} else if inDataRow {
+					inDataRow = false
+					if !tableIsTarget || len(rowCells) < 9 {
+						break
+					}
+
+					title := strings.TrimSpace(rowCells[1])
+					if title == "" || daMap[title] || title == subject.Code {
+						break
+					}
+					daMap[title] = true
+
+					daCode := rowDAcode
+					if daCode == "" {
+						daCode = rowEditCode
+					}
+
+					dueDateStr := strings.TrimSpace(rowCells[4])
+					var dueDate time.Time
+					if dueDateStr == "-" || dueDateStr == "" {
 						dueDate = time.Time{}
 					} else {
-						dueDate = date
-					}
-				}
-
-				qp := "No"
-				downloadLinkQP := ""
-				aTagQP := td.Eq(5).Find("a")
-				if aTagQP.Length() > 0 {
-					qp = "Yes"
-					href, exists := aTagQP.Attr("href")
-					if exists {
-						re := regexp.MustCompile(`vtopDownload\('([^']+)'\)`)
-						matches := re.FindStringSubmatch(href)
-						if len(matches) > 1 {
-							downloadLinkQP = matches[1]
+						date, err := time.Parse("02-Jan-2006", dueDateStr)
+						if err != nil {
+							if debug.Debug {
+								helpers.Printf("Error parsing date %s: %v\n", dueDateStr, err)
+							}
+							dueDate = time.Time{}
+						} else {
+							dueDate = date
 						}
 					}
-				} else {
-					btn := td.Eq(5).Find("button")
-					if btn.Length() > 0 {
+
+					qp := "No"
+					downloadLinkQP := ""
+					if rowQPLink != "" {
 						qp = "Yes"
-						codeAttr, existsCode := btn.Attr("data-code")
-						classAttr, existsClass := btn.Attr("data-classid")
-						if existsCode && existsClass {
-							downloadLinkQP = fmt.Sprintf("examinations/doDownloadQuestion/?code=%s&classIdNumber=%s", codeAttr, classAttr)
-						}
+						downloadLinkQP = rowQPLink
+					} else if rowQPCode != "" && rowQPClassID != "" {
+						qp = "Yes"
+						downloadLinkQP = fmt.Sprintf("examinations/doDownloadQuestion/?code=%s&classIdNumber=%s", rowQPCode, rowQPClassID)
 					}
-				}
 
-				lastUpdated := strings.TrimSpace(td.Eq(6).Find("span").Text())
-				if lastUpdated == "" {
-					lastUpdated = "N/A"
-				} else {
-					if isValidDateTime(lastUpdated) {
+					lastUpdated := strings.TrimSpace(rowCells[6])
+					if lastUpdated == "" {
+						lastUpdated = "N/A"
+					} else if isValidDateTime(lastUpdated) {
 						lastUpdated = helpers.FormatDateTime(lastUpdated)
 					}
-				}
 
-				tempDA := types.DAEvent{
-					Title:        title,
-					Description:  subject.Name,
-					QP:           qp,
-					Last_upload:  lastUpdated,
-					DownloadLink: downloadLinkQP,
-					DueDate:      dueDate,
-					Code:         daCode,
-				}
+					tempDA := types.DAEvent{
+						Title:        title,
+						Description:  subject.Name,
+						QP:           qp,
+						Last_upload:  lastUpdated,
+						DownloadLink: downloadLinkQP,
+						DueDate:      dueDate,
+						Code:         daCode,
+					}
 
-				if !tempDA.DueDate.IsZero() {
-					today := time.Now().UTC().Truncate(24 * time.Hour)
-					dueDateMidnight := tempDA.DueDate.Truncate(24 * time.Hour)
-					diff := dueDateMidnight.Sub(today)
-					tempDA.DaysLeft = int(diff.Hours() / 24)
-					if tempDA.DaysLeft < 0 {
+					if !tempDA.DueDate.IsZero() {
+						today := time.Now().UTC().Truncate(24 * time.Hour)
+						dueDateMidnight := tempDA.DueDate.Truncate(24 * time.Hour)
+						diff := dueDateMidnight.Sub(today)
+						tempDA.DaysLeft = int(diff.Hours() / 24)
+						if tempDA.DaysLeft < 0 {
+							tempDA.DaysLeft = 0
+						}
+					} else {
 						tempDA.DaysLeft = 0
 					}
-				} else {
-					tempDA.DaysLeft = 0
-				}
 
-				events.DAs = append(events.DAs, tempDA)
-				if debug.Debug {
-					helpers.Printf("Parsed DA: %+v\n", tempDA)
+					events.DAs = append(events.DAs, tempDA)
+					if debug.Debug {
+						helpers.Printf("Parsed DA: %+v\n", tempDA)
+					}
 				}
-			})
+			case "table":
+				if inTable {
+					tableDepth--
+					if tableDepth <= 0 {
+						inTable = false
+						tableIsTarget = false
+						inHeaderRow = false
+						inDataRow = false
+					}
+				}
+			}
 		}
-	})
+	}
+}
 
-	return latestDA, events
+func cleanCellText(s string) string {
+	if s == "" {
+		return ""
+	}
+	return strings.TrimSpace(strings.Join(strings.Fields(s), " "))
 }
 
 func isValidDateTime(dateStr string) bool {

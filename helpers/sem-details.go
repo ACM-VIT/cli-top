@@ -10,51 +10,129 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/PuerkitoBio/goquery"
+	"golang.org/x/net/html"
 )
+
+type selectCandidate struct {
+	id      string
+	name    string
+	class   string
+	options []types.Semester
+}
 
 // Initialize a single reader instance for the package
 var reader = bufio.NewReader(os.Stdin)
 
-// FindAndSaveSemIds finds and saves semester IDs from the document
-func FindAndSaveSemIds(doc *goquery.Document) ([]types.Semester, error) {
-	var allsems []types.Semester
+func FindAndSaveSemIds(body []byte) ([]types.Semester, error) {
+	var (
+		candidates []selectCandidate
+		currentSel *selectCandidate
+		inOption   bool
+		optionVal  string
+		textBuf    strings.Builder
+	)
 
-	// Try multiple different selectors to find semester options
-	selectors := []string{
-		"select.form-select option",
-		"select#semesterSubId option",
-		"select[name='semesterSubId'] option",
-		"select option",
-	}
-
-	for _, selector := range selectors {
-		doc.Find(selector).Each(func(i int, s *goquery.Selection) {
-			var tempSem types.Semester
-			var exists bool
-			tempSem.SemID, exists = s.Attr("value")
-			tempSem.SemName = strings.TrimSpace(s.Text())
-			if exists && tempSem.SemID != "" && tempSem.SemName != "" {
-				allsems = append(allsems, tempSem)
+	z := html.NewTokenizer(bytes.NewReader(body))
+	for {
+		switch z.Next() {
+		case html.ErrorToken:
+			if len(candidates) == 0 {
+				if debug.Debug {
+					fmt.Println("No semesters found in document.")
+				}
+				return nil, fmt.Errorf("no semesters found")
 			}
-		})
-
-		// If we found semesters with this selector, break the loop
-		if len(allsems) > 0 {
-			break
+			chosen := pickSemesterSelect(candidates)
+			if len(chosen.options) == 0 {
+				return nil, fmt.Errorf("no semesters found")
+			}
+			return chosen.options, nil
+		case html.StartTagToken, html.SelfClosingTagToken:
+			tagName, hasAttr := z.TagName()
+			switch string(tagName) {
+			case "select":
+				if currentSel != nil {
+					candidates = append(candidates, *currentSel)
+				}
+				currentSel = &selectCandidate{}
+				if hasAttr {
+					for {
+						key, val, more := z.TagAttr()
+						switch string(key) {
+						case "id":
+							currentSel.id = string(val)
+						case "name":
+							currentSel.name = string(val)
+						case "class":
+							currentSel.class = string(val)
+						}
+						if !more {
+							break
+						}
+					}
+				}
+			case "option":
+				if currentSel == nil {
+					break
+				}
+				inOption = true
+				optionVal = ""
+				textBuf.Reset()
+				if hasAttr {
+					for {
+						key, val, more := z.TagAttr()
+						if string(key) == "value" {
+							optionVal = string(val)
+						}
+						if !more {
+							break
+						}
+					}
+				}
+			}
+		case html.TextToken:
+			if inOption {
+				textBuf.Write(z.Text())
+			}
+		case html.EndTagToken:
+			tagName, _ := z.TagName()
+			switch string(tagName) {
+			case "option":
+				if inOption && currentSel != nil {
+					text := strings.TrimSpace(textBuf.String())
+					if optionVal != "" && text != "" {
+						currentSel.options = append(currentSel.options, types.Semester{SemID: optionVal, SemName: text})
+					}
+				}
+				inOption = false
+			case "select":
+				if currentSel != nil {
+					candidates = append(candidates, *currentSel)
+					currentSel = nil
+				}
+			}
 		}
 	}
+}
 
-	if len(allsems) == 0 {
-		// If debug is enabled, output the HTML to help diagnose the issue
-		if debug.Debug {
-			fmt.Println("Document structure:")
-			html, _ := doc.Html()
-			fmt.Println(html)
+func pickSemesterSelect(candidates []selectCandidate) selectCandidate {
+	for _, c := range candidates {
+		if len(c.options) == 0 {
+			continue
 		}
-		return nil, fmt.Errorf("no semesters found")
+		if strings.Contains(c.id, "semesterSubId") || strings.Contains(c.name, "semesterSubId") {
+			return c
+		}
+		if strings.Contains(c.class, "form-select") {
+			return c
+		}
 	}
-	return allsems, nil
+	for _, c := range candidates {
+		if len(c.options) > 0 {
+			return c
+		}
+	}
+	return selectCandidate{}
 }
 
 // GetSemDetails fetches semester details
@@ -75,14 +153,7 @@ func GetSemDetails(cookies types.Cookies, regNo string) ([]types.Semester, error
 		return allSems, err
 	}
 
-	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
-	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error parsing the HTML document:", err)
-		}
-		return allSems, err
-	}
-	allSems, err = FindAndSaveSemIds(doc)
+	allSems, err = FindAndSaveSemIds(bodyText)
 	if err != nil {
 		if debug.Debug {
 			fmt.Println("Error fetching semester details", err)
@@ -104,11 +175,7 @@ func GetSemDetailsBackup(cookies types.Cookies, regNo string) ([]types.Semester,
 	if err != nil {
 		return allSems, err
 	}
-	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
-	if err != nil {
-		return allSems, err
-	}
-	allSems, err = FindAndSaveSemIds(doc)
+	allSems, err = FindAndSaveSemIds(bodyText)
 	if err != nil {
 		return allSems, err
 	}
