@@ -233,14 +233,22 @@ func SaveFile(data []byte, filePath string) error {
 	return os.WriteFile(filePath, data, 0644)
 }
 func FormatBodyDataClient(payloadMap map[string]string) []byte {
-	var sb strings.Builder
-	for key, value := range payloadMap {
-		if sb.Len() > 0 {
-			sb.WriteByte('&')
-		}
-		sb.WriteString(fmt.Sprintf("%s=%s", url.QueryEscape(key), url.QueryEscape(value)))
+	if len(payloadMap) == 0 {
+		return nil
 	}
-	return []byte(sb.String())
+	var buf bytes.Buffer
+	first := true
+	for key, value := range payloadMap {
+		if !first {
+			buf.WriteByte('&')
+		} else {
+			first = false
+		}
+		buf.WriteString(url.QueryEscape(key))
+		buf.WriteByte('=')
+		buf.WriteString(url.QueryEscape(value))
+	}
+	return buf.Bytes()
 }
 
 func FetchReqClient(client *http.Client, regNo string, cookies types.Cookies, url string, referer string, formData []byte, method string, contentType string) ([]byte, http.Header, error) {
@@ -253,7 +261,7 @@ func FetchReqClientWithContext(ctx context.Context, client *http.Client, regNo s
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(formData))
+	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(formData))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
