@@ -19,6 +19,7 @@ output_image.jpg
 # Ignore Binary
 cli-top*
 *.exe
+npm/bin/native/
 
 # Calendar files
 *.ics
