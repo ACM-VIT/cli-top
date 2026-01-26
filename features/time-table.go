@@ -8,11 +8,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/PuerkitoBio/goquery"
+	"golang.org/x/net/html"
 )
 
 const (
@@ -20,9 +21,10 @@ const (
 	getDateForSemPreviewURL = "https://vtop.vit.ac.in/vtop/getDateForSemesterPreview"
 	processViewCalendarURL  = "https://vtop.vit.ac.in/vtop/processViewCalendar"
 	classGroupID            = "COMB"
-	calendarTableSelector   = "table.calendar-table"
 	saturdayIndex           = 6
 )
+
+var workingSatDayOrderRegex = regexp.MustCompile(`(?i)(monday|tuesday|wednesday|thursday|friday)\s*day order`)
 
 type WorkingSaturday struct {
 	Date     time.Time
@@ -89,61 +91,132 @@ func fetchWorkingSaturdays(regNo string, cookies types.Cookies, semSubID, classG
 		return result
 	}
 
-	doc3, _ := goquery.NewDocumentFromReader(bytes.NewReader(body3))
+	return parseWorkingSaturdaysFromCalendar(body3, now, locIndia)
+}
 
-	doc3.Find(calendarTableSelector).Find("tr").Each(func(i int, tr *goquery.Selection) {
-		td := tr.Find("td").Eq(saturdayIndex)
-		if td.Length() == 0 {
-			return
-		}
-		// Check for 'Freshers' or batch/semester specific text
-		cellText := td.Text()
-		cellTextLower := strings.ToLower(cellText)
-		if strings.Contains(cellTextLower, "fresher") {
-			// Skip if this working Saturday is only for freshers
-			return
-		}
-		// Optionally, add more checks here for your batch/semester if needed
-		dayTxt := strings.TrimSpace(td.Find("span").First().Text())
-		if dayTxt == "" {
-			return
-		}
-		dayInt := 0
-		fmt.Sscanf(dayTxt, "%d", &dayInt)
-		if dayInt == 0 {
-			return
-		}
-		order := ""
-		td.Find("span").EachWithBreak(func(_ int, s *goquery.Selection) bool {
-			txt := strings.TrimSpace(s.Text())
-			if strings.Contains(strings.ToLower(txt), "day order") {
-				noParen := strings.Trim(txt, "()")
-				parts := strings.SplitN(noParen, " Day Order", 2)
-				if len(parts) > 0 {
-					order = parts[0]
+func parseWorkingSaturdaysFromCalendar(body []byte, now time.Time, loc *time.Location) []WorkingSaturday {
+	var result []WorkingSaturday
+	z := html.NewTokenizer(bytes.NewReader(body))
+
+	var (
+		inTable    bool
+		tableDepth int
+		inRow      bool
+		inTD       bool
+		tdIndex    int
+		cellText   strings.Builder
+	)
+
+	for {
+		switch z.Next() {
+		case html.ErrorToken:
+			return result
+		case html.StartTagToken, html.SelfClosingTagToken:
+			tagName, hasAttr := z.TagName()
+			switch string(tagName) {
+			case "table":
+				if !inTable {
+					classAttr := ""
+					if hasAttr {
+						for {
+							key, val, more := z.TagAttr()
+							if string(key) == "class" {
+								classAttr = string(val)
+							}
+							if !more {
+								break
+							}
+						}
+					}
+					if strings.Contains(classAttr, "calendar-table") {
+						inTable = true
+						tableDepth = 1
+					}
+				} else {
+					tableDepth++
 				}
-				return false
+			case "tr":
+				if inTable {
+					inRow = true
+					tdIndex = -1
+				}
+			case "td":
+				if inRow {
+					inTD = true
+					tdIndex++
+					if tdIndex == saturdayIndex {
+						cellText.Reset()
+					}
+				}
 			}
-			return true
-		})
-		if order == "" {
-			return
+		case html.TextToken:
+			if inTD && tdIndex == saturdayIndex {
+				cellText.Write(z.Text())
+			}
+		case html.EndTagToken:
+			tagName, _ := z.TagName()
+			switch string(tagName) {
+			case "td":
+				if inTD && tdIndex == saturdayIndex {
+					text := cleanTimeTableText(cellText.String())
+					if ws, ok := parseWorkingSaturdayCell(text, now, loc); ok {
+						result = append(result, ws)
+					}
+				}
+				inTD = false
+			case "tr":
+				inRow = false
+			case "table":
+				if inTable {
+					tableDepth--
+					if tableDepth <= 0 {
+						inTable = false
+					}
+				}
+			}
 		}
-		dayOrder := map[string]string{
-			"monday":    "Monday",
-			"tuesday":   "Tuesday",
-			"wednesday": "Wednesday",
-			"thursday":  "Thursday",
-			"friday":    "Friday",
-		}[strings.ToLower(order)]
-		if dayOrder == "" {
-			return
-		}
-		wsDate := time.Date(now.Year(), now.Month(), dayInt, 0, 0, 0, 0, locIndia)
-		result = append(result, WorkingSaturday{Date: wsDate, DayOrder: dayOrder})
-	})
+	}
+}
 
-	return result
+func parseWorkingSaturdayCell(text string, now time.Time, loc *time.Location) (WorkingSaturday, bool) {
+	if text == "" {
+		return WorkingSaturday{}, false
+	}
+	textLower := strings.ToLower(text)
+	if strings.Contains(textLower, "fresher") {
+		return WorkingSaturday{}, false
+	}
+
+	dayInt := firstInt(textLower)
+	if dayInt == 0 {
+		return WorkingSaturday{}, false
+	}
+
+	match := workingSatDayOrderRegex.FindStringSubmatch(textLower)
+	if len(match) < 2 {
+		return WorkingSaturday{}, false
+	}
+
+	dayOrder := strings.Title(match[1])
+	wsDate := time.Date(now.Year(), now.Month(), dayInt, 0, 0, 0, 0, loc)
+	return WorkingSaturday{Date: wsDate, DayOrder: dayOrder}, true
+}
+
+func firstInt(text string) int {
+	n := 0
+	inNumber := false
+	for _, r := range text {
+		if r >= '0' && r <= '9' {
+			n = n*10 + int(r-'0')
+			inNumber = true
+		} else if inNumber {
+			break
+		}
+	}
+	if !inNumber {
+		return 0
+	}
+	return n
 }
 
 const (
@@ -518,12 +591,11 @@ func GetTimeTable(regNo string, cookies types.Cookies, sem_choice int) {
 	if err != nil && debug.Debug {
 		helpers.Println(err)
 	}
-	doc, _ := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
 
 	grp_list = getClassGroups(regNo, cookies, semester)
 	datelist := getDateList(regNo, cookies, semester, grp_list[1][1])
 	semSec, month, year := processDates(regNo, cookies, semester, grp_list[1][1], datelist, 0)
-	courseMap := getCourseName(doc)
+	courseMap := getCourseNameFromHTML(bodyText)
 	timetable := makeTT(schedule, courseMap)
 
 	if _, exists := timetable["Saturday"]; !exists {
@@ -719,54 +791,139 @@ func writetoFile(filepath string, content string) error {
 	return nil
 }
 
-func getCourseName(doc *goquery.Document) map[string]types.SubjectTime {
+func getCourseNameFromHTML(body []byte) map[string]types.SubjectTime {
 	courseMap := make(map[string]types.SubjectTime)
-	table := doc.Find(TimeTableTableSelector)
 
-	if table.Length() > 0 {
-		table.Find(TimeTableRowsSelector).Each(func(i int, row *goquery.Selection) {
-			courseCell := row.Find(TimeTableCellSelector).Eq(CourseCellIndex)
-			cellText := strings.TrimSpace(courseCell.Text())
-			parts := strings.SplitN(cellText, " - ", 2)
-			var courseName string
-			if len(parts) == 2 {
-				courseName = strings.TrimSpace(parts[1])
-				if idxStart := strings.Index(courseName, "("); idxStart != -1 {
-					idxEnd := strings.Index(courseName, ")")
-					if idxEnd != -1 && idxEnd > idxStart {
-						parenthetical := courseName[idxStart+1 : idxEnd]
-						if strings.Contains(strings.ToLower(parenthetical), "embedded") {
-							courseName = strings.TrimSpace(courseName[:idxStart]) + strings.TrimSpace(courseName[idxStart-1:])
-						} else {
-							courseName = strings.TrimSpace(courseName[:idxStart])
+	z := html.NewTokenizer(bytes.NewReader(body))
+	var (
+		inTable    bool
+		tableDepth int
+		inRow      bool
+		inTD       bool
+		tdIndex    int
+		cellText   strings.Builder
+		rowCells   []string
+	)
+
+	for {
+		switch z.Next() {
+		case html.ErrorToken:
+			if len(courseMap) == 0 {
+				helpers.Println("Table with class 'table' not found")
+			}
+			return courseMap
+		case html.StartTagToken, html.SelfClosingTagToken:
+			tagName, hasAttr := z.TagName()
+			switch string(tagName) {
+			case "table":
+				if !inTable {
+					classAttr := ""
+					if hasAttr {
+						for {
+							key, val, more := z.TagAttr()
+							if string(key) == "class" {
+								classAttr = string(val)
+							}
+							if !more {
+								break
+							}
 						}
+					}
+					if strings.Contains(classAttr, "table") {
+						inTable = true
+						tableDepth = 1
+					}
+				} else {
+					tableDepth++
+				}
+			case "tr":
+				if inTable {
+					inRow = true
+					tdIndex = -1
+					rowCells = rowCells[:0]
+				}
+			case "td":
+				if inRow {
+					inTD = true
+					tdIndex++
+					cellText.Reset()
+				}
+			}
+		case html.TextToken:
+			if inTD {
+				cellText.Write(z.Text())
+			}
+		case html.EndTagToken:
+			tagName, _ := z.TagName()
+			switch string(tagName) {
+			case "td":
+				if inTD {
+					inTD = false
+					rowCells = append(rowCells, cleanTimeTableText(cellText.String()))
+				}
+			case "tr":
+				if inRow {
+					inRow = false
+					if len(rowCells) <= SlotCellIndex || len(rowCells) <= CourseCellIndex {
+						break
+					}
+					cellText := strings.TrimSpace(rowCells[CourseCellIndex])
+					parts := strings.SplitN(cellText, " - ", 2)
+					var courseName string
+					if len(parts) == 2 {
+						courseName = strings.TrimSpace(parts[1])
+						if idxStart := strings.Index(courseName, "("); idxStart != -1 {
+							idxEnd := strings.Index(courseName, ")")
+							if idxEnd != -1 && idxEnd > idxStart {
+								parenthetical := courseName[idxStart+1 : idxEnd]
+								if strings.Contains(strings.ToLower(parenthetical), "embedded") {
+									courseName = strings.TrimSpace(courseName[:idxStart]) + strings.TrimSpace(courseName[idxStart-1:])
+								} else {
+									courseName = strings.TrimSpace(courseName[:idxStart])
+								}
+							}
+						}
+					}
+					slotText := strings.TrimSpace(rowCells[SlotCellIndex])
+					if slotText == "" {
+						break
+					}
+					parts = strings.SplitN(slotText, " - ", 2)
+					if len(parts) < 2 {
+						break
+					}
+					newparts := strings.Split(parts[0], "+")
+					if slotText[0] == 'L' {
+						var joinedParts []string
+						for i := 0; i < len(newparts); i += 2 {
+							if i+1 < len(newparts) {
+								joinedParts = append(joinedParts, strings.Join([]string{newparts[i], newparts[i+1]}, "+"))
+							}
+						}
+						newparts = joinedParts
+					}
+					courseMap[courseName] = types.SubjectTime{
+						Slot:  newparts,
+						Venue: strings.TrimSpace(parts[1]),
+					}
+				}
+			case "table":
+				if inTable {
+					tableDepth--
+					if tableDepth <= 0 {
+						inTable = false
 					}
 				}
 			}
-			slotCell := row.Find(TimeTableCellSelector).Eq(SlotCellIndex)
-			slotText := strings.TrimSpace(slotCell.Text())
-			if len(slotText) == 0 {
-				return
-			}
-			parts = strings.SplitN(slotText, " - ", 2)
-			newparts := strings.Split(parts[0], "+")
-			if slotText[0] == 'L' {
-				var joinedParts []string
-				for i := 0; i < len(newparts); i += 2 {
-					joinedParts = append(joinedParts, strings.Join([]string{newparts[i], newparts[i+1]}, "+"))
-				}
-				newparts = joinedParts
-			}
-			sub := types.SubjectTime{
-				Slot:  newparts,
-				Venue: strings.TrimSpace(parts[1]),
-			}
-			courseMap[courseName] = sub
-		})
-	} else {
-		helpers.Println("Table with class 'table' not found")
+		}
 	}
-	return courseMap
+}
+
+func cleanTimeTableText(s string) string {
+	if s == "" {
+		return ""
+	}
+	return strings.TrimSpace(strings.Join(strings.Fields(s), " "))
 }
 
 func updateTimetableWithWorkingSaturdays(timetable map[string][]types.Class, workingSaturdays []WorkingSaturday) {
