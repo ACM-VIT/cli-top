@@ -67,9 +67,9 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		return
 	}
 
-	if !helpers.ShouldMuteUI() {
-		helpers.Infof("\nFetching digital assignments for %d subject(s)...\n", len(listOfSubjects))
-	}
+	// if !helpers.ShouldMuteUI() {
+	// 	helpers.Infof("\nFetching digital assignments for %d subject(s)...\n", len(listOfSubjects))
+	// }
 
 	type subjectFetchResult struct {
 		data types.SubjectDAs
