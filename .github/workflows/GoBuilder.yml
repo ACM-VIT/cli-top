@@ -426,6 +426,14 @@ jobs:
             security find-identity -v "$KEYCHAIN_PATH" || true
             exit 1
           fi
+          INSTALLER_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" | awk -F\" '/Developer ID Installer/ {print $2; exit}')
+          if [ -z "$INSTALLER_IDENTITY" ]; then
+            echo "::error ::Unable to resolve Developer ID Installer identity."
+            security find-identity -v "$KEYCHAIN_PATH" || true
+            exit 1
+          fi
+          echo "INSTALLER_IDENTITY=$INSTALLER_IDENTITY" >> "$GITHUB_ENV"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" -D "$INSTALLER_IDENTITY" -t private "$KEYCHAIN_PATH"
           VERSION="${{ steps.extract_version_macos.outputs.version }}"
           cat > build/macos/Distribution.xml <<EOF
           <?xml version="1.0" encoding="utf-8"?>
@@ -480,6 +488,23 @@ jobs:
 
           subprocess.run(
               ["security", "unlock-keychain", "-p", os.environ["KEYCHAIN_PASSWORD"], os.environ["KEYCHAIN_PATH"]],
+              check=False,
+          )
+          subprocess.run(
+              [
+                  "security",
+                  "set-key-partition-list",
+                  "-S",
+                  "apple-tool:,apple:",
+                  "-s",
+                  "-k",
+                  os.environ["KEYCHAIN_PASSWORD"],
+                  "-D",
+                  os.environ["INSTALLER_IDENTITY"],
+                  "-t",
+                  "private",
+                  os.environ["KEYCHAIN_PATH"],
+              ],
               check=False,
           )
           sign_cmd = [
