@@ -420,6 +420,7 @@ jobs:
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security list-keychain -d user -s "$KEYCHAIN_PATH"
           security default-keychain -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           if ! security find-identity -v "$KEYCHAIN_PATH" | grep -q "Developer ID Installer"; then
             echo "::error ::No Developer ID Installer identity found in keychain."
             security find-identity -v "$KEYCHAIN_PATH" || true
@@ -477,6 +478,10 @@ jobs:
           if rc != 0:
               sys.exit(rc)
 
+          subprocess.run(
+              ["security", "unlock-keychain", "-p", os.environ["KEYCHAIN_PASSWORD"], os.environ["KEYCHAIN_PATH"]],
+              check=False,
+          )
           sign_cmd = [
               "productsign",
               "--sign",
