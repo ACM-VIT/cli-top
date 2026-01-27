@@ -326,7 +326,7 @@ jobs:
           openssl pkcs12 -in "$INSTALLER_CERT_PATH" -passin pass:"$MACOS_INSTALLER_CERT_PASSWORD" -noout >/dev/null
 
           security import "$APP_CERT_PATH" -k "$KEYCHAIN_PATH" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
-          security import "$INSTALLER_CERT_PATH" -k "$KEYCHAIN_PATH" -P "$MACOS_INSTALLER_CERT_PASSWORD" -T /usr/bin/productbuild -T /usr/bin/pkgbuild
+          security import "$INSTALLER_CERT_PATH" -k "$KEYCHAIN_PATH" -P "$MACOS_INSTALLER_CERT_PASSWORD" -T /usr/bin/productbuild -T /usr/bin/productsign -T /usr/bin/pkgbuild -A
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
       - name: Build MacOS Universal Binary
@@ -416,6 +416,11 @@ jobs:
       - name: Build signed PKG
         run: |
           set -euo pipefail
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security find-identity -p installer -v "$KEYCHAIN_PATH"
           VERSION="${{ steps.extract_version_macos.outputs.version }}"
           cat > build/macos/Distribution.xml <<EOF
           <?xml version="1.0" encoding="utf-8"?>
