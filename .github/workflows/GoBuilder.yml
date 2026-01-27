@@ -307,11 +307,23 @@ jobs:
           security set-keychain-settings -t 21600 -u "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
 
           APP_CERT_PATH="$RUNNER_TEMP/app_cert.p12"
           INSTALLER_CERT_PATH="$RUNNER_TEMP/installer_cert.p12"
-          printf "%s" "$MACOS_CERT_P12" | base64 -D > "$APP_CERT_PATH"
-          printf "%s" "$MACOS_INSTALLER_CERT_P12" | base64 -D > "$INSTALLER_CERT_PATH"
+          clean_b64() {
+            local value="$1"
+            local prefix="$2"
+            printf "%s" "$value" | tr -d '\r\n' | sed "s/^${prefix}=//"
+          }
+          clean_b64 "$MACOS_CERT_P12" "MACOS_CERT_P12" | base64 --decode > "$APP_CERT_PATH"
+          clean_b64 "$MACOS_INSTALLER_CERT_P12" "MACOS_INSTALLER_CERT_P12" | base64 --decode > "$INSTALLER_CERT_PATH"
+          if [ ! -s "$APP_CERT_PATH" ] || [ ! -s "$INSTALLER_CERT_PATH" ]; then
+            echo "::error ::Decoded P12 file is empty. Check that the secrets contain only the base64 value."
+            exit 1
+          fi
+          openssl pkcs12 -in "$APP_CERT_PATH" -passin pass:"$MACOS_CERT_PASSWORD" -noout >/dev/null
+          openssl pkcs12 -in "$INSTALLER_CERT_PATH" -passin pass:"$MACOS_INSTALLER_CERT_PASSWORD" -noout >/dev/null
 
           security import "$APP_CERT_PATH" -k "$KEYCHAIN_PATH" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
           security import "$INSTALLER_CERT_PATH" -k "$KEYCHAIN_PATH" -P "$MACOS_INSTALLER_CERT_PASSWORD" -T /usr/bin/productbuild -T /usr/bin/pkgbuild
@@ -329,7 +341,7 @@ jobs:
       - name: Codesign binary
         run: |
           set -euo pipefail
-          codesign --force --options runtime --timestamp --sign "$APPLE_SIGNING_IDENTITY" build/macos/cli-top
+          codesign --force --options runtime --timestamp --sign "$APPLE_SIGNING_IDENTITY" --keychain "$KEYCHAIN_PATH" build/macos/cli-top
           codesign --verify --verbose=2 build/macos/cli-top
 
       - name: Package signed ZIP (legacy)
@@ -349,6 +361,7 @@ jobs:
             --version "${VERSION}" \
             build/macos/cli-top-unsigned.pkg
           productbuild --sign "${APPLE_INSTALLER_IDENTITY}" \
+            --keychain "$KEYCHAIN_PATH" \
             --package build/macos/cli-top-unsigned.pkg \
             build/macos/cli-top.pkg
 
