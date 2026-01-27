@@ -349,7 +349,7 @@ jobs:
           set -euo pipefail
           zip -j build/macos/cli-top-macos.zip build/macos/cli-top
 
-      - name: Build signed PKG
+      - name: Build unsigned PKG
         run: |
           set -euo pipefail
           VERSION="${{ steps.extract_version_macos.outputs.version }}"
@@ -360,9 +360,87 @@ jobs:
             --identifier "${MACOS_PKG_IDENTIFIER}" \
             --version "${VERSION}" \
             build/macos/cli-top-unsigned.pkg
+
+      - name: Create installer resources
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.extract_version_macos.outputs.version }}"
+          RES_DIR="build/macos/installer-resources"
+          mkdir -p "$RES_DIR"
+          python3 - <<'PY'
+          import html
+          import os
+          import pathlib
+          
+          raw_logo = pathlib.Path("logo.txt").read_text()
+          lines = [line.rstrip() for line in raw_logo.splitlines()]
+          logo = "\n".join(lines)
+          logo_html = (
+              '<pre style="font-family: Menlo, monospace; font-size: 12px; line-height: 1.1; margin: 0 0 12px 0;">\n'
+              + html.escape(logo)
+              + "\n</pre>"
+          )
+          
+          install_location = os.environ.get("MACOS_INSTALL_LOCATION", "/usr/local/bin")
+          version = os.environ.get("VERSION", "")
+          
+          welcome = f"""<!doctype html>
+          <html>
+          <head><meta charset="utf-8"></head>
+          <body style="font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 16px;">
+            {logo_html}
+            <p><strong>CLI-TOP</strong> will be installed to <code>{html.escape(install_location)}</code>.</p>
+            <p>You may be prompted for your password during installation.</p>
+          </body>
+          </html>
+          """
+          
+          conclusion = f"""<!doctype html>
+          <html>
+          <head><meta charset="utf-8"></head>
+          <body style="font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 16px;">
+            {logo_html}
+            <p><strong>CLI-TOP {html.escape(version)}</strong> is installed.</p>
+            <p>Open a new Terminal and run <code>cli-top</code>.</p>
+          </body>
+          </html>
+          """
+          
+          res_dir = pathlib.Path("build/macos/installer-resources")
+          res_dir.joinpath("Welcome.html").write_text(welcome)
+          res_dir.joinpath("Conclusion.html").write_text(conclusion)
+          PY
+        env:
+          VERSION: ${{ steps.extract_version_macos.outputs.version }}
+
+      - name: Build signed PKG
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.extract_version_macos.outputs.version }}"
+          cat > build/macos/Distribution.xml <<EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <installer-gui-script minSpecVersion="1">
+            <title>CLI-TOP</title>
+            <options customize="never" require-scripts="false" hostArchitectures="x86_64,arm64"/>
+            <welcome file="Welcome.html"/>
+            <conclusion file="Conclusion.html"/>
+            <choices-outline>
+              <line choice="default">
+                <line choice="cli-top"/>
+              </line>
+            </choices-outline>
+            <choice id="default"/>
+            <choice id="cli-top" visible="false">
+              <pkg-ref id="${MACOS_PKG_IDENTIFIER}"/>
+            </choice>
+            <pkg-ref id="${MACOS_PKG_IDENTIFIER}" version="${VERSION}">cli-top-unsigned.pkg</pkg-ref>
+          </installer-gui-script>
+          EOF
           productbuild --sign "${APPLE_INSTALLER_IDENTITY}" \
             --keychain "$KEYCHAIN_PATH" \
-            --package build/macos/cli-top-unsigned.pkg \
+            --distribution build/macos/Distribution.xml \
+            --resources build/macos/installer-resources \
+            --package-path build/macos \
             build/macos/cli-top.pkg
 
       - name: Notarize PKG
