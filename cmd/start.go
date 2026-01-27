@@ -13,9 +13,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
-	"github.com/fatih/color"
 	"github.com/google/uuid"
 	"github.com/lpernett/godotenv"
 	"github.com/spf13/cobra"
@@ -141,23 +141,33 @@ func trackCommand(command string) {
 }
 
 func startfn() {
-	red := color.New(color.FgHiRed)
-	//blue := color.New(color.FgHiBlue)
-	pink := color.New(color.FgHiMagenta)
-
-	contentStr := logo()
-	for _, char := range contentStr {
-		switch char {
-		// Dripping elements (blue)
-		case '█', '▀', '▄', '▓':
-			pink.Print(string(char))
-		// Regular characters (red)
-		default:
-			pink.Print(string(char))
-		}
+	reset := "\x1b[0m"
+	grays := []string{
+		"\x1b[38;5;250m",
+		"\x1b[38;5;248m",
+		"\x1b[38;5;245m",
+		"\x1b[38;5;243m",
+		"\x1b[38;5;240m",
+		"\x1b[38;5;238m",
 	}
-	red.Println("\nWelcome to CLI-TOP!\n ")
-	red.Println("Use \"cli-top help\" or \"cli-top --list\" to show available commands\nUse \"cli-top [command] --help\" for more information about a command.\n ")
+	dim := "\x1b[38;5;102m"
+	text := "\x1b[38;5;145m"
+
+	fmt.Println()
+	lines := strings.Split(logo(), "\n")
+	colorIdx := 0
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			fmt.Println()
+			continue
+		}
+		colorCode := grays[colorIdx%len(grays)]
+		colorIdx++
+		fmt.Printf("%s%s%s\n", colorCode, line, reset)
+	}
+	fmt.Printf("\n%sWelcome to CLI-TOP!%s\n\n", text, reset)
+	fmt.Printf("%sUse \"cli-top help\" or \"cli-top --list\" to show available commands%s\n", dim, reset)
+	fmt.Printf("%sUse \"cli-top [command] --help\" for more information about a command.%s\n\n", dim, reset)
 	filePath := configFilePath()
 
 	if _, err := os.Stat(filePath); err == nil {
