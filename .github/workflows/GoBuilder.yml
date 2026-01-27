@@ -445,12 +445,51 @@ jobs:
             <pkg-ref id="${MACOS_PKG_IDENTIFIER}" version="${VERSION}">cli-top-unsigned.pkg</pkg-ref>
           </installer-gui-script>
           EOF
-          productbuild --sign "${APPLE_INSTALLER_IDENTITY}" \
-            --keychain "$KEYCHAIN_PATH" \
-            --distribution build/macos/Distribution.xml \
-            --resources build/macos/installer-resources \
-            --package-path build/macos \
-            build/macos/cli-top.pkg
+          python3 - <<'PY'
+          import os
+          import subprocess
+          import sys
+
+          def run(cmd, timeout=300):
+              proc = subprocess.Popen(cmd)
+              try:
+                  return proc.wait(timeout=timeout)
+              except subprocess.TimeoutExpired:
+                  proc.terminate()
+                  try:
+                      proc.wait(timeout=10)
+                  except subprocess.TimeoutExpired:
+                      proc.kill()
+                  print("::error ::Command timed out: " + " ".join(cmd), flush=True)
+                  return 1
+
+          build_cmd = [
+              "productbuild",
+              "--distribution",
+              "build/macos/Distribution.xml",
+              "--resources",
+              "build/macos/installer-resources",
+              "--package-path",
+              "build/macos",
+              "build/macos/cli-top-dist-unsigned.pkg",
+          ]
+          rc = run(build_cmd)
+          if rc != 0:
+              sys.exit(rc)
+
+          sign_cmd = [
+              "productsign",
+              "--sign",
+              os.environ["APPLE_INSTALLER_IDENTITY"],
+              "--keychain",
+              os.environ["KEYCHAIN_PATH"],
+              "build/macos/cli-top-dist-unsigned.pkg",
+              "build/macos/cli-top.pkg",
+          ]
+          rc = run(sign_cmd)
+          if rc != 0:
+              sys.exit(rc)
+          PY
 
       - name: Notarize PKG
         run: |
