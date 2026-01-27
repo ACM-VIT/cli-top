@@ -432,6 +432,7 @@ jobs:
             security find-identity -v "$KEYCHAIN_PATH" || true
             exit 1
           fi
+          export INSTALLER_IDENTITY
           echo "INSTALLER_IDENTITY=$INSTALLER_IDENTITY" >> "$GITHUB_ENV"
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" -D "$INSTALLER_IDENTITY" -t private "$KEYCHAIN_PATH"
           VERSION="${{ steps.extract_version_macos.outputs.version }}"
@@ -507,10 +508,14 @@ jobs:
               ],
               check=False,
           )
+          identity = os.environ.get("INSTALLER_IDENTITY") or os.environ.get("APPLE_INSTALLER_IDENTITY", "")
+          if not identity:
+              print("::error ::Missing installer identity for productsign", flush=True)
+              sys.exit(1)
           sign_cmd = [
               "productsign",
               "--sign",
-              os.environ["APPLE_INSTALLER_IDENTITY"],
+              identity,
               "--keychain",
               os.environ["KEYCHAIN_PATH"],
               "build/macos/cli-top-dist-unsigned.pkg",
