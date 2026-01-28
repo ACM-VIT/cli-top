@@ -89,28 +89,33 @@ function resolveDownloadCandidates(latest) {
   const platform = process.platform;
   const arch = process.arch;
   const goos = platform === 'win32' ? 'windows' : platform;
+  const baseUrl = normalizeBaseUrl(latest);
 
   if (latest.downloads) {
-    add(latest.downloads[`${goos}-${arch}`]);
-    add(latest.downloads[`${platform}-${arch}`]);
-    add(latest.downloads[goos]);
+    add(resolveUrl(latest.downloads[`${goos}-${arch}`], baseUrl));
+    add(resolveUrl(latest.downloads[`${platform}-${arch}`], baseUrl));
+    add(resolveUrl(latest.downloads[goos], baseUrl));
   }
 
   switch (goos) {
     case 'windows':
-      add(latest.windowsUrl);
+      add(resolveUrl(latest.windowsUrl, baseUrl));
       break;
     case 'linux':
-      add(latest.linuxUrl);
+      add(resolveUrl(latest.linuxUrl, baseUrl));
       break;
     case 'darwin':
-      add(latest.macUrl);
+      add(resolveUrl(latest.macUrl, baseUrl));
       break;
     case 'android':
-      add(latest.androidUrl);
+      add(resolveUrl(latest.androidUrl, baseUrl));
       break;
     default:
       break;
+  }
+
+  if (baseUrl && latest.version) {
+    add(defaultBaseDownload(baseUrl, goos, String(latest.version)));
   }
 
   if (latest.version) {
@@ -118,6 +123,48 @@ function resolveDownloadCandidates(latest) {
   }
 
   return urls;
+}
+
+function normalizeBaseUrl(latest) {
+  if (!latest || !latest.baseUrl) {
+    return '';
+  }
+  try {
+    const resolved = new URL(String(latest.baseUrl), LATEST_URL).toString();
+    return resolved.replace(/\/$/, '');
+  } catch (_) {
+    return String(latest.baseUrl).replace(/\/$/, '');
+  }
+}
+
+function resolveUrl(url, baseUrl) {
+  if (!url) {
+    return '';
+  }
+  const base = baseUrl || LATEST_URL;
+  try {
+    return new URL(String(url), base).toString();
+  } catch (_) {
+    return url;
+  }
+}
+
+function defaultBaseDownload(baseUrl, goos, version) {
+  if (!baseUrl || !version) {
+    return '';
+  }
+  switch (goos) {
+    case 'windows':
+      return `${baseUrl}/v${version}/cli-top-windows-installer_v${version}.exe`;
+    case 'linux':
+      return `${baseUrl}/v${version}/cli-top-linux_v${version}.zip`;
+    case 'android':
+      return `${baseUrl}/v${version}/cli-top-android_v${version}.zip`;
+    case 'darwin':
+      return `${baseUrl}/v${version}/cli-top-macos_v${version}.zip`;
+    default:
+      return '';
+  }
 }
 
 function defaultLegacyDownload(goos, version) {

@@ -643,6 +643,8 @@ jobs:
             RELEASE_DATE=$(date -u +%Y-%m-%d)
           fi
 
+          BASE_URL=$(jq -r '.baseUrl // ""' "$METADATA_FILE")
+
           KILL_SWITCH=$(jq -r '.killSwitch // ""' "$METADATA_FILE")
           if [ -z "$KILL_SWITCH" ]; then
             KILL_SWITCH="4"
@@ -653,10 +655,11 @@ jobs:
           fi
 
           RESOLVED_FILE="$GITHUB_WORKSPACE/.release_metadata_resolved.json"
-          jq --arg rd "$RELEASE_DATE" --arg v "$VERSION" --arg ks "$KILL_SWITCH" '
+          jq --arg rd "$RELEASE_DATE" --arg v "$VERSION" --arg ks "$KILL_SWITCH" --arg bu "$BASE_URL" '
             .releaseDate = $rd
             | .version = $v
             | .killSwitch = ($ks | tonumber)
+            | (if $bu != "" then .baseUrl = $bu else . end)
           ' "$METADATA_FILE" > "$RESOLVED_FILE"
 
           echo "metadata_file=$RESOLVED_FILE" >> "$GITHUB_OUTPUT"
@@ -737,6 +740,7 @@ jobs:
           RELEASE_DATE=$(jq -r '.releaseDate' "$METADATA_FILE")
           KILL_SWITCH=$(jq -r '.killSwitch' "$METADATA_FILE")
           CHANGES=$(jq -c '.changes' "$METADATA_FILE")
+          BASE_URL=$(jq -r '.baseUrl // ""' "$METADATA_FILE")
 
           TARGET_DIR="website/buildFiles/v${VERSION}"
           mkdir -p "$TARGET_DIR"
@@ -750,7 +754,11 @@ jobs:
           cd website
 
           tmp=$(mktemp)
-          jq --arg v "$VERSION" --arg ks "$KILL_SWITCH" '.version = $v | .killSwitch = ($ks | tonumber)' latest.json > "$tmp"
+          jq --arg v "$VERSION" --arg ks "$KILL_SWITCH" --arg bu "$BASE_URL" '
+            .version = $v
+            | .killSwitch = ($ks | tonumber)
+            | (if $bu != "" then .baseUrl = $bu else . end)
+          ' latest.json > "$tmp"
           mv "$tmp" latest.json
 
           jq -n --arg v "$VERSION" --arg rd "$RELEASE_DATE" --argjson changes "$CHANGES" '
