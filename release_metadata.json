@@ -1,9 +1,9 @@
 {
   "version": "2.10.1",
-  "releaseDate": "2026-01-27",
+  "releaseDate": "2026-01-28",
   "killSwitch": 0,
   "baseUrl": "/buildFiles",
   "changes": [
-    "New look for CLI-TOP"
+    "Fixed autoupdate on some systems"
   ]
 }
