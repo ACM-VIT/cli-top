@@ -188,6 +188,7 @@ type Registration struct {
 type VersionInfo struct {
 	Version    string            `json:"version"`
 	KillSwitch int               `json:"killSwitch"`
+	BaseURL    string            `json:"baseUrl"`
 	Downloads  map[string]string `json:"downloads"`
 	WindowsURL string            `json:"windowsUrl"`
 	LinuxURL   string            `json:"linuxUrl"`
