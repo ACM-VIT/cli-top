@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -60,7 +61,7 @@ func displayUpdateLogo() {
 
 func CheckUpdate() {
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", "https://cli-top.acmvit.in/latest.json", nil)
+	req, err := http.NewRequest("GET", latestJSONURL, nil)
 
 	if err != nil && debug.Debug {
 		fmt.Println(err)
@@ -181,7 +182,7 @@ func CheckKillSwitch() int {
 // Update checks for a new version and auto-updates the current binary.
 func Update() {
 	fmt.Println("Checking for updates...")
-	resp, err := http.Get("https://cli-top.acmvit.in/latest.json")
+	resp, err := http.Get(latestJSONURL)
 	if err != nil {
 		fmt.Println("Error checking for update:", err)
 		return
@@ -197,7 +198,7 @@ func Update() {
 
 	fmt.Printf("A new version %s is available. Downloading update…\n", vi.Version)
 
-	candidates := resolveDownloadCandidates(vi, runtime.GOOS)
+	candidates := resolveDownloadCandidates(vi, runtime.GOOS, latestJSONURL)
 	if len(candidates) == 0 {
 		fmt.Println("Auto-update is not supported on", runtime.GOOS)
 		return
@@ -300,6 +301,27 @@ timeout /t 3 /nobreak >nul`, vi.Version, installer, downloadSource, execPath, in
 			fmt.Println("Error extracting binary:", err)
 			return
 		}
+	}
+	if err := checkWritePermission(execPath); err != nil {
+		if runtime.GOOS == "darwin" {
+			fmt.Printf("Update requires administrator access to modify %s.\n", execPath)
+			fmt.Print("Proceed with sudo install? (y/n): ")
+			var choice string
+			fmt.Scanln(&choice)
+			if strings.ToLower(strings.TrimSpace(choice)) != "y" {
+				fmt.Println("Update cancelled. You can rerun with 'sudo cli-top -u' or reinstall manually.")
+				return
+			}
+			if err := installBinaryWithSudo(execPath, data); err != nil {
+				fmt.Println("Update failed:", err)
+				return
+			}
+			fmt.Printf("Successfully updated to %s. Restart the application to use the new version.\n", vi.Version)
+			return
+		}
+		fmt.Println("Update failed:", err)
+		fmt.Println("Try rerunning with elevated permissions or reinstalling manually.")
+		return
 	}
 	backup := execPath + ".bak"
 	os.Remove(backup)
@@ -411,7 +433,33 @@ func checkWritePermission(path string) error {
 	return nil
 }
 
-func resolveDownloadCandidates(vi types.VersionInfo, goos string) []string {
+func installBinaryWithSudo(execPath string, data []byte) error {
+	tmpFile, err := os.CreateTemp("", "cli-top-update-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath)
+
+	if _, err := tmpFile.Write(data); err != nil {
+		tmpFile.Close()
+		return err
+	}
+	if err := tmpFile.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(tmpPath, 0755); err != nil {
+		return err
+	}
+
+	cmd := exec.Command("sudo", "install", "-m", "755", tmpPath, execPath)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+func resolveDownloadCandidates(vi types.VersionInfo, goos, latestURL string) []string {
 	seen := make(map[string]struct{})
 	urls := make([]string, 0, 5)
 	add := func(url string) {
@@ -425,18 +473,24 @@ func resolveDownloadCandidates(vi types.VersionInfo, goos string) []string {
 		urls = append(urls, url)
 	}
 
+	baseURL := normalizeBaseURL(latestURL, vi.BaseURL)
+
 	if vi.Downloads != nil {
-		add(vi.Downloads[goos])
+		add(resolveURL(vi.Downloads[goos], baseURL, latestURL))
 	}
 	switch goos {
 	case "windows":
-		add(vi.WindowsURL)
+		add(resolveURL(vi.WindowsURL, baseURL, latestURL))
 	case "linux":
-		add(vi.LinuxURL)
+		add(resolveURL(vi.LinuxURL, baseURL, latestURL))
 	case "darwin":
-		add(vi.MacURL)
+		add(resolveURL(vi.MacURL, baseURL, latestURL))
 	case "android":
-		add(vi.AndroidURL)
+		add(resolveURL(vi.AndroidURL, baseURL, latestURL))
+	}
+
+	if baseURL != "" {
+		add(buildDownloadURL(baseURL, goos, vi.Version))
 	}
 
 	add(defaultLegacyDownload(goos, vi.Version))
@@ -448,6 +502,86 @@ func resolveDownloadCandidates(vi types.VersionInfo, goos string) []string {
 		}
 	}
 	return filtered
+}
+
+func normalizeBaseURL(latestURL, base string) string {
+	if base == "" {
+		return ""
+	}
+	if strings.HasPrefix(base, "//") {
+		return "https:" + strings.TrimRight(base, "/")
+	}
+	if strings.HasPrefix(base, "http://") || strings.HasPrefix(base, "https://") {
+		return strings.TrimRight(base, "/")
+	}
+	if latestURL == "" {
+		return strings.TrimRight(base, "/")
+	}
+	latestParsed, err := url.Parse(latestURL)
+	if err != nil {
+		return strings.TrimRight(base, "/")
+	}
+	ref, err := url.Parse(base)
+	if err != nil {
+		return strings.TrimRight(base, "/")
+	}
+	return strings.TrimRight(latestParsed.ResolveReference(ref).String(), "/")
+}
+
+func resolveURL(ref, baseURL, latestURL string) string {
+	if ref == "" {
+		return ""
+	}
+	if strings.HasPrefix(ref, "http://") || strings.HasPrefix(ref, "https://") {
+		return ref
+	}
+	if strings.HasPrefix(ref, "//") {
+		return "https:" + ref
+	}
+	base := baseURL
+	if base == "" {
+		base = latestURL
+	}
+	if base == "" {
+		return ref
+	}
+	baseParsed, err := url.Parse(base)
+	if err != nil {
+		return ref
+	}
+	refParsed, err := url.Parse(ref)
+	if err != nil {
+		return ref
+	}
+	return baseParsed.ResolveReference(refParsed).String()
+}
+
+func buildDownloadURL(baseURL, goos, version string) string {
+	if baseURL == "" || version == "" {
+		return ""
+	}
+	var filename string
+	switch goos {
+	case "windows":
+		filename = fmt.Sprintf("cli-top-windows-installer_v%s.exe", version)
+	case "linux":
+		filename = fmt.Sprintf("cli-top-linux_v%s.zip", version)
+	case "android":
+		filename = fmt.Sprintf("cli-top-android_v%s.zip", version)
+	case "darwin":
+		filename = fmt.Sprintf("cli-top-macos_v%s.zip", version)
+	default:
+		return ""
+	}
+	baseParsed, err := url.Parse(baseURL)
+	if err != nil {
+		return ""
+	}
+	ref, err := url.Parse(fmt.Sprintf("v%s/%s", version, filename))
+	if err != nil {
+		return ""
+	}
+	return baseParsed.ResolveReference(ref).String()
 }
 
 func defaultLegacyDownload(goos, version string) string {
@@ -557,7 +691,7 @@ func fetchReleaseHighlight(version string) string {
 
 func CheckUpdateSilently() (bool, string, error) {
 	client := &http.Client{Timeout: 5 * time.Second}
-	req, err := http.NewRequest("GET", "https://cli-top.acmvit.in/latest.json", nil)
+	req, err := http.NewRequest("GET", latestJSONURL, nil)
 	if err != nil {
 		return false, "", err
 	}
