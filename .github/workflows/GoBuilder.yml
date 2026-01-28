@@ -298,36 +298,49 @@ jobs:
       - name: Import signing certificates
         run: |
           set -euo pipefail
-          KEYCHAIN_PASSWORD=$(uuidgen)
+
+          KEYCHAIN_PASSWORD="$(uuidgen)"
           KEYCHAIN_PATH="$RUNNER_TEMP/build-signing.keychain-db"
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
           echo "KEYCHAIN_PASSWORD=$KEYCHAIN_PASSWORD" >> "$GITHUB_ENV"
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -t 21600 -u "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+          # Append temp keychain to search list (don’t replace the list with only this keychain)
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
           security default-keychain -s "$KEYCHAIN_PATH"
 
           APP_CERT_PATH="$RUNNER_TEMP/app_cert.p12"
           INSTALLER_CERT_PATH="$RUNNER_TEMP/installer_cert.p12"
+
           clean_b64() {
             local value="$1"
             local prefix="$2"
             printf "%s" "$value" | tr -d '\r\n' | sed "s/^${prefix}=//"
           }
+
           clean_b64 "$MACOS_CERT_P12" "MACOS_CERT_P12" | base64 --decode > "$APP_CERT_PATH"
           clean_b64 "$MACOS_INSTALLER_CERT_P12" "MACOS_INSTALLER_CERT_P12" | base64 --decode > "$INSTALLER_CERT_PATH"
+
           if [ ! -s "$APP_CERT_PATH" ] || [ ! -s "$INSTALLER_CERT_PATH" ]; then
             echo "::error ::Decoded P12 file is empty. Check that the secrets contain only the base64 value."
             exit 1
           fi
+
           openssl pkcs12 -in "$APP_CERT_PATH" -passin pass:"$MACOS_CERT_PASSWORD" -noout >/dev/null
           openssl pkcs12 -in "$INSTALLER_CERT_PATH" -passin pass:"$MACOS_INSTALLER_CERT_PASSWORD" -noout >/dev/null
 
-          security import "$APP_CERT_PATH" -k "$KEYCHAIN_PATH" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
-          security import "$INSTALLER_CERT_PATH" -k "$KEYCHAIN_PATH" -P "$MACOS_INSTALLER_CERT_PASSWORD" -T /usr/bin/productbuild -T /usr/bin/productsign -T /usr/bin/pkgbuild -A
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          # Import and allow non-interactive access in CI
+          security import "$APP_CERT_PATH" -k "$KEYCHAIN_PATH" -P "$MACOS_CERT_PASSWORD" -A -f pkcs12
+          security import "$INSTALLER_CERT_PATH" -k "$KEYCHAIN_PATH" -P "$MACOS_INSTALLER_CERT_PASSWORD" -A -f pkcs12
+
+          # Critical for non-interactive codesign/productsign access
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # sanity (won’t fail build if empty)
+          security find-identity -v -p basic "$KEYCHAIN_PATH" || true
 
       - name: Build MacOS Universal Binary
         run: |
@@ -371,7 +384,7 @@ jobs:
           import html
           import os
           import pathlib
-          
+
           raw_logo = pathlib.Path("logo.txt").read_text()
           lines = [line.rstrip() for line in raw_logo.splitlines()]
           logo = "\n".join(lines)
@@ -380,10 +393,10 @@ jobs:
               + html.escape(logo)
               + "\n</pre>"
           )
-          
+
           install_location = os.environ.get("MACOS_INSTALL_LOCATION", "/usr/local/bin")
           version = os.environ.get("VERSION", "")
-          
+
           welcome = f"""<!doctype html>
           <html>
           <head><meta charset="utf-8"></head>
@@ -394,7 +407,7 @@ jobs:
           </body>
           </html>
           """
-          
+
           conclusion = f"""<!doctype html>
           <html>
           <head><meta charset="utf-8"></head>
@@ -405,7 +418,7 @@ jobs:
           </body>
           </html>
           """
-          
+
           res_dir = pathlib.Path("build/macos/installer-resources")
           res_dir.joinpath("Welcome.html").write_text(welcome)
           res_dir.joinpath("Conclusion.html").write_text(conclusion)
@@ -416,25 +429,29 @@ jobs:
       - name: Build signed PKG
         run: |
           set -euo pipefail
+
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
           security default-keychain -s "$KEYCHAIN_PATH"
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          if ! security find-identity -v "$KEYCHAIN_PATH" | grep -q "Developer ID Installer"; then
+
+          # Re-assert partition list right before productsign (helps on flaky runners)
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          if ! security find-identity -v -p basic "$KEYCHAIN_PATH" | grep -q "Developer ID Installer"; then
             echo "::error ::No Developer ID Installer identity found in keychain."
-            security find-identity -v "$KEYCHAIN_PATH" || true
+            security find-identity -v -p basic "$KEYCHAIN_PATH" || true
             exit 1
           fi
-          INSTALLER_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" | awk -F\" '/Developer ID Installer/ {print $2; exit}')
+
+          INSTALLER_IDENTITY="$(security find-identity -v -p basic "$KEYCHAIN_PATH" | awk -F\" '/Developer ID Installer/ {print $2; exit}')"
           if [ -z "$INSTALLER_IDENTITY" ]; then
             echo "::error ::Unable to resolve Developer ID Installer identity."
-            security find-identity -v "$KEYCHAIN_PATH" || true
+            security find-identity -v -p basic "$KEYCHAIN_PATH" || true
             exit 1
           fi
-          export INSTALLER_IDENTITY
           echo "INSTALLER_IDENTITY=$INSTALLER_IDENTITY" >> "$GITHUB_ENV"
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" -D "$INSTALLER_IDENTITY" -t private "$KEYCHAIN_PATH"
+
           VERSION="${{ steps.extract_version_macos.outputs.version }}"
           cat > build/macos/Distribution.xml <<EOF
           <?xml version="1.0" encoding="utf-8"?>
@@ -455,76 +472,21 @@ jobs:
             <pkg-ref id="${MACOS_PKG_IDENTIFIER}" version="${VERSION}">cli-top-unsigned.pkg</pkg-ref>
           </installer-gui-script>
           EOF
-          python3 - <<'PY'
-          import os
-          import subprocess
-          import sys
 
-          def run(cmd, timeout=300):
-              proc = subprocess.Popen(cmd)
-              try:
-                  return proc.wait(timeout=timeout)
-              except subprocess.TimeoutExpired:
-                  proc.terminate()
-                  try:
-                      proc.wait(timeout=10)
-                  except subprocess.TimeoutExpired:
-                      proc.kill()
-                  print("::error ::Command timed out: " + " ".join(cmd), flush=True)
-                  return 1
+          productbuild \
+            --distribution build/macos/Distribution.xml \
+            --resources build/macos/installer-resources \
+            --package-path build/macos \
+            build/macos/cli-top-dist-unsigned.pkg
 
-          build_cmd = [
-              "productbuild",
-              "--distribution",
-              "build/macos/Distribution.xml",
-              "--resources",
-              "build/macos/installer-resources",
-              "--package-path",
-              "build/macos",
-              "build/macos/cli-top-dist-unsigned.pkg",
-          ]
-          rc = run(build_cmd)
-          if rc != 0:
-              sys.exit(rc)
+          # IMPORTANT: no 300s wrapper timeout here
+          productsign \
+            --sign "$INSTALLER_IDENTITY" \
+            --keychain "$KEYCHAIN_PATH" \
+            build/macos/cli-top-dist-unsigned.pkg \
+            build/macos/cli-top.pkg
 
-          subprocess.run(
-              ["security", "unlock-keychain", "-p", os.environ["KEYCHAIN_PASSWORD"], os.environ["KEYCHAIN_PATH"]],
-              check=False,
-          )
-          subprocess.run(
-              [
-                  "security",
-                  "set-key-partition-list",
-                  "-S",
-                  "apple-tool:,apple:",
-                  "-s",
-                  "-k",
-                  os.environ["KEYCHAIN_PASSWORD"],
-                  "-D",
-                  os.environ["INSTALLER_IDENTITY"],
-                  "-t",
-                  "private",
-                  os.environ["KEYCHAIN_PATH"],
-              ],
-              check=False,
-          )
-          identity = os.environ.get("INSTALLER_IDENTITY") or os.environ.get("APPLE_INSTALLER_IDENTITY", "")
-          if not identity:
-              print("::error ::Missing installer identity for productsign", flush=True)
-              sys.exit(1)
-          sign_cmd = [
-              "productsign",
-              "--sign",
-              identity,
-              "--keychain",
-              os.environ["KEYCHAIN_PATH"],
-              "build/macos/cli-top-dist-unsigned.pkg",
-              "build/macos/cli-top.pkg",
-          ]
-          rc = run(sign_cmd)
-          if rc != 0:
-              sys.exit(rc)
-          PY
+          pkgutil --check-signature build/macos/cli-top.pkg
 
       - name: Notarize PKG
         run: |
@@ -555,6 +517,11 @@ jobs:
         with:
           name: cli-top-macos-pkg
           path: ./build/macos/cli-top.pkg
+
+      - name: Cleanup keychain
+        if: ${{ always() }}
+        run: |
+          security delete-keychain "$KEYCHAIN_PATH" || true
 
   build-android:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev')
