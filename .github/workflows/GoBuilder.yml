@@ -147,7 +147,7 @@ jobs:
           end;
 
           const
-            HWND_BROADCAST_CUSTOM = $FFFF; 
+            HWND_BROADCAST_CUSTOM = $FFFF;
             WM_SETTINGCHANGE = $1A;
 
           function SendMessageTimeoutA(hwnd: LongWord; msg: LongWord; wParam: LongWord;
@@ -158,7 +158,7 @@ jobs:
           procedure RefreshEnvironment;
           var
             ResultValue: LongWord;
-            EnvironmentStr: AnsiString; 
+            EnvironmentStr: AnsiString;
           begin
             EnvironmentStr := 'Environment';
             if SendMessageTimeoutA(
@@ -235,15 +235,19 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev')
     runs-on: macos-latest
     env:
+      # Keep these for validation + notary; we no longer rely on APPLE_SIGNING_IDENTITY string for codesign
       APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
       APPLE_INSTALLER_IDENTITY: ${{ secrets.APPLE_INSTALLER_IDENTITY }}
+
       MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
       MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
       MACOS_INSTALLER_CERT_P12: ${{ secrets.MACOS_INSTALLER_CERT_P12 }}
       MACOS_INSTALLER_CERT_PASSWORD: ${{ secrets.MACOS_INSTALLER_CERT_PASSWORD }}
+
       APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
       APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
       APPLE_NOTARY_API_KEY: ${{ secrets.APPLE_NOTARY_API_KEY }}
+
       MACOS_PKG_IDENTIFIER: ${{ vars.MACOS_PKG_IDENTIFIER }}
       MACOS_INSTALL_LOCATION: ${{ vars.MACOS_INSTALL_LOCATION }}
     steps:
@@ -274,8 +278,6 @@ jobs:
         run: |
           set -euo pipefail
           REQUIRED_VARS=(
-            APPLE_SIGNING_IDENTITY
-            APPLE_INSTALLER_IDENTITY
             MACOS_CERT_P12
             MACOS_CERT_PASSWORD
             MACOS_INSTALLER_CERT_P12
@@ -308,7 +310,7 @@ jobs:
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-          # Append temp keychain to search list (don’t replace the list with only this keychain)
+          # Append temp keychain to existing search list (don’t replace)
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
           security default-keychain -s "$KEYCHAIN_PATH"
 
@@ -332,15 +334,16 @@ jobs:
           openssl pkcs12 -in "$APP_CERT_PATH" -passin pass:"$MACOS_CERT_PASSWORD" -noout >/dev/null
           openssl pkcs12 -in "$INSTALLER_CERT_PATH" -passin pass:"$MACOS_INSTALLER_CERT_PASSWORD" -noout >/dev/null
 
-          # Import and allow non-interactive access in CI
-          security import "$APP_CERT_PATH" -k "$KEYCHAIN_PATH" -P "$MACOS_CERT_PASSWORD" -A -f pkcs12
-          security import "$INSTALLER_CERT_PATH" -k "$KEYCHAIN_PATH" -P "$MACOS_INSTALLER_CERT_PASSWORD" -A -f pkcs12
+          # Import with trusted tools to avoid ACL prompts, plus -A for CI
+          security import "$APP_CERT_PATH" -k "$KEYCHAIN_PATH" -P "$MACOS_CERT_PASSWORD" -A -f pkcs12 -T /usr/bin/codesign
+          security import "$INSTALLER_CERT_PATH" -k "$KEYCHAIN_PATH" -P "$MACOS_INSTALLER_CERT_PASSWORD" -A -f pkcs12 -T /usr/bin/productbuild -T /usr/bin/productsign -T /usr/bin/pkgbuild
 
-          # Critical for non-interactive codesign/productsign access
+          # Critical for non-interactive codesign/productsign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-          # sanity (won’t fail build if empty)
+          echo "Identities in keychain:"
           security find-identity -v -p basic "$KEYCHAIN_PATH" || true
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH" || true
 
       - name: Build MacOS Universal Binary
         run: |
@@ -354,7 +357,28 @@ jobs:
       - name: Codesign binary
         run: |
           set -euo pipefail
-          codesign --force --options runtime --timestamp --sign "$APPLE_SIGNING_IDENTITY" --keychain "$KEYCHAIN_PATH" build/macos/cli-top
+
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          echo "Available codesigning identities:"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH" || true
+
+          CODESIGN_ID_HASH="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
+            | awk '/Developer ID Application/ {print $2; exit}')"
+
+          if [ -z "${CODESIGN_ID_HASH:-}" ]; then
+            echo "::error ::No 'Developer ID Application' identity found in keychain. Your MACOS_CERT_P12 must include the Developer ID Application cert + private key."
+            exit 1
+          fi
+
+          codesign --force --options runtime --timestamp \
+            --sign "$CODESIGN_ID_HASH" \
+            --keychain "$KEYCHAIN_PATH" \
+            build/macos/cli-top
+
           codesign --verify --verbose=2 build/macos/cli-top
 
       - name: Package signed ZIP (legacy)
@@ -434,20 +458,14 @@ jobs:
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
           security default-keychain -s "$KEYCHAIN_PATH"
-
-          # Re-assert partition list right before productsign (helps on flaky runners)
           security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-          if ! security find-identity -v -p basic "$KEYCHAIN_PATH" | grep -q "Developer ID Installer"; then
-            echo "::error ::No Developer ID Installer identity found in keychain."
-            security find-identity -v -p basic "$KEYCHAIN_PATH" || true
-            exit 1
-          fi
+          echo "Available installer identities:"
+          security find-identity -v -p basic "$KEYCHAIN_PATH" || true
 
           INSTALLER_IDENTITY="$(security find-identity -v -p basic "$KEYCHAIN_PATH" | awk -F\" '/Developer ID Installer/ {print $2; exit}')"
           if [ -z "$INSTALLER_IDENTITY" ]; then
-            echo "::error ::Unable to resolve Developer ID Installer identity."
-            security find-identity -v -p basic "$KEYCHAIN_PATH" || true
+            echo "::error ::No 'Developer ID Installer' identity found in keychain. Your MACOS_INSTALLER_CERT_P12 must include the Developer ID Installer cert + private key."
             exit 1
           fi
           echo "INSTALLER_IDENTITY=$INSTALLER_IDENTITY" >> "$GITHUB_ENV"
@@ -479,7 +497,7 @@ jobs:
             --package-path build/macos \
             build/macos/cli-top-dist-unsigned.pkg
 
-          # IMPORTANT: no 300s wrapper timeout here
+          # No 300s wrapper timeout
           productsign \
             --sign "$INSTALLER_IDENTITY" \
             --keychain "$KEYCHAIN_PATH" \
