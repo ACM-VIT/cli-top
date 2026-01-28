@@ -1,6 +1,6 @@
 {
   "name": "cli-top",
-  "version": "2.9.14",
+  "version": "2.10.1",
   "description": "CLI tool for VTOP",
   "bin": {
     "cli-top": "npm/bin/cli-top.js"
