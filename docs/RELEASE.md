@@ -12,6 +12,7 @@ The `GoBuilder.yml` workflow now pushes the packaged binaries directly to the pu
 
 1. **Add a `WEBSITE_REPO_TOKEN` repository secret** that contains a Personal Access Token with `repo` scope. The PAT must have push/PR permissions on `technical-director-acmvit/cli-top-website`.
 2. **Keep `release_metadata.json` up to date** on the private CLI repository before triggering `GoBuilder`.
+   - Optional: set `baseUrl` to control where auto-updaters resolve build artifacts (e.g. `"/buildFiles"` or a full URL).
    - `version` must match `debug/debug.go`.
    - `releaseDate` can be blank; it defaults to the current UTC date.
    - `killSwitch` lets you bump the remote kill-switch value (defaults to `4`).

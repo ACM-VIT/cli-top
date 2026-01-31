@@ -1,6 +1,6 @@
 {
   "name": "cli-top",
-  "version": "2.10.1",
+  "version": "2.10.2",
   "description": "CLI tool for VTOP",
   "bin": {
     "cli-top": "npm/bin/cli-top.js"
@@ -10,8 +10,7 @@
   },
   "files": [
     "npm/bin",
-    "npm/scripts",
-    "README.md" 
+    "npm/scripts"
   ],
   "engines": {
     "node": ">=16"
