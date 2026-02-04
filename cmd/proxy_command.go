@@ -15,14 +15,15 @@ import (
 	"cli-top/helpers"
 	"cli-top/login"
 	"cli-top/types"
+
 	"github.com/spf13/cobra"
 )
 
 var proxyCmd = &cobra.Command{
-	Use:    "proxy <username> <password> <command> [flags]",
-	Short:  "Machine-facing entrypoint used by the proxy + MCP services",
-	Hidden: true,
-	Args:   cobra.MinimumNArgs(3),
+	Use:                "proxy <username> <password> <command> [flags]",
+	Short:              "Machine-facing entrypoint used by the proxy + MCP services",
+	Hidden:             true,
+	Args:               cobra.MinimumNArgs(3),
 	DisableFlagParsing: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		runProxyCommand(args)
