@@ -6,12 +6,13 @@ import (
 	"cli-top/helpers"
 	types "cli-top/types"
 	"fmt"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 	"math"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	"github.com/PuerkitoBio/goquery"
 )
