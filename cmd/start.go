@@ -272,10 +272,54 @@ func readCookiesFromFile() (types.Cookies, string) {
 	return cookies, regNo
 }
 
+func isStartupSideEffectFreeArg(arg string) bool {
+	switch arg {
+	case "completion", "__complete", "__completeNoDesc", "help", "--help", "-h", "--version", "-v":
+		return true
+	default:
+		return false
+	}
+}
+
+func shouldSkipStartupSideEffects(args []string) bool {
+	for _, arg := range args {
+		if isStartupSideEffectFreeArg(arg) {
+			return true
+		}
+	}
+	return false
+}
+
+func shouldSkipCommandSideEffects(cmd *cobra.Command) bool {
+	if cmd == nil {
+		return false
+	}
+
+	if flag := cmd.Flags().Lookup("help"); flag != nil && flag.Changed {
+		return true
+	}
+	if flag := cmd.InheritedFlags().Lookup("help"); flag != nil && flag.Changed {
+		return true
+	}
+
+	switch cmd.Name() {
+	case "completion", "__complete", "__completeNoDesc", "help":
+		return true
+	case "cli-top":
+		return versionFlag
+	default:
+		return false
+	}
+}
+
 var rootCmd = &cobra.Command{
 	Use:   "cli-top",
 	Short: "A simple CLI tool for vtop",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		if shouldSkipCommandSideEffects(cmd) {
+			return
+		}
+
 		if cmd.Name() != "login" && cmd.Name() != "logout" && cmd.Name() != "cli-top" && cmd.Name() != "proxy" {
 			go trackCommand(cmd.Name())
 		}
@@ -337,39 +381,8 @@ Available Subcommands:{{range .Commands}}{{if (and .IsAvailableCommand (not .Hid
 
 Use "{{.CommandPath}} <subcommand> --help" for more information about a subcommand.
 `)
-}
 
-func Execute() {
-	killSwitch := helpers.CheckKillSwitch()
-	if killSwitch == 2 {
-		helpers.Println("This version of cli-top has been decommissioned.")
-		return
-	} else if killSwitch == 3 {
-		err := helpers.OpenURLInBrowser("https://vtop.vit.ac.in")
-		if err != nil {
-			helpers.Println("An unexpected error has occurred", err)
-		}
-		return
-	}
-
-	err := godotenv.Load(configFilePath())
-	if err != nil && debug.Debug {
-		helpers.Println("Error loading .env file:", err)
-	}
-
-	userUUID := getOrCreateUUID()
-	if debug.Debug {
-		helpers.Println("User UUID:", userUUID)
-	}
-
-	if !updateFlag && os.Args[len(os.Args)-1] != "-u" && os.Args[len(os.Args)-1] != "--update" {
-		shouldNotify, latestVersion, highlight := helpers.ShouldShowUpdateNotification()
-		if shouldNotify {
-			helpers.ShowUpdateNotification(latestVersion, highlight)
-		}
-	}
-
-	// Define flags for subcommands
+	// Define flags for subcommands.
 	marksCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	gradesCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	timeTableCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
@@ -384,15 +397,14 @@ func Execute() {
 	coursePageArchiveCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
 	coursePageArchiveCmd.PersistentFlags().StringVarP(&facultyFlag, "faculty", "f", "", "Specify the faculty")
 	coursePageArchiveCmd.PersistentFlags().IntVarP(&fuzzyIndexFlag, "fuzzy-index", "i", 0, "Specify the fuzzy index")
-
 	syllabusCmd.PersistentFlags().StringVarP(&syllabusCourseFlag, "course", "c", "", "Specify course search query ")
-	//daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
-	// Define global flags
+
+	// Define global flags.
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
 	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
 
-	// Add subcommands to root command
+	// Add subcommands to root command.
 	rootCmd.AddCommand(
 		profileCmd,
 		marksCmd,
@@ -417,6 +429,39 @@ func Execute() {
 		courseAllocationCmd,
 		proxyCmd,
 	)
+}
+
+func Execute() {
+	if !shouldSkipStartupSideEffects(os.Args[1:]) {
+		killSwitch := helpers.CheckKillSwitch()
+		if killSwitch == 2 {
+			helpers.Println("This version of cli-top has been decommissioned.")
+			return
+		} else if killSwitch == 3 {
+			err := helpers.OpenURLInBrowser("https://vtop.vit.ac.in")
+			if err != nil {
+				helpers.Println("An unexpected error has occurred", err)
+			}
+			return
+		}
+
+		err := godotenv.Load(configFilePath())
+		if err != nil && debug.Debug {
+			helpers.Println("Error loading .env file:", err)
+		}
+
+		userUUID := getOrCreateUUID()
+		if debug.Debug {
+			helpers.Println("User UUID:", userUUID)
+		}
+
+		if !updateFlag && (len(os.Args) == 1 || (os.Args[len(os.Args)-1] != "-u" && os.Args[len(os.Args)-1] != "--update")) {
+			shouldNotify, latestVersion, highlight := helpers.ShouldShowUpdateNotification()
+			if shouldNotify {
+				helpers.ShowUpdateNotification(latestVersion, highlight)
+			}
+		}
+	}
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
