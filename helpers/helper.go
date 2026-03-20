@@ -261,6 +261,9 @@ func FetchReqClientWithContext(ctx context.Context, client *http.Client, regNo s
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	if err := ValidateVtopURL(url); err != nil {
+		return nil, nil, err
+	}
 	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(formData))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create HTTP request: %w", err)

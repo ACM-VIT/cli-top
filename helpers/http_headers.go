@@ -1,6 +1,9 @@
 package helpers
 
-import "net/http"
+import (
+	"net/http"
+	"strings"
+)
 
 // SetVtopHeaders sets common HTTP headers used when communicating with VTOP.
 func SetVtopHeaders(req *http.Request) {
@@ -19,4 +22,18 @@ func SetVtopHeaders(req *http.Request) {
 	req.Header.Set("Sec-Fetch-User", "?1")
 	req.Header.Set("Sec-Fetch-Dest", "document")
 	req.Header.Set("Priority", "u=0, i")
+
+	if req.URL == nil || !isVtopHost(req.URL.Hostname()) {
+		return
+	}
+
+	if req.Header.Get("Origin") == "" {
+		req.Header.Set("Origin", VtopBaseURL)
+	}
+	if req.Header.Get("Referer") == "" && strings.HasPrefix(req.URL.Path, "/vtop/") {
+		req.Header.Set("Referer", vtopDefaultReferer)
+	}
+	if req.Header.Get("Sec-Fetch-Site") == "" {
+		req.Header.Set("Sec-Fetch-Site", "same-origin")
+	}
 }
