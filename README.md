@@ -30,6 +30,9 @@
 - **Course Page**: Access course materials and updates
 - **Academic Calendar**: Keep track of important academic dates
 - **Holiday List**: See upcoming holidays that actually cancel your classes
+- **Today Planner**: See today's classes and whether attendance gives you room to skip any
+- **Tomorrow Planner**: See tomorrow's classes and whether attendance gives you room to skip any
+- **Day After Planner**: See the day after tomorrow's classes and whether attendance gives you room to skip any
 - **Exam Schedule**: View upcoming exam schedules
 - **Attendance Calculator**: Calculate your attendance percentage
 - **Time Table**: Easily view your class schedule
@@ -99,6 +102,14 @@ After installation, you can access various features of **cli-top** by running sp
 ```bash
 ./cli-top attendance
 ```
+- **Check Tomorrow's Skip Leverage:**
+```bash
+./cli-top tomorrow
+```
+- **Check Today's Skip Leverage:**
+```bash
+./cli-top today
+```
 - For a full list of commands and features of cli-top, you can run:
 
 ```bash
@@ -149,4 +160,3 @@ After installation, you can access various features of **cli-top** by running sp
 - [Yashika Panda](https://github.com/yashikaa2005)
 - [Shruthilaya K](https://github.com/shruthilayak11)
 - [Srijan Srivastava](https://github.com/Srijan1202)
-

@@ -67,6 +67,24 @@ cli-top holiday [-s SEMESTER] [-g CLASS_GROUP]
 ```
 Shows upcoming class-impacting holidays for a particular semester.
 
+#### Today
+```bash
+cli-top today [-s SEMESTER] [-g CLASS_GROUP]
+```
+Shows today's effective schedule and whether your current attendance gives you room to skip each class.
+
+#### Tomorrow
+```bash
+cli-top tomorrow [-s SEMESTER] [-g CLASS_GROUP]
+```
+Shows tomorrow's effective schedule and whether your current attendance gives you room to skip each class.
+
+#### Day After
+```bash
+cli-top dayafter [-s SEMESTER] [-g CLASS_GROUP]
+```
+Shows the day after tomorrow's effective schedule and whether your current attendance gives you room to skip each class.
+
 #### Calendar
 ```bash
 cli-top calendar [-s SEMESTER] [-g CLASS_GROUP]

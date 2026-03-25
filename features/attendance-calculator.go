@@ -29,6 +29,18 @@ var (
 	reProfessor   = regexp.MustCompile(`^(.*?)\s*-\s*`)
 )
 
+type AttendanceRecord struct {
+	Subject         string
+	Type            string
+	FacultyName     string
+	ClassesAttended string
+	Percentage      string
+	Alert           string
+	CanMiss         int
+	NeedsAttend     int
+	IsLab           bool
+}
+
 func GetAttendance(regNo string, cookies types.Cookies, sem_choice int) {
 	if !helpers.ValidateLogin(cookies) {
 		return
@@ -100,9 +112,26 @@ func GetAttendance(regNo string, cookies types.Cookies, sem_choice int) {
 }
 
 func findAndSaveAttendance(doc *goquery.Document) [][]string {
-	var attendanceList [][]string
-	attendanceList = append(attendanceList, []string{"Subject", "Type", "Faculty Name", "Classes Attended", "Percentage", "75% Alert"})
+	return attendanceRecordsToTable(ExtractAttendanceRecords(doc))
+}
 
+func attendanceRecordsToTable(records []AttendanceRecord) [][]string {
+	attendanceList := [][]string{{"Subject", "Type", "Faculty Name", "Classes Attended", "Percentage", "75% Alert"}}
+	for _, record := range records {
+		attendanceList = append(attendanceList, []string{
+			record.Subject,
+			record.Type,
+			record.FacultyName,
+			record.ClassesAttended,
+			record.Percentage,
+			record.Alert,
+		})
+	}
+	return attendanceList
+}
+
+func ExtractAttendanceRecords(doc *goquery.Document) []AttendanceRecord {
+	var records []AttendanceRecord
 	table := doc.Find(AttendanceTableSelector)
 	if table.Length() > 0 {
 		table.Find(AttendanceRowsSelector).Each(func(i int, rowSelection *goquery.Selection) {
@@ -145,29 +174,46 @@ func findAndSaveAttendance(doc *goquery.Document) [][]string {
 				return
 			}
 
-			// Calculate 75% Alert
-			var missOrAttend string
-			if sub_type == "Lab Only" || sub_type == "Embedded Lab" {
-				attendedInt = attendedInt / 2
-				totalInt = totalInt / 2
-				missOrAttend = calculateAttendance(attendedInt, totalInt, 1)
-			} else {
-				missOrAttend = calculateAttendance(attendedInt, totalInt, 0)
-			}
+			isLab := sub_type == "Lab Only" || sub_type == "Embedded Lab"
+			status := calculateAttendanceStatus(attendedInt, totalInt, isLab)
 
-			attendanceList = append(attendanceList, []string{sub_name, sub_type, proff, classes_attended, percent, missOrAttend})
+			records = append(records, AttendanceRecord{
+				Subject:         sub_name,
+				Type:            sub_type,
+				FacultyName:     proff,
+				ClassesAttended: classes_attended,
+				Percentage:      percent,
+				Alert:           status.Display,
+				CanMiss:         status.CanMiss,
+				NeedsAttend:     status.NeedsAttend,
+				IsLab:           isLab,
+			})
 		})
 	} else {
 		if debug.Debug {
 			helpers.Println("Table with ID 'AttendanceDetailDataTable' not found.")
 		}
-		helpers.Println("No attendance table found for the selected semester.")
 	}
 
-	return attendanceList
+	return records
+}
+
+type attendanceStatus struct {
+	Display     string
+	CanMiss     int
+	NeedsAttend int
 }
 
 func calculateAttendance(attended, total, classtype int) string {
+	return calculateAttendanceStatus(attended, total, classtype == 1).Display
+}
+
+func calculateAttendanceStatus(attended, total int, isLab bool) attendanceStatus {
+	if isLab {
+		attended = attended / 2
+		total = total / 2
+	}
+
 	// Calculate how many more classes need to be attended to meet 74.01% attendance
 	targetAttendance := 0.7401
 	neededAttendance := targetAttendance * float64(total)
@@ -177,18 +223,45 @@ func calculateAttendance(attended, total, classtype int) string {
 		// Calculate the exact number of additional classes required to meet 74.01%
 		x := (neededAttendance - float64(attended)) / (1 - targetAttendance)
 		x = math.Ceil(x) // Round up to ensure they meet the target after attending whole classes
-		if classtype == 1 {
-			return fmt.Sprintf("\033[31mAttend %d more lab(s)\033[0m", int(x))
+		if isLab {
+			return attendanceStatus{
+				Display:     fmt.Sprintf("\033[31mAttend %d more lab(s)\033[0m", int(x)),
+				NeedsAttend: int(x),
+			}
 		} else {
-			return fmt.Sprintf("\033[31mAttend %d more class(es)\033[0m", int(x))
+			return attendanceStatus{
+				Display:     fmt.Sprintf("\033[31mAttend %d more class(es)\033[0m", int(x)),
+				NeedsAttend: int(x),
+			}
 		}
 	} else {
 		// If already at or above the target, calculate how many can be missed
 		canMiss := int(math.Floor((float64(attended) - neededAttendance) / targetAttendance))
-		if classtype == 1 {
-			return fmt.Sprintf("\033[32mCan miss %d lab(s)\033[0m", canMiss)
+		if isLab {
+			return attendanceStatus{
+				Display: fmt.Sprintf("\033[32mCan miss %d lab(s)\033[0m", canMiss),
+				CanMiss: canMiss,
+			}
 		} else {
-			return fmt.Sprintf("\033[32mCan miss %d class(es)\033[0m", canMiss)
+			return attendanceStatus{
+				Display: fmt.Sprintf("\033[32mCan miss %d class(es)\033[0m", canMiss),
+				CanMiss: canMiss,
+			}
 		}
 	}
+}
+
+func fetchAttendanceRecordsForSemester(regNo string, cookies types.Cookies, semID string) ([]AttendanceRecord, error) {
+	url := "https://vtop.vit.ac.in/vtop/processViewStudentAttendance"
+	bodyText, err := helpers.FetchReq(regNo, cookies, url, semID, "UTC", "POST", "")
+	if err != nil {
+		return nil, err
+	}
+
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
+	if err != nil {
+		return nil, err
+	}
+
+	return ExtractAttendanceRecords(doc), nil
 }
