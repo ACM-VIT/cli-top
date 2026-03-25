@@ -291,35 +291,36 @@ func extractTypeOfDay(doc *goquery.Document, arr []int) []int {
 			if len(txt) == 0 {
 				return
 			}
+			lowerTxt := strings.ToLower(txt)
 
 			if _, err := strconv.Atoi(txt); err == nil {
 				count++
 			}
 
-			if strings.Contains(txt, "Holiday") {
+			if strings.Contains(lowerTxt, "holiday") {
 				t = -1
 				k = 1
-			} else if strings.Contains(txt, "No Instructional Day") {
+			} else if strings.Contains(lowerTxt, "no instructional day") {
 				t = -1
 				k = 1
-			} else if strings.Contains(txt, "Exam") {
+			} else if strings.Contains(lowerTxt, "exam") {
 				t = -1
 				k = 2
-			} else if strings.Contains(txt, "Instructional Day") {
+			} else if strings.Contains(lowerTxt, "instructional day") {
 				t = 0
 				k = 3
-			} else if strings.Contains(txt, "Day Order") {
+			} else if strings.Contains(lowerTxt, "day order") {
 				k = 3
 				switch {
-				case strings.Contains(txt, "Monday"):
+				case strings.Contains(lowerTxt, "monday"):
 					t = 1
-				case strings.Contains(txt, "Tuesday"):
+				case strings.Contains(lowerTxt, "tuesday"):
 					t = 2
-				case strings.Contains(txt, "Wednesday"):
+				case strings.Contains(lowerTxt, "wednesday"):
 					t = 3
-				case strings.Contains(txt, "Thursday"):
+				case strings.Contains(lowerTxt, "thursday"):
 					t = 4
-				case strings.Contains(txt, "Friday"):
+				case strings.Contains(lowerTxt, "friday"):
 					t = 5
 				default:
 					t = 0
