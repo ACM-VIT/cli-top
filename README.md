@@ -29,6 +29,7 @@
 - **Digital Assignment**: Manage your digital assignment submissions
 - **Course Page**: Access course materials and updates
 - **Academic Calendar**: Keep track of important academic dates
+- **Holiday List**: See upcoming holidays that actually cancel your classes
 - **Exam Schedule**: View upcoming exam schedules
 - **Attendance Calculator**: Calculate your attendance percentage
 - **Time Table**: Easily view your class schedule
@@ -148,5 +149,4 @@ After installation, you can access various features of **cli-top** by running sp
 - [Yashika Panda](https://github.com/yashikaa2005)
 - [Shruthilaya K](https://github.com/shruthilayak11)
 - [Srijan Srivastava](https://github.com/Srijan1202)
-
 

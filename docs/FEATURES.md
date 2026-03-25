@@ -61,6 +61,12 @@ cli-top timetable [-s SEMESTER]
 ```
 Shows time table for a particular semester.
 
+#### Holiday
+```bash
+cli-top holiday [-s SEMESTER] [-g CLASS_GROUP]
+```
+Shows upcoming class-impacting holidays for a particular semester.
+
 #### Calendar
 ```bash
 cli-top calendar [-s SEMESTER] [-g CLASS_GROUP]
