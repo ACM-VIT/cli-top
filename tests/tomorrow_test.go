@@ -152,3 +152,36 @@ func TestFilterExamsForDateMatchesExactDay(t *testing.T) {
 		t.Fatalf("unexpected exam returned: %+v", filtered[0])
 	}
 }
+
+func TestFilterExamsForDateIgnoresTimezoneOnDateOnlyExams(t *testing.T) {
+	ist := time.FixedZone("IST", 5*3600+1800)
+	nzdt := time.FixedZone("NZDT", 13*3600)
+	target := time.Date(2026, time.March, 27, 0, 0, 0, 0, ist)
+
+	exams := []types.ExamEvent{
+		{
+			CourseTitle: "Engineering Optimization",
+			Category:    "CAT2",
+			ExamDate:    time.Date(2026, time.March, 27, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			CourseTitle: "Signal Processing",
+			Category:    "CAT2",
+			ExamDate:    time.Date(2026, time.March, 27, 0, 0, 0, 0, nzdt),
+		},
+		{
+			CourseTitle: "Control Systems",
+			Category:    "CAT2",
+			ExamDate:    time.Date(2026, time.March, 28, 0, 0, 0, 0, time.UTC),
+		},
+	}
+
+	filtered := featurespkg.FilterExamsForDate(exams, target)
+	if len(filtered) != 2 {
+		t.Fatalf("expected 2 exams on target date, got %d", len(filtered))
+	}
+
+	if filtered[0].CourseTitle != "Engineering Optimization" || filtered[1].CourseTitle != "Signal Processing" {
+		t.Fatalf("unexpected exams returned: %+v", filtered)
+	}
+}
