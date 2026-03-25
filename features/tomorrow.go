@@ -282,11 +282,9 @@ func normalizeTomorrowSubject(subject string) string {
 }
 
 func FilterExamsForDate(exams []types.ExamEvent, targetDate time.Time) []types.ExamEvent {
-	target := time.Date(targetDate.Year(), targetDate.Month(), targetDate.Day(), 0, 0, 0, 0, targetDate.Location())
 	var filtered []types.ExamEvent
 	for _, exam := range exams {
-		examDate := time.Date(exam.ExamDate.Year(), exam.ExamDate.Month(), exam.ExamDate.Day(), 0, 0, 0, 0, exam.ExamDate.Location())
-		if examDate.Equal(target) {
+		if sameCalendarDate(exam.ExamDate, targetDate) {
 			filtered = append(filtered, exam)
 		}
 	}
@@ -299,6 +297,12 @@ func FilterExamsForDate(exams []types.ExamEvent, targetDate time.Time) []types.E
 	})
 
 	return filtered
+}
+
+func sameCalendarDate(first, second time.Time) bool {
+	return first.Year() == second.Year() &&
+		first.Month() == second.Month() &&
+		first.Day() == second.Day()
 }
 
 func formatAttendancePercentage(raw string) string {
