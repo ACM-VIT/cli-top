@@ -19,7 +19,10 @@ func TestShouldSkipStartupSideEffects(t *testing.T) {
 		{name: "hidden complete command", args: []string{"__complete", "marks"}, want: true},
 		{name: "help flag", args: []string{"--help"}, want: true},
 		{name: "version flag", args: []string{"-v"}, want: true},
+		{name: "subcommand help flag", args: []string{"marks", "--help"}, want: true},
 		{name: "normal command", args: []string{"marks", "--semester", "1"}, want: false},
+		{name: "subcommand value that looks like version", args: []string{"marks", "-v"}, want: false},
+		{name: "subcommand long value that looks like version", args: []string{"marks", "--version"}, want: false},
 	}
 
 	for _, tt := range tests {

@@ -145,6 +145,21 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 	}
 }
 
+func fetchExamEventsForSemester(regNo string, cookies types.Cookies, semID string) ([]types.ExamEvent, error) {
+	url := "https://vtop.vit.ac.in/vtop/examinations/doSearchExamScheduleForStudent"
+	bodyText, err := helpers.FetchReq(regNo, cookies, url, semID, "UTC", "POST", "")
+	if err != nil {
+		return nil, err
+	}
+
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
+	if err != nil {
+		return nil, err
+	}
+
+	return parseExamSchedule(doc)
+}
+
 func safeGetCellText(cells *goquery.Selection, index int) string {
 	if index < cells.Length() {
 		return strings.TrimSpace(cells.Eq(index).Text())

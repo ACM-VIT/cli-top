@@ -52,6 +52,9 @@ type proxyError struct {
 var interactiveProxyCommands = map[string]struct{}{
 	"timetable": {},
 	"holiday":   {},
+	"today":     {},
+	"tomorrow":  {},
+	"dayafter":  {},
 	"marks":     {},
 	"grades":    {},
 	"calendar":  {},
@@ -265,6 +268,12 @@ func executeFeatureCommand(command string, flags map[string]string, cookies type
 		features.GetTimeTable(regNo, cookies, parseIntFlag(flags, "semester"))
 	case "holiday":
 		features.GetHolidayList(regNo, cookies, parseIntFlag(flags, "semester"), parseIntFlag(flags, "classGroup"))
+	case "today":
+		features.GetToday(regNo, cookies, parseIntFlag(flags, "semester"), parseIntFlag(flags, "classGroup"))
+	case "tomorrow":
+		features.GetTomorrow(regNo, cookies, parseIntFlag(flags, "semester"), parseIntFlag(flags, "classGroup"))
+	case "dayafter":
+		features.GetDayAfter(regNo, cookies, parseIntFlag(flags, "semester"), parseIntFlag(flags, "classGroup"))
 	case "receipts":
 		features.GetReceipt(regNo, cookies)
 	case "hostel":

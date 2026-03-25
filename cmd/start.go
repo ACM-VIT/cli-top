@@ -282,11 +282,20 @@ func isStartupSideEffectFreeArg(arg string) bool {
 }
 
 func ShouldSkipStartupSideEffects(args []string) bool {
-	for _, arg := range args {
-		if isStartupSideEffectFreeArg(arg) {
+	if len(args) == 0 {
+		return false
+	}
+
+	if isStartupSideEffectFreeArg(args[0]) {
+		return true
+	}
+
+	for _, arg := range args[1:] {
+		if arg == "--help" || arg == "-h" {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -388,6 +397,12 @@ Use "{{.CommandPath}} <subcommand> --help" for more information about a subcomma
 	timeTableCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	holidayCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	holidayCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
+	todayCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	todayCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
+	tomorrowCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	tomorrowCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
+	dayAfterCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	dayAfterCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
 	examScheduleCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	calendarCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	calendarCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
@@ -414,6 +429,9 @@ Use "{{.CommandPath}} <subcommand> --help" for more information about a subcomma
 		attendanceCmd,
 		timeTableCmd,
 		holidayCmd,
+		todayCmd,
+		tomorrowCmd,
+		dayAfterCmd,
 		receiptCmd,
 		hostelCmd,
 		cgpaCmd,
@@ -560,6 +578,34 @@ var holidayCmd = &cobra.Command{
 	Run: helpers.CommandRunner("holiday", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.GetHolidayList(regNo, cookies, semesterFlag, classGrpFlag)
+	}),
+}
+
+var todayCmd = &cobra.Command{
+	Use:   "today",
+	Short: "Show today's classes and whether attendance gives you room to skip them",
+	Run: helpers.CommandRunner("today", func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetToday(regNo, cookies, semesterFlag, classGrpFlag)
+	}),
+}
+
+var tomorrowCmd = &cobra.Command{
+	Use:   "tomorrow",
+	Short: "Show tomorrow's classes and whether attendance gives you room to skip them",
+	Run: helpers.CommandRunner("tomorrow", func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetTomorrow(regNo, cookies, semesterFlag, classGrpFlag)
+	}),
+}
+
+var dayAfterCmd = &cobra.Command{
+	Use:     "dayafter",
+	Aliases: []string{"day-after"},
+	Short:   "Show the day after tomorrow's classes and whether attendance gives you room to skip them",
+	Run: helpers.CommandRunner("dayafter", func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetDayAfter(regNo, cookies, semesterFlag, classGrpFlag)
 	}),
 }
 
