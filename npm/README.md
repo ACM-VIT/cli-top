@@ -34,6 +34,7 @@ cli-top grades
 cli-top attendance
 cli-top receipts
 cli-top timetable
+cli-top holiday
 cli-top hostel
 cli-top cgpa
 cli-top exams

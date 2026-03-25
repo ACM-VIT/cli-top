@@ -281,7 +281,7 @@ func isStartupSideEffectFreeArg(arg string) bool {
 	}
 }
 
-func shouldSkipStartupSideEffects(args []string) bool {
+func ShouldSkipStartupSideEffects(args []string) bool {
 	for _, arg := range args {
 		if isStartupSideEffectFreeArg(arg) {
 			return true
@@ -290,7 +290,7 @@ func shouldSkipStartupSideEffects(args []string) bool {
 	return false
 }
 
-func shouldSkipCommandSideEffects(cmd *cobra.Command) bool {
+func ShouldSkipCommandSideEffects(cmd *cobra.Command, rootVersionRequested bool) bool {
 	if cmd == nil {
 		return false
 	}
@@ -306,7 +306,7 @@ func shouldSkipCommandSideEffects(cmd *cobra.Command) bool {
 	case "completion", "__complete", "__completeNoDesc", "help":
 		return true
 	case "cli-top":
-		return versionFlag
+		return rootVersionRequested
 	default:
 		return false
 	}
@@ -316,7 +316,7 @@ var rootCmd = &cobra.Command{
 	Use:   "cli-top",
 	Short: "A simple CLI tool for vtop",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		if shouldSkipCommandSideEffects(cmd) {
+		if ShouldSkipCommandSideEffects(cmd, versionFlag) {
 			return
 		}
 
@@ -386,6 +386,8 @@ Use "{{.CommandPath}} <subcommand> --help" for more information about a subcomma
 	marksCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	gradesCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	timeTableCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	holidayCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	holidayCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
 	examScheduleCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	calendarCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	calendarCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
@@ -411,6 +413,7 @@ Use "{{.CommandPath}} <subcommand> --help" for more information about a subcomma
 		gradesCmd,
 		attendanceCmd,
 		timeTableCmd,
+		holidayCmd,
 		receiptCmd,
 		hostelCmd,
 		cgpaCmd,
@@ -432,7 +435,7 @@ Use "{{.CommandPath}} <subcommand> --help" for more information about a subcomma
 }
 
 func Execute() {
-	if !shouldSkipStartupSideEffects(os.Args[1:]) {
+	if !ShouldSkipStartupSideEffects(os.Args[1:]) {
 		killSwitch := helpers.CheckKillSwitch()
 		if killSwitch == 2 {
 			helpers.Println("This version of cli-top has been decommissioned.")
@@ -548,6 +551,15 @@ var timeTableCmd = &cobra.Command{
 	Run: helpers.CommandRunner("timetable", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.GetTimeTable(regNo, cookies, semesterFlag)
+	}),
+}
+
+var holidayCmd = &cobra.Command{
+	Use:   "holiday",
+	Short: "Show upcoming class-impacting holidays for a semester",
+	Run: helpers.CommandRunner("holiday", func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetHolidayList(regNo, cookies, semesterFlag, classGrpFlag)
 	}),
 }
 
