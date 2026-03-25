@@ -49,6 +49,6 @@ cli-top da
 cli-top syllabus
 cli-top facility
 cli-top course-allocation
-cli-top proxy
+cli-top today/tomorrow/dayafter
 cli-top logout
 ```
