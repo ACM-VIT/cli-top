@@ -256,7 +256,7 @@ func processDates(regNo string, cookies types.Cookies, semester types.Semester, 
 		if monthDocs[i].doc == nil {
 			continue
 		}
-		typeOfDay := extractTypeOfDay(monthDocs[i].doc, return_list[i])
+		typeOfDay := ExtractTypeOfDay(monthDocs[i].doc, return_list[i])
 		color_list = append(color_list, typeOfDay)
 		months = append(months, date[3:6])
 		year = date[7:]
@@ -279,7 +279,7 @@ func addPadding(color_list *[][]int) {
 	}
 }
 
-func extractTypeOfDay(doc *goquery.Document, arr []int) []int {
+func ExtractTypeOfDay(doc *goquery.Document, arr []int) []int {
 	var typeOfDay []int
 	count := -1
 

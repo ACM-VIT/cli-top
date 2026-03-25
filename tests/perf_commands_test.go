@@ -422,6 +422,7 @@ func resolveCommandRun(cmd string) ([]string, string, string) {
 		"da":                  {},
 		"exams":               {"--semester", "1"},
 		"grades":              {"--semester", "1"},
+		"holiday":             {"--semester", "1"},
 		"marks":               {"--semester", "1"},
 		"timetable":           {"--semester", "1"},
 		"syllabus":            {"--course", "1"},

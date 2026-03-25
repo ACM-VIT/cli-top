@@ -597,7 +597,7 @@ func GetTimeTable(regNo string, cookies types.Cookies, sem_choice int) {
 	}
 
 	locIndia := time.FixedZone("IST", 5*3600+1800)
-	workingSats := workingSaturdaysFromSemSection(semSec, month, year, locIndia)
+	workingSats := WorkingSaturdaysFromSemSection(semSec, month, year, locIndia)
 	if len(workingSats) == 0 {
 		workingSats = fetchWorkingSaturdays(regNo, cookies, semester.SemID, classGroupID)
 	}
@@ -924,7 +924,7 @@ func cleanTimeTableText(s string) string {
 	return strings.TrimSpace(strings.Join(strings.Fields(s), " "))
 }
 
-func workingSaturdaysFromSemSection(semSection [][]int, startMonth int, startYear int, loc *time.Location) []WorkingSaturday {
+func WorkingSaturdaysFromSemSection(semSection [][]int, startMonth int, startYear int, loc *time.Location) []WorkingSaturday {
 	currentDate := time.Date(startYear, time.Month(startMonth+1), 1, 0, 0, 0, 0, loc)
 	var result []WorkingSaturday
 
