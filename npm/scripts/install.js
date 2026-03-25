@@ -27,6 +27,7 @@ function getBinaryPath() {
 
 async function ensureBinary(options = {}) {
   const quiet = Boolean(options.quiet);
+  const allowExistingOnFailure = Boolean(options.allowExistingOnFailure);
   if (SKIP_DOWNLOAD) {
     if (fs.existsSync(BIN_PATH)) {
       return BIN_PATH;
@@ -34,7 +35,15 @@ async function ensureBinary(options = {}) {
     throw new Error('CLI_TOP_SKIP_DOWNLOAD=1 but binary is missing.');
   }
 
-  const latest = await fetchJson(LATEST_URL);
+  let latest;
+  try {
+    latest = await fetchJson(LATEST_URL);
+  } catch (err) {
+    if (allowExistingOnFailure && fs.existsSync(BIN_PATH)) {
+      return BIN_PATH;
+    }
+    throw err;
+  }
   const desiredVersion = latest && latest.version ? String(latest.version) : '';
 
   if (desiredVersion && fs.existsSync(BIN_PATH) && fs.existsSync(VERSION_PATH)) {
@@ -70,6 +79,10 @@ async function ensureBinary(options = {}) {
         console.warn(`Failed to download from ${url}: ${err.message || err}`);
       }
     }
+  }
+
+  if (allowExistingOnFailure && fs.existsSync(BIN_PATH)) {
+    return BIN_PATH;
   }
 
   throw lastErr || new Error('Failed to download cli-top');

@@ -272,10 +272,63 @@ func readCookiesFromFile() (types.Cookies, string) {
 	return cookies, regNo
 }
 
+func isStartupSideEffectFreeArg(arg string) bool {
+	switch arg {
+	case "completion", "__complete", "__completeNoDesc", "help", "--help", "-h", "--version", "-v":
+		return true
+	default:
+		return false
+	}
+}
+
+func ShouldSkipStartupSideEffects(args []string) bool {
+	if len(args) == 0 {
+		return false
+	}
+
+	if isStartupSideEffectFreeArg(args[0]) {
+		return true
+	}
+
+	for _, arg := range args[1:] {
+		if arg == "--help" || arg == "-h" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func ShouldSkipCommandSideEffects(cmd *cobra.Command, rootVersionRequested bool) bool {
+	if cmd == nil {
+		return false
+	}
+
+	if flag := cmd.Flags().Lookup("help"); flag != nil && flag.Changed {
+		return true
+	}
+	if flag := cmd.InheritedFlags().Lookup("help"); flag != nil && flag.Changed {
+		return true
+	}
+
+	switch cmd.Name() {
+	case "completion", "__complete", "__completeNoDesc", "help":
+		return true
+	case "cli-top":
+		return rootVersionRequested
+	default:
+		return false
+	}
+}
+
 var rootCmd = &cobra.Command{
 	Use:   "cli-top",
 	Short: "A simple CLI tool for vtop",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		if ShouldSkipCommandSideEffects(cmd, versionFlag) {
+			return
+		}
+
 		if cmd.Name() != "login" && cmd.Name() != "logout" && cmd.Name() != "cli-top" && cmd.Name() != "proxy" {
 			go trackCommand(cmd.Name())
 		}
@@ -337,42 +390,19 @@ Available Subcommands:{{range .Commands}}{{if (and .IsAvailableCommand (not .Hid
 
 Use "{{.CommandPath}} <subcommand> --help" for more information about a subcommand.
 `)
-}
 
-func Execute() {
-	killSwitch := helpers.CheckKillSwitch()
-	if killSwitch == 2 {
-		helpers.Println("This version of cli-top has been decommissioned.")
-		return
-	} else if killSwitch == 3 {
-		err := helpers.OpenURLInBrowser("https://vtop.vit.ac.in")
-		if err != nil {
-			helpers.Println("An unexpected error has occurred", err)
-		}
-		return
-	}
-
-	err := godotenv.Load(configFilePath())
-	if err != nil && debug.Debug {
-		helpers.Println("Error loading .env file:", err)
-	}
-
-	userUUID := getOrCreateUUID()
-	if debug.Debug {
-		helpers.Println("User UUID:", userUUID)
-	}
-
-	if !updateFlag && os.Args[len(os.Args)-1] != "-u" && os.Args[len(os.Args)-1] != "--update" {
-		shouldNotify, latestVersion, highlight := helpers.ShouldShowUpdateNotification()
-		if shouldNotify {
-			helpers.ShowUpdateNotification(latestVersion, highlight)
-		}
-	}
-
-	// Define flags for subcommands
+	// Define flags for subcommands.
 	marksCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	gradesCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	timeTableCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	holidayCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	holidayCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
+	todayCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	todayCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
+	tomorrowCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	tomorrowCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
+	dayAfterCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	dayAfterCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
 	examScheduleCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	calendarCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	calendarCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
@@ -384,21 +414,24 @@ func Execute() {
 	coursePageArchiveCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
 	coursePageArchiveCmd.PersistentFlags().StringVarP(&facultyFlag, "faculty", "f", "", "Specify the faculty")
 	coursePageArchiveCmd.PersistentFlags().IntVarP(&fuzzyIndexFlag, "fuzzy-index", "i", 0, "Specify the fuzzy index")
-
 	syllabusCmd.PersistentFlags().StringVarP(&syllabusCourseFlag, "course", "c", "", "Specify course search query ")
-	//daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course-name", "c", "", "Specify the course name")
-	// Define global flags
+
+	// Define global flags.
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
 	rootCmd.PersistentFlags().BoolVarP(&updateFlag, "update", "u", false, "Check for Updates")
 	rootCmd.PersistentFlags().BoolVarP(&versionFlag, "version", "v", false, "Print Version Number")
 
-	// Add subcommands to root command
+	// Add subcommands to root command.
 	rootCmd.AddCommand(
 		profileCmd,
 		marksCmd,
 		gradesCmd,
 		attendanceCmd,
 		timeTableCmd,
+		holidayCmd,
+		todayCmd,
+		tomorrowCmd,
+		dayAfterCmd,
 		receiptCmd,
 		hostelCmd,
 		cgpaCmd,
@@ -413,10 +446,44 @@ func Execute() {
 		classMessagesCmd,
 		daDetailsCmd,
 		facilityCmd,
+		eventsCmd,
 		syllabusCmd,
 		courseAllocationCmd,
 		proxyCmd,
 	)
+}
+
+func Execute() {
+	if !ShouldSkipStartupSideEffects(os.Args[1:]) {
+		killSwitch := helpers.CheckKillSwitch()
+		if killSwitch == 2 {
+			helpers.Println("This version of cli-top has been decommissioned.")
+			return
+		} else if killSwitch == 3 {
+			err := helpers.OpenURLInBrowser("https://vtop.vit.ac.in")
+			if err != nil {
+				helpers.Println("An unexpected error has occurred", err)
+			}
+			return
+		}
+
+		err := godotenv.Load(configFilePath())
+		if err != nil && debug.Debug {
+			helpers.Println("Error loading .env file:", err)
+		}
+
+		userUUID := getOrCreateUUID()
+		if debug.Debug {
+			helpers.Println("User UUID:", userUUID)
+		}
+
+		if !updateFlag && (len(os.Args) == 1 || (os.Args[len(os.Args)-1] != "-u" && os.Args[len(os.Args)-1] != "--update")) {
+			shouldNotify, latestVersion, highlight := helpers.ShouldShowUpdateNotification()
+			if shouldNotify {
+				helpers.ShowUpdateNotification(latestVersion, highlight)
+			}
+		}
+	}
 
 	rootCmd.SetArgs(os.Args[1:])
 	if err := rootCmd.Execute(); err != nil && debug.Debug {
@@ -449,6 +516,15 @@ var facilityCmd = &cobra.Command{
 	Run: helpers.CommandRunner("facility", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.RegisterPhyFacility(regNo, cookies)
+	}),
+}
+
+var eventsCmd = &cobra.Command{
+	Use:   "events",
+	Short: "View upcoming club events and register for open ones",
+	Run: helpers.CommandRunner("events", func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetEvents(regNo, cookies)
 	}),
 }
 
@@ -503,6 +579,43 @@ var timeTableCmd = &cobra.Command{
 	Run: helpers.CommandRunner("timetable", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.GetTimeTable(regNo, cookies, semesterFlag)
+	}),
+}
+
+var holidayCmd = &cobra.Command{
+	Use:   "holiday",
+	Short: "Show upcoming class-impacting holidays for a semester",
+	Run: helpers.CommandRunner("holiday", func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetHolidayList(regNo, cookies, semesterFlag, classGrpFlag)
+	}),
+}
+
+var todayCmd = &cobra.Command{
+	Use:   "today",
+	Short: "Show today's classes and whether attendance gives you room to skip them",
+	Run: helpers.CommandRunner("today", func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetToday(regNo, cookies, semesterFlag, classGrpFlag)
+	}),
+}
+
+var tomorrowCmd = &cobra.Command{
+	Use:   "tomorrow",
+	Short: "Show tomorrow's classes and whether attendance gives you room to skip them",
+	Run: helpers.CommandRunner("tomorrow", func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetTomorrow(regNo, cookies, semesterFlag, classGrpFlag)
+	}),
+}
+
+var dayAfterCmd = &cobra.Command{
+	Use:     "dayafter",
+	Aliases: []string{"day-after"},
+	Short:   "Show the day after tomorrow's classes and whether attendance gives you room to skip them",
+	Run: helpers.CommandRunner("dayafter", func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetDayAfter(regNo, cookies, semesterFlag, classGrpFlag)
 	}),
 }
 

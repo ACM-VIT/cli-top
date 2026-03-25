@@ -61,6 +61,7 @@ func RemoveEmptyStrings(data []string) []string {
 }
 
 func GenerateCalendarImportLinks(icsURL string, calendarName string) {
+	StopHeadlineForOutput()
 	fmt.Println("Import into your calendar using the links below:")
 	fmt.Println()
 	blueColor := "\033[34m"
@@ -260,6 +261,9 @@ func FetchReqClient(client *http.Client, regNo string, cookies types.Cookies, ur
 func FetchReqClientWithContext(ctx context.Context, client *http.Client, regNo string, cookies types.Cookies, url string, referer string, formData []byte, method string, contentType string) ([]byte, http.Header, error) {
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	if err := ValidateVtopURL(url); err != nil {
+		return nil, nil, err
 	}
 	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(formData))
 	if err != nil {

@@ -1,17 +1,18 @@
 {
   "name": "cli-top",
-  "version": "2.10.1",
-  "description": "CLI tool for VTOP",
+  "version": "2.10.5",
+  "description": "Command-line tool for ease of access",
   "bin": {
     "cli-top": "npm/bin/cli-top.js"
   },
   "scripts": {
-    "postinstall": "node npm/scripts/install.js"
+    "postinstall": "node npm/scripts/install.js",
+    "prepack": "node npm/scripts/prepack.js",
+    "postpack": "node npm/scripts/postpack.js"
   },
   "files": [
     "npm/bin",
-    "npm/scripts",
-    "README.md" 
+    "npm/scripts"
   ],
   "engines": {
     "node": ">=16"

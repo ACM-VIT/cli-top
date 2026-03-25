@@ -17,6 +17,9 @@ import (
 
 func FetchReq(regNo string, cookies types.Cookies, url string, semID string, payload string, method string, header string) ([]byte, error) {
 	client := GetHTTPClient()
+	if err := ValidateVtopURL(url); err != nil {
+		return nil, err
+	}
 
 	buildRequest := func() (*http.Request, context.CancelFunc, error) {
 		if payload == "" {

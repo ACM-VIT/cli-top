@@ -15,14 +15,15 @@ import (
 	"cli-top/helpers"
 	"cli-top/login"
 	"cli-top/types"
+
 	"github.com/spf13/cobra"
 )
 
 var proxyCmd = &cobra.Command{
-	Use:    "proxy <username> <password> <command> [flags]",
-	Short:  "Machine-facing entrypoint used by the proxy + MCP services",
-	Hidden: true,
-	Args:   cobra.MinimumNArgs(3),
+	Use:                "proxy <username> <password> <command> [flags]",
+	Short:              "Machine-facing entrypoint used by the proxy + MCP services",
+	Hidden:             true,
+	Args:               cobra.MinimumNArgs(3),
 	DisableFlagParsing: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		runProxyCommand(args)
@@ -50,9 +51,14 @@ type proxyError struct {
 
 var interactiveProxyCommands = map[string]struct{}{
 	"timetable": {},
+	"holiday":   {},
+	"today":     {},
+	"tomorrow":  {},
+	"dayafter":  {},
 	"marks":     {},
 	"grades":    {},
 	"calendar":  {},
+	"events":    {},
 
 	"course-page":         {},
 	"course-page-archive": {},
@@ -261,6 +267,16 @@ func executeFeatureCommand(command string, flags map[string]string, cookies type
 		features.GetAttendance(regNo, cookies, parseIntFlag(flags, "semester"))
 	case "timetable":
 		features.GetTimeTable(regNo, cookies, parseIntFlag(flags, "semester"))
+	case "holiday":
+		features.GetHolidayList(regNo, cookies, parseIntFlag(flags, "semester"), parseIntFlag(flags, "classGroup"))
+	case "today":
+		features.GetToday(regNo, cookies, parseIntFlag(flags, "semester"), parseIntFlag(flags, "classGroup"))
+	case "tomorrow":
+		features.GetTomorrow(regNo, cookies, parseIntFlag(flags, "semester"), parseIntFlag(flags, "classGroup"))
+	case "dayafter":
+		features.GetDayAfter(regNo, cookies, parseIntFlag(flags, "semester"), parseIntFlag(flags, "classGroup"))
+	case "events":
+		features.GetEvents(regNo, cookies)
 	case "receipts":
 		features.GetReceipt(regNo, cookies)
 	case "hostel":

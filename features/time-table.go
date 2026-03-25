@@ -580,12 +580,6 @@ func GetTimeTable(regNo string, cookies types.Cookies, sem_choice int) {
 	}
 
 	grp_list := getClassGroups(regNo, cookies, semester)
-	wsChan := make(chan []WorkingSaturday, 1)
-	go func() {
-		// Only fetch working Saturdays for the selected semester
-		wsChan <- fetchWorkingSaturdays(regNo, cookies, semester.SemID, classGroupID)
-	}()
-
 	url := "https://vtop.vit.ac.in/vtop/processViewTimeTable"
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, semester.SemID, "UTC", "POST", "")
 	if err != nil && debug.Debug {
@@ -602,7 +596,11 @@ func GetTimeTable(regNo string, cookies types.Cookies, sem_choice int) {
 		timetable["Saturday"] = []types.Class{}
 	}
 
-	workingSats := <-wsChan
+	locIndia := time.FixedZone("IST", 5*3600+1800)
+	workingSats := WorkingSaturdaysFromSemSection(semSec, month, year, locIndia)
+	if len(workingSats) == 0 {
+		workingSats = fetchWorkingSaturdays(regNo, cookies, semester.SemID, classGroupID)
+	}
 	// If user is a fresher (only one semester), only show working Saturdays for that semester
 	if len(allSems) == 1 {
 		// Already filtered by selected semester, nothing to do
@@ -924,6 +922,26 @@ func cleanTimeTableText(s string) string {
 		return ""
 	}
 	return strings.TrimSpace(strings.Join(strings.Fields(s), " "))
+}
+
+func WorkingSaturdaysFromSemSection(semSection [][]int, startMonth int, startYear int, loc *time.Location) []WorkingSaturday {
+	currentDate := time.Date(startYear, time.Month(startMonth+1), 1, 0, 0, 0, 0, loc)
+	var result []WorkingSaturday
+
+	for monthIdx := 0; monthIdx < len(semSection); monthIdx++ {
+		for dayIdx := 0; dayIdx < len(semSection[monthIdx]); dayIdx++ {
+			dayOrder := semSection[monthIdx][dayIdx]
+			if currentDate.Weekday() == time.Saturday && dayOrder >= int(time.Monday) && dayOrder <= int(time.Friday) {
+				result = append(result, WorkingSaturday{
+					Date:     currentDate,
+					DayOrder: getDayName(time.Weekday(dayOrder)),
+				})
+			}
+			currentDate = currentDate.AddDate(0, 0, 1)
+		}
+	}
+
+	return result
 }
 
 func updateTimetableWithWorkingSaturdays(timetable map[string][]types.Class, workingSaturdays []WorkingSaturday) {

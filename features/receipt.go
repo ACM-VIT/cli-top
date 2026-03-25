@@ -35,7 +35,6 @@ func GetReceipt(regNo string, cookies types.Cookies) {
 		return
 	}
 	var receipts [][]string
-	receipts = append(receipts, []string{"INVOICE NUMBER", "RECEIPT NUMBER", "DATE", "AMOUNT"})
 
 	doc.Find(ReceiptTableSelector + " " + ReceiptRowsSelector).Each(func(i int, rowSelection *goquery.Selection) {
 		if rowSelection.Find(ReceiptHeaderSelector).Length() > 0 {
