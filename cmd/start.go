@@ -446,6 +446,7 @@ Use "{{.CommandPath}} <subcommand> --help" for more information about a subcomma
 		classMessagesCmd,
 		daDetailsCmd,
 		facilityCmd,
+		eventsCmd,
 		syllabusCmd,
 		courseAllocationCmd,
 		proxyCmd,
@@ -515,6 +516,15 @@ var facilityCmd = &cobra.Command{
 	Run: helpers.CommandRunner("facility", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
 		features.RegisterPhyFacility(regNo, cookies)
+	}),
+}
+
+var eventsCmd = &cobra.Command{
+	Use:   "events",
+	Short: "View upcoming club events and register for open ones",
+	Run: helpers.CommandRunner("events", func(cmd *cobra.Command, args []string) {
+		cookies, regNo := readCookiesFromFile()
+		features.GetEvents(regNo, cookies)
 	}),
 }
 

@@ -58,6 +58,7 @@ var interactiveProxyCommands = map[string]struct{}{
 	"marks":     {},
 	"grades":    {},
 	"calendar":  {},
+	"events":    {},
 
 	"course-page":         {},
 	"course-page-archive": {},
@@ -274,6 +275,8 @@ func executeFeatureCommand(command string, flags map[string]string, cookies type
 		features.GetTomorrow(regNo, cookies, parseIntFlag(flags, "semester"), parseIntFlag(flags, "classGroup"))
 	case "dayafter":
 		features.GetDayAfter(regNo, cookies, parseIntFlag(flags, "semester"), parseIntFlag(flags, "classGroup"))
+	case "events":
+		features.GetEvents(regNo, cookies)
 	case "receipts":
 		features.GetReceipt(regNo, cookies)
 	case "hostel":
