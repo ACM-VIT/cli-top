@@ -281,22 +281,97 @@ func isStartupSideEffectFreeArg(arg string) bool {
 	}
 }
 
-func ShouldSkipStartupSideEffects(args []string) bool {
-	if len(args) == 0 {
-		return false
+type startupArgsInfo struct {
+	remainingArgs        []string
+	rootHelpRequested    bool
+	rootVersionRequested bool
+	rootUpdateRequested  bool
+}
+
+func inspectStartupArgs(args []string) startupArgsInfo {
+	info := startupArgsInfo{}
+
+	for i, arg := range args {
+		switch {
+		case arg == "--":
+			if i+1 < len(args) {
+				info.remainingArgs = args[i+1:]
+			}
+			return info
+		case arg == "" || arg == "-" || !strings.HasPrefix(arg, "-"):
+			info.remainingArgs = args[i:]
+			return info
+		case strings.HasPrefix(arg, "--"):
+			switch arg {
+			case "--debug":
+				continue
+			case "--update":
+				info.rootUpdateRequested = true
+				continue
+			case "--version":
+				info.rootVersionRequested = true
+				return info
+			case "--help":
+				info.rootHelpRequested = true
+				return info
+			default:
+				info.remainingArgs = args[i:]
+				return info
+			}
+		default:
+			recognizedCluster := true
+			for _, shortFlag := range arg[1:] {
+				switch shortFlag {
+				case 'd':
+				case 'u':
+					info.rootUpdateRequested = true
+				case 'v':
+					info.rootVersionRequested = true
+					return info
+				case 'h':
+					info.rootHelpRequested = true
+					return info
+				default:
+					recognizedCluster = false
+				}
+			}
+
+			if recognizedCluster {
+				continue
+			}
+
+			info.remainingArgs = args[i:]
+			return info
+		}
 	}
 
-	if isStartupSideEffectFreeArg(args[0]) {
+	return info
+}
+
+func shouldSkipStartupSideEffects(info startupArgsInfo) bool {
+	if info.rootHelpRequested || info.rootVersionRequested {
 		return true
 	}
 
-	for _, arg := range args[1:] {
+	if len(info.remainingArgs) == 0 {
+		return false
+	}
+
+	if isStartupSideEffectFreeArg(info.remainingArgs[0]) {
+		return true
+	}
+
+	for _, arg := range info.remainingArgs[1:] {
 		if arg == "--help" || arg == "-h" {
 			return true
 		}
 	}
 
 	return false
+}
+
+func ShouldSkipStartupSideEffects(args []string) bool {
+	return shouldSkipStartupSideEffects(inspectStartupArgs(args))
 }
 
 func ShouldSkipCommandSideEffects(cmd *cobra.Command, rootVersionRequested bool) bool {
@@ -454,7 +529,9 @@ Use "{{.CommandPath}} <subcommand> --help" for more information about a subcomma
 }
 
 func Execute() {
-	if !ShouldSkipStartupSideEffects(os.Args[1:]) {
+	startupArgs := inspectStartupArgs(os.Args[1:])
+
+	if !shouldSkipStartupSideEffects(startupArgs) {
 		killSwitch := helpers.CheckKillSwitch()
 		if killSwitch == 2 {
 			helpers.Println("This version of cli-top has been decommissioned.")
@@ -477,7 +554,7 @@ func Execute() {
 			helpers.Println("User UUID:", userUUID)
 		}
 
-		if !updateFlag && (len(os.Args) == 1 || (os.Args[len(os.Args)-1] != "-u" && os.Args[len(os.Args)-1] != "--update")) {
+		if !startupArgs.rootUpdateRequested && helpers.IsInteractiveOutput(os.Stdout) {
 			shouldNotify, latestVersion, highlight := helpers.ShouldShowUpdateNotification()
 			if shouldNotify {
 				helpers.ShowUpdateNotification(latestVersion, highlight)

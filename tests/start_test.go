@@ -16,12 +16,19 @@ func TestShouldSkipStartupSideEffects(t *testing.T) {
 		want bool
 	}{
 		{name: "completion command", args: []string{"completion", "zsh"}, want: true},
+		{name: "completion command after root debug flag", args: []string{"--debug", "completion", "zsh"}, want: true},
 		{name: "hidden complete command", args: []string{"__complete", "marks"}, want: true},
+		{name: "hidden complete command after short debug flag", args: []string{"-d", "__complete", "marks"}, want: true},
 		{name: "help flag", args: []string{"--help"}, want: true},
+		{name: "help flag after root debug flag", args: []string{"--debug", "--help"}, want: true},
 		{name: "version flag", args: []string{"-v"}, want: true},
+		{name: "version flag after root debug flag", args: []string{"--debug", "--version"}, want: true},
 		{name: "subcommand help flag", args: []string{"marks", "--help"}, want: true},
+		{name: "subcommand help after root debug flag", args: []string{"--debug", "marks", "--help"}, want: true},
 		{name: "normal command", args: []string{"marks", "--semester", "1"}, want: false},
+		{name: "normal command after root debug flag", args: []string{"--debug", "marks", "--semester", "1"}, want: false},
 		{name: "subcommand value that looks like version", args: []string{"marks", "-v"}, want: false},
+		{name: "subcommand value that looks like version after root debug flag", args: []string{"--debug", "marks", "-v"}, want: false},
 		{name: "subcommand long value that looks like version", args: []string{"marks", "--version"}, want: false},
 	}
 
