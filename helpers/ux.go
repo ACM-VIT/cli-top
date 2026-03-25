@@ -27,6 +27,8 @@ const (
 	ansiDim    = "\x1b[2m"
 	ansiNormal = "\x1b[22m"
 	ansiClear  = "\x1b[2K"
+	ansiUp     = "\x1b[1A"
+	ansiDown   = "\x1b[1B"
 )
 
 var (
@@ -94,6 +96,14 @@ func renderHeadlineWithSupport(label string, supportsColor bool) string {
 		return text
 	}
 	return shimmerLine(text)
+}
+
+func renderCompletedHeadlineWithSupport(label string, supportsColor bool) string {
+	text := fmt.Sprintf("→ %s", strings.ToUpper(label))
+	if !supportsColor {
+		return text
+	}
+	return ansiBold + text + ansiReset
 }
 
 func shimmerLine(text string) string {
@@ -176,7 +186,7 @@ func startHeadlineAnimation(label string) func() {
 
 	initial := renderHeadlineWithSupport(label, supports)
 	clearHeadlineNewlineFlag()
-	fmt.Fprintf(color.Output, "\n\r%s%s", ansiClear, initial)
+	fmt.Fprintf(color.Output, "\n%s\n\n", initial)
 
 	done := make(chan struct{})
 	stopped := make(chan struct{})
@@ -188,7 +198,7 @@ func startHeadlineAnimation(label string) func() {
 		for {
 			select {
 			case <-ticker.C:
-				fmt.Fprintf(color.Output, "\r%s%s", ansiClear, renderHeadlineWithSupport(label, supports))
+				redrawHeadlineAboveCursor(renderHeadlineWithSupport(label, supports))
 			case <-done:
 				ticker.Stop()
 				return
@@ -200,9 +210,14 @@ func startHeadlineAnimation(label string) func() {
 		once.Do(func() {
 			close(done)
 			<-stopped
-			markHeadlineNeedsNewline()
+			redrawHeadlineAboveCursor(renderCompletedHeadlineWithSupport(label, supports))
+			clearHeadlineNewlineFlag()
 		})
 	}
+}
+
+func redrawHeadlineAboveCursor(headline string) {
+	fmt.Fprintf(color.Output, "%s%s\r%s%s%s%s\r", ansiUp, ansiUp, ansiClear, headline, ansiDown, ansiDown)
 }
 
 func setActiveHeadlineAnimation(stop func()) {

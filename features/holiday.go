@@ -99,7 +99,6 @@ func GetHolidayList(regNo string, cookies types.Cookies, semChoice int, classGro
 		})
 	}
 
-	helpers.Println()
 	helpers.PrintTable(tableData, 0)
 }
 
