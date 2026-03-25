@@ -1,6 +1,7 @@
-package features
+package tests
 
 import (
+	featurespkg "cli-top/features"
 	"strings"
 	"testing"
 	"time"
@@ -25,7 +26,7 @@ func TestExtractTypeOfDayRecognizesLowercaseDayOrder(t *testing.T) {
 	}
 
 	arr := make([]int, 31)
-	typeOfDay := extractTypeOfDay(doc, arr)
+	typeOfDay := featurespkg.ExtractTypeOfDay(doc, arr)
 
 	if len(typeOfDay) != 1 || typeOfDay[0] != 3 {
 		t.Fatalf("expected instructional-day color classification, got %v", typeOfDay)
@@ -41,7 +42,7 @@ func TestWorkingSaturdaysFromSemSection(t *testing.T) {
 	semSection := [][]int{make([]int, 31)}
 	semSection[0][27] = int(time.Friday)
 
-	got := workingSaturdaysFromSemSection(semSection, 2, 2026, loc)
+	got := featurespkg.WorkingSaturdaysFromSemSection(semSection, 2, 2026, loc)
 	if len(got) != 1 {
 		t.Fatalf("expected 1 working Saturday, got %d", len(got))
 	}

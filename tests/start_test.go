@@ -1,6 +1,7 @@
-package cmd
+package tests
 
 import (
+	appcmd "cli-top/cmd"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -25,33 +26,27 @@ func TestShouldSkipStartupSideEffects(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := shouldSkipStartupSideEffects(tt.args); got != tt.want {
-				t.Fatalf("shouldSkipStartupSideEffects(%v) = %v, want %v", tt.args, got, tt.want)
+			if got := appcmd.ShouldSkipStartupSideEffects(tt.args); got != tt.want {
+				t.Fatalf("ShouldSkipStartupSideEffects(%v) = %v, want %v", tt.args, got, tt.want)
 			}
 		})
 	}
 }
 
 func TestShouldSkipCommandSideEffects(t *testing.T) {
-	originalVersionFlag := versionFlag
-	t.Cleanup(func() {
-		versionFlag = originalVersionFlag
-	})
-
-	versionFlag = false
-	if shouldSkipCommandSideEffects(&cobra.Command{Use: "completion"}) == false {
+	if appcmd.ShouldSkipCommandSideEffects(&cobra.Command{Use: "completion"}, false) == false {
 		t.Fatal("completion command should skip side effects")
 	}
 
-	if shouldSkipCommandSideEffects(&cobra.Command{Use: "__complete"}) == false {
+	if appcmd.ShouldSkipCommandSideEffects(&cobra.Command{Use: "__complete"}, false) == false {
 		t.Fatal("__complete command should skip side effects")
 	}
 
-	if shouldSkipCommandSideEffects(&cobra.Command{Use: "help"}) == false {
+	if appcmd.ShouldSkipCommandSideEffects(&cobra.Command{Use: "help"}, false) == false {
 		t.Fatal("help command should skip side effects")
 	}
 
-	if shouldSkipCommandSideEffects(&cobra.Command{Use: "marks"}) {
+	if appcmd.ShouldSkipCommandSideEffects(&cobra.Command{Use: "marks"}, false) {
 		t.Fatal("regular commands should not skip side effects")
 	}
 
@@ -60,17 +55,15 @@ func TestShouldSkipCommandSideEffects(t *testing.T) {
 	if err := helpCmd.Flags().Set("help", "true"); err != nil {
 		t.Fatalf("failed to set help flag: %v", err)
 	}
-	if shouldSkipCommandSideEffects(helpCmd) == false {
+	if appcmd.ShouldSkipCommandSideEffects(helpCmd, false) == false {
 		t.Fatal("help flag should skip side effects")
 	}
 
-	versionFlag = true
-	if shouldSkipCommandSideEffects(&cobra.Command{Use: "cli-top"}) == false {
+	if appcmd.ShouldSkipCommandSideEffects(&cobra.Command{Use: "cli-top"}, true) == false {
 		t.Fatal("root version command should skip side effects")
 	}
 
-	versionFlag = false
-	if shouldSkipCommandSideEffects(&cobra.Command{Use: "cli-top"}) {
+	if appcmd.ShouldSkipCommandSideEffects(&cobra.Command{Use: "cli-top"}, false) {
 		t.Fatal("root command without version flag should not skip side effects")
 	}
 }
