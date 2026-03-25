@@ -61,6 +61,7 @@ func RemoveEmptyStrings(data []string) []string {
 }
 
 func GenerateCalendarImportLinks(icsURL string, calendarName string) {
+	StopHeadlineForOutput()
 	fmt.Println("Import into your calendar using the links below:")
 	fmt.Println()
 	blueColor := "\033[34m"

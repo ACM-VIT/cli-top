@@ -18,9 +18,9 @@ const (
 )
 
 var (
-	ansiCSIRegex             = regexp.MustCompile(`\x1b\[[0-9;]*m`)
-	ansiHyperlinkRegex       = regexp.MustCompile(`\x1b]8;;.*?\a(.*?)\x1b]8;;\a`)
-	ansiHyperlinkStartRegex  = regexp.MustCompile(`\x1b]8;;.*?\a`)
+	ansiCSIRegex            = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	ansiHyperlinkRegex      = regexp.MustCompile(`\x1b]8;;.*?\a(.*?)\x1b]8;;\a`)
+	ansiHyperlinkStartRegex = regexp.MustCompile(`\x1b]8;;.*?\a`)
 )
 
 // TableSnapshot captures the raw data passed to PrintTable for structured reuse.
@@ -102,6 +102,7 @@ type SelectionResult struct {
 
 // TableSelector handles selection from a table with support for direct selection only
 func TableSelector(subject string, nestedList [][]string, initialQuery string) SelectionResult {
+	StopHeadlineForOutput()
 	// If initial query is a number, try to select it directly
 	if isNumeric(initialQuery) {
 		choice, _ := strconv.Atoi(initialQuery)
@@ -156,6 +157,7 @@ func TableSelector(subject string, nestedList [][]string, initialQuery string) S
 
 // TableSelectorFuzzy handles selection with support for fuzzy search
 func TableSelectorFuzzy(subject string, nestedList [][]string, initialQuery string, fuzzySearchFunc FuzzySearchFunc) SelectionResult {
+	StopHeadlineForOutput()
 	// If initial query is numeric, use direct selection
 	if isNumeric(initialQuery) {
 		choice, _ := strconv.Atoi(initialQuery)
