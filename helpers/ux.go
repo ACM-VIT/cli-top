@@ -96,6 +96,14 @@ func renderHeadlineWithSupport(label string, supportsColor bool) string {
 	return shimmerLine(text)
 }
 
+func renderCompletedHeadlineWithSupport(label string, supportsColor bool) string {
+	text := fmt.Sprintf("→ %s", strings.ToUpper(label))
+	if !supportsColor {
+		return text
+	}
+	return ansiBold + text + ansiReset
+}
+
 func shimmerLine(text string) string {
 	runes := []rune(text)
 	if len(runes) == 0 {
@@ -200,6 +208,7 @@ func startHeadlineAnimation(label string) func() {
 		once.Do(func() {
 			close(done)
 			<-stopped
+			fmt.Fprintf(color.Output, "\r%s%s", ansiClear, renderCompletedHeadlineWithSupport(label, supports))
 			markHeadlineNeedsNewline()
 		})
 	}
