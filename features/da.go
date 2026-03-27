@@ -21,7 +21,7 @@ import (
 
 var daDownloadRegex = regexp.MustCompile(`vtopDownload\('([^']+)'\)`)
 
-func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
+func PrintAllDAs(regNo string, cookies types.Cookies, courseName string, assignmentSelection string) {
 	if !helpers.ValidateLogin(cookies) {
 		return
 	}
@@ -230,16 +230,14 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 			helpers.GenerateCalendarImportLinks(uploadedFileURL, "DAs")
 		}
 
-		if isProxyMode {
-			helpers.PrintTable(subjectsTable, 1)
-			helpers.Println("\nProxy mode detected — skipping interactive DA selection.")
-			return
+		if !isProxyMode {
+			helpers.Println("\nPlease select a subject by entering the corresponding number:")
 		}
-
-		helpers.Println("\nPlease select a subject by entering the corresponding number:")
-		subjectChoice := helpers.TableSelector("subject", subjectsTable, "0")
+		subjectChoice := helpers.TableSelectorFuzzy("subject", subjectsTable, courseName, helpers.NewFuzzySearch)
 		if subjectChoice.ExitRequest || !subjectChoice.Selected {
-			helpers.Println("Selection canceled")
+			if !isProxyMode {
+				helpers.Println("Selection canceled")
+			}
 			return
 		}
 
@@ -307,13 +305,11 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string) {
 		}
 
 		if len(singleSubDownload) > 1 {
-			if isProxyMode {
-				helpers.Println("Proxy mode detected — skipping DA download prompt.")
-				return
-			}
-			downloadChoice := helpers.TableSelector("DA", singleSubDownload, "0")
+			downloadChoice := helpers.TableSelectorFuzzy("DA", singleSubDownload, assignmentSelection, helpers.NewFuzzySearch)
 			if downloadChoice.ExitRequest || !downloadChoice.Selected {
-				helpers.Println("Selection canceled")
+				if !isProxyMode {
+					helpers.Println("Selection canceled")
+				}
 				return
 			}
 

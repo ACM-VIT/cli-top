@@ -13,6 +13,7 @@ import (
 	"cli-top/debug"
 	"cli-top/features"
 	"cli-top/helpers"
+	"cli-top/internal/proxyutil"
 	"cli-top/login"
 	"cli-top/types"
 
@@ -68,7 +69,7 @@ var interactiveProxyCommands = map[string]struct{}{
 	"syllabus":            {},
 }
 
-var defaultSyncCommands = []string{"profile", "timetable", "attendance", "marks", "cgpa", "exams", "da"}
+var defaultSyncCommands = []string{"profile", "timetable", "attendance", "marks", "cgpa", "exams"}
 
 type syncResultEntry struct {
 	Command       string         `json:"command"`
@@ -87,7 +88,7 @@ func runProxyCommand(args []string) {
 	if len(args) > 3 {
 		flagArgs = args[3:]
 	}
-	flags := parseProxyFlags(flagArgs)
+	flags := proxyutil.ParseFlags(flagArgs)
 
 	resp := proxyResponse{
 		Command:     command,
@@ -153,27 +154,26 @@ func runProxyCommand(args []string) {
 	})
 	defer restore()
 
-	var tee io.Writer
-	if isInteractiveProxyCommand(command) {
-		tee = os.Stdout
-	}
+	selectionRequests := []helpers.ProxySelectionRequest{}
+	restoreSelection := helpers.RegisterProxySelectionHook(func(request helpers.ProxySelectionRequest) {
+		selectionRequests = append(selectionRequests, request)
+	})
+	defer restoreSelection()
 
 	output, execErr := captureCommandOutput(func() error {
 		return dispatchProxyCommand(command, flags, cookies, regNo)
-	}, tee)
+	}, nil)
 
-	cleanedOutput := strings.TrimSpace(helpers.StripAnsiCodes(output))
+	cleanedOutput, messages := proxyutil.NormalizeOutput(output)
 	if cleanedOutput != "" {
 		resp.Output = cleanedOutput
 	}
 
-	if len(tableSnapshots) > 0 {
-		resp.StructuredRaw = map[string]any{
-			"tables": tableSnapshots,
-		}
-	}
+	resp.StructuredRaw = proxyutil.BuildStructuredData(tableSnapshots, selectionRequests, messages)
 
-	if execErr != nil {
+	if len(selectionRequests) > 0 {
+		resp.Error = &proxyError{Kind: "selection_required", Message: proxyutil.SelectionRequiredMessage(selectionRequests)}
+	} else if execErr != nil {
 		resp.Error = &proxyError{Kind: "execution_error", Message: execErr.Error()}
 	}
 	resp.Success = resp.Error == nil
@@ -297,6 +297,7 @@ func executeFeatureCommand(command string, flags map[string]string, cookies type
 			parseIntFlag(flags, "course"),
 			flagsValue(flags, "faculty"),
 			parseIntFlag(flags, "fuzzyIndex"),
+			flagsValue(flags, "materials"),
 		)
 	case "course-page-archive":
 		features.ExecuteCoursePageOldDownload(
@@ -306,19 +307,31 @@ func executeFeatureCommand(command string, flags map[string]string, cookies type
 			parseIntFlag(flags, "course"),
 			flagsValue(flags, "faculty"),
 			parseIntFlag(flags, "fuzzyIndex"),
+			flagsValue(flags, "materials"),
 		)
 	case "course-allocation":
-		features.ExecuteInteractiveCourseAllocationView(regNo, cookies, "")
+		features.ExecuteInteractiveCourseAllocationView(regNo, cookies, "", flagsValue(flags, "category"), flagsValue(flags, "course"))
 	case "nightslip":
-		features.GetNightSlipStatus(regNo, cookies)
+		return features.ExecuteNightSlip(regNo, cookies, features.NightSlipApplyInput{
+			Apply:           parseBoolFlag(flags, "apply"),
+			CostCentreID:    flagsValue(flags, "cost-centre-id"),
+			AppliedTo:       flagsValue(flags, "applied-to"),
+			RoomTypeID:      flagsValue(flags, "room-type-id"),
+			LateHourEventID: flagsValue(flags, "event-id"),
+			Details:         flagsValue(flags, "details"),
+			FromDate:        flagsValue(flags, "from-date"),
+			FromTime:        flagsValue(flags, "from-time"),
+			ToDate:          flagsValue(flags, "to-date"),
+			ToTime:          flagsValue(flags, "to-time"),
+		})
 	case "leave":
 		features.GetLeaveStatus(regNo, cookies)
 	case "msg":
 		features.GetClassMessage(regNo, cookies)
 	case "da":
-		features.PrintAllDAs(regNo, cookies, flagsValue(flags, "course"))
+		features.PrintAllDAs(regNo, cookies, flagsValue(flags, "course"), flagsValue(flags, "assignment"))
 	case "facility":
-		features.RegisterPhyFacility(regNo, cookies)
+		return features.RegisterPhyFacility(regNo, cookies, flagsValue(flags, "facility"), parseBoolFlag(flags, "confirm"))
 	case "syllabus":
 		features.ExecuteSyllabusDownload(regNo, cookies, flagsValue(flags, "course"))
 	default:
@@ -389,24 +402,26 @@ func executeSyncSubcommand(command string, flags map[string]string, cookies type
 	})
 	defer restore()
 
-	var tee io.Writer
-	if isInteractiveProxyCommand(command) {
-		tee = os.Stdout
-	}
+	selectionRequests := []helpers.ProxySelectionRequest{}
+	restoreSelection := helpers.RegisterProxySelectionHook(func(request helpers.ProxySelectionRequest) {
+		selectionRequests = append(selectionRequests, request)
+	})
+	defer restoreSelection()
 
 	output, execErr := captureCommandOutput(func() error {
 		return executeFeatureCommand(command, subFlags, cookies, regNo)
-	}, tee)
+	}, nil)
 
-	cleaned := strings.TrimSpace(helpers.StripAnsiCodes(output))
+	cleaned, messages := proxyutil.NormalizeOutput(output)
 	if cleaned != "" {
 		entry.Output = cleaned
 	}
-	if len(tableSnapshots) > 0 {
-		entry.StructuredRaw = map[string]any{"tables": tableSnapshots}
-	}
+	entry.StructuredRaw = proxyutil.BuildStructuredData(tableSnapshots, selectionRequests, messages)
 
-	if execErr != nil {
+	if len(selectionRequests) > 0 {
+		entry.Error = &proxyError{Kind: "selection_required", Message: proxyutil.SelectionRequiredMessage(selectionRequests)}
+		entry.Success = false
+	} else if execErr != nil {
 		entry.Error = &proxyError{Kind: "execution_error", Message: execErr.Error()}
 		entry.Success = false
 	} else {
@@ -427,52 +442,16 @@ func cloneFlags(src map[string]string) map[string]string {
 	return copy
 }
 
-func parseProxyFlags(args []string) map[string]string {
-	if len(args) == 0 {
-		return nil
+func parseBoolFlag(flags map[string]string, key string) bool {
+	if flags == nil {
+		return false
 	}
-	flags := make(map[string]string)
-	for i := 0; i < len(args); i++ {
-		arg := args[i]
-		if !strings.HasPrefix(arg, "-") {
-			continue
-		}
-		name := canonicalFlagName(strings.TrimLeft(arg, "-"))
-		if name == "" {
-			continue
-		}
-		value := "true"
-		if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
-			value = args[i+1]
-			i++
-		}
-		flags[name] = value
-	}
-	if len(flags) == 0 {
-		return nil
-	}
-	return flags
-}
 
-func canonicalFlagName(flag string) string {
-	normalized := strings.ToLower(strings.TrimSpace(flag))
-	switch normalized {
-	case "s", "semester", "semesterflag", "semesterquery":
-		return "semester"
-	case "c", "course", "course-name", "coursename":
-		return "course"
-	case "f", "faculty", "facultyflag":
-		return "faculty"
-	case "g", "class-group", "classgroup":
-		return "classGroup"
-	case "i", "fuzzy-index", "fuzzyindex":
-		return "fuzzyIndex"
-	case "d", "debug":
-		return "debug"
-	case "x", "commands", "sync", "sync-commands":
-		return "commands"
+	switch strings.ToLower(strings.TrimSpace(flags[key])) {
+	case "1", "true", "yes", "y", "on":
+		return true
 	default:
-		return normalized
+		return false
 	}
 }
 

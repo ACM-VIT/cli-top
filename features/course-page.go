@@ -33,51 +33,12 @@ import (
 
 // legacy HTTP client removed in favour of helpers.GetHTTPClient()
 
-func ExecuteCoursePageOldDownload(regNo string, cookies types.Cookies, semesterFlag int, courseFlag int, facultyFlag string, fuzzyFlag int) {
+func ExecuteCoursePageOldDownload(regNo string, cookies types.Cookies, semesterFlag int, courseFlag int, facultyFlag string, fuzzyFlag int, materialSelection string) {
 	if !helpers.ValidateLogin(cookies) {
 		return
 	}
 
-	semDetails, err := helpers.GetSemDetails(cookies, regNo)
-	var selectedSem types.Semester
-	if err != nil {
-		if debug.Debug {
-			helpers.Println("Error fetching sem details:", err)
-		}
-		semDetails, err = helpers.GetSemDetailsBackup(cookies, regNo)
-		if err != nil {
-			if debug.Debug {
-				helpers.Println("Error fetching semester details in backup", err)
-			}
-			helpers.Println("Error fetching semester details in backup")
-			return
-		}
-	}
-	if len(semDetails) == 0 {
-		if debug.Debug {
-			helpers.Println("Error fetching semester details", err)
-		}
-		helpers.Println("No semesters found. Please check your registration number or try again later.")
-		return
-	}
-
-	var nested_sem_list [][]string
-	nested_sem_list = append(nested_sem_list, []string{"Semester ID", "Semester"})
-	for i := 0; i < len(semDetails)-1; i++ {
-		nested_sem_list = append(nested_sem_list, []string{semDetails[i].SemID, semDetails[i].SemName})
-	}
-
-	choice := helpers.TableSelector("semester", nested_sem_list, strconv.Itoa(semesterFlag))
-	if choice.ExitRequest {
-		helpers.Println("Selection canceled by user.")
-		return
-	}
-	if !choice.Selected || choice.Index < 1 || choice.Index > len(semDetails) {
-		helpers.Println("Invalid semester selection. Please try again.")
-		return
-	}
-	selectedSem = semDetails[choice.Index-1]
-
+	selectedSem, err := helpers.SelectSemester(regNo, cookies, semesterFlag)
 	if err != nil {
 		if err.Error() == "selection canceled by user" {
 			helpers.Println("Selection canceled")
@@ -90,11 +51,11 @@ func ExecuteCoursePageOldDownload(regNo string, cookies types.Cookies, semesterF
 		return
 	}
 
-	coursePageOldAfterSemSelection(regNo, cookies, selectedSem, courseFlag, facultyFlag)
+	coursePageOldAfterSemSelection(regNo, cookies, selectedSem, courseFlag, facultyFlag, materialSelection)
 
 }
 
-func coursePageOldAfterSemSelection(regNo string, cookies types.Cookies, selectedSemester types.Semester, courseFlag int, facultyFlag string) {
+func coursePageOldAfterSemSelection(regNo string, cookies types.Cookies, selectedSemester types.Semester, courseFlag int, facultyFlag string, materialSelection string) {
 	selectedCourse, err := fetchAndSelectCourseOld(regNo, cookies, selectedSemester.SemID, courseFlag)
 	if err != nil {
 		helpers.Println("Error selecting course:", err)
@@ -153,7 +114,7 @@ func coursePageOldAfterSemSelection(regNo string, cookies types.Cookies, selecte
 
 	displayCourseMaterials(materials)
 
-	selectedMaterials, err := selectCourseMaterials(materials)
+	selectedMaterials, err := selectCourseMaterials(materials, materialSelection)
 	if err != nil {
 		helpers.Println("Error selecting materials:", err)
 		return

@@ -64,7 +64,7 @@ func init() {
 	}
 }
 
-func ExecuteInteractiveCourseAllocationView(regNo string, cookies types.Cookies, courseAllocationPageURL string) {
+func ExecuteInteractiveCourseAllocationView(regNo string, cookies types.Cookies, courseAllocationPageURL string, categoryQuery string, courseQuery string) {
 	if !helpers.ValidateLogin(cookies) {
 		helpers.Println("User not logged in or session expired.")
 		return
@@ -120,7 +120,7 @@ func ExecuteInteractiveCourseAllocationView(regNo string, cookies types.Cookies,
 	}
 
 	for {
-		selectedCategory, categoryAction := selectCurriculumCategory(initialDoc, currentAjaxCsrfToken, currentAjaxAuthID, ajaxBaseURL, regNo, cookies)
+		selectedCategory, categoryAction := selectCurriculumCategory(initialDoc, currentAjaxCsrfToken, currentAjaxAuthID, ajaxBaseURL, regNo, cookies, categoryQuery)
 		switch categoryAction {
 		case actionExitApp:
 			return
@@ -131,7 +131,7 @@ func ExecuteInteractiveCourseAllocationView(regNo string, cookies types.Cookies,
 		case actionSelected:
 		CourseLoop:
 			for {
-				selectedCourse, courseAction := selectCourseFromCategory(selectedCategory, currentAjaxCsrfToken, currentAjaxAuthID, ajaxBaseURL, regNo, cookies)
+				selectedCourse, courseAction := selectCourseFromCategory(selectedCategory, currentAjaxCsrfToken, currentAjaxAuthID, ajaxBaseURL, regNo, cookies, courseQuery)
 				switch courseAction {
 				case actionExitApp:
 					return
@@ -183,7 +183,7 @@ func extractScriptParams(htmlContent string) (csrfToken string, authID string) {
 	return
 }
 
-func selectCurriculumCategory(initialDoc *goquery.Document, csrfToken, authID, baseURL, regNo string, cookies types.Cookies) (types.Category, string) {
+func selectCurriculumCategory(initialDoc *goquery.Document, csrfToken, authID, baseURL, regNo string, cookies types.Cookies, categoryQuery string) (types.Category, string) {
 	var categories []types.Category
 	initialDoc.Find(curriculumCategorySelector).Each(func(_ int, s *goquery.Selection) {
 		val, exists := s.Attr("value")
@@ -198,18 +198,21 @@ func selectCurriculumCategory(initialDoc *goquery.Document, csrfToken, authID, b
 	for _, cat := range categories {
 		tableData = append(tableData, []string{cat.Name})
 	}
-	selectionResult := helpers.TableSelector("Category", tableData, "")
+	selectionResult := helpers.TableSelectorFuzzy("Category", tableData, categoryQuery, helpers.NewFuzzySearch)
 	if selectionResult.ExitRequest {
 		return types.Category{}, actionExitApp
 	}
 	if !selectionResult.Selected || selectionResult.Index < 1 || selectionResult.Index > len(categories) {
+		if helpers.ShouldMuteUI() {
+			return types.Category{}, actionExitApp
+		}
 		helpers.Println("Invalid selection.")
 		return types.Category{}, actionError
 	}
 	return categories[selectionResult.Index-1], actionSelected
 }
 
-func selectCourseFromCategory(category types.Category, csrfToken, authID, baseURL, regNo string, cookies types.Cookies) (types.Course, string) {
+func selectCourseFromCategory(category types.Category, csrfToken, authID, baseURL, regNo string, cookies types.Cookies, courseQuery string) (types.Course, string) {
 	courseListParams := map[string]string{
 		"_csrf": csrfToken, "cccategory": category.ID,
 		"authorizedID": authID, "x": time.Now().UTC().Format(time.RFC1123),
@@ -247,11 +250,14 @@ func selectCourseFromCategory(category types.Category, csrfToken, authID, baseUR
 	for _, c := range courses {
 		tableData = append(tableData, []string{c.Name})
 	}
-	selectionResult := helpers.TableSelector("Course", tableData, "")
+	selectionResult := helpers.TableSelectorFuzzy("Course", tableData, courseQuery, helpers.NewFuzzySearch)
 	if selectionResult.ExitRequest {
 		return types.Course{}, actionExitApp
 	}
 	if !selectionResult.Selected || selectionResult.Index < 1 || selectionResult.Index > len(courses) {
+		if helpers.ShouldMuteUI() {
+			return types.Course{}, actionExitApp
+		}
 		return types.Course{}, actionGoBack
 	}
 	return courses[selectionResult.Index-1], actionSelected
@@ -311,6 +317,9 @@ func displayCourseAllocationDetails(course types.Course, csrfToken, authID, base
 		} else {
 			//helpers.Println("Details table found, but no rows matched expected structure (4 cells).")
 		}
+	}
+	if helpers.ShouldMuteUI() {
+		return actionExitApp
 	}
 	helpers.Println("\nPress 'b' to go back to course list, or 'q' to exit.")
 	reader := bufio.NewReader(os.Stdin)
