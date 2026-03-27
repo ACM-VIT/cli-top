@@ -563,8 +563,10 @@ func Execute() {
 	}
 
 	rootCmd.SetArgs(os.Args[1:])
-	if err := rootCmd.Execute(); err != nil && debug.Debug {
-		helpers.Println(err)
+	if err := rootCmd.Execute(); err != nil {
+		if debug.Debug {
+			helpers.Println(err)
+		}
 		os.Exit(1)
 	}
 }
@@ -804,11 +806,13 @@ var logoutCmd = &cobra.Command{
 }
 
 var nightslipCmd = &cobra.Command{
-	Use:   "nightslip",
-	Short: "Show Nightslip Request Status of a user",
-	Run: helpers.CommandRunner("nightslip", func(cmd *cobra.Command, args []string) {
+	Use:           "nightslip",
+	Short:         "Show nightslip status and interactively apply when none is pending",
+	SilenceUsage:  true,
+	SilenceErrors: true,
+	RunE: helpers.CommandRunnerE("nightslip", func(cmd *cobra.Command, args []string) error {
 		cookies, regNo := readCookiesFromFile()
-		features.GetNightSlipStatus(regNo, cookies)
+		return features.RunInteractiveNightSlip(regNo, cookies)
 	}),
 }
 

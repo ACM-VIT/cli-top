@@ -38,7 +38,7 @@
 - **Time Table**: Easily view your class schedule
 - **Class Messages**: Stay updated with class announcements
 - **Leave Status**: Check the status of your leave applications
-- **Nightslip Status**: Monitor your hostel nightslip requests
+- **Nightslip**: Monitor hostel nightslip requests and submit a new one when none is pending
 - **Library Dues**: Stay on top of library dues
 - **Receipts**: Access fee receipts and payment history
 - **Grade View**: Review your grades and academic performance
