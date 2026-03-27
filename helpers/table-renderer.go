@@ -31,8 +31,17 @@ type TableSnapshot struct {
 }
 
 type tableCaptureHook func(TableSnapshot)
+type proxySelectionHook func(ProxySelectionRequest)
+
+type ProxySelectionRequest struct {
+	Subject string        `json:"subject"`
+	Query   string        `json:"query,omitempty"`
+	Message string        `json:"message,omitempty"`
+	Table   TableSnapshot `json:"table"`
+}
 
 var currentTableCaptureHook tableCaptureHook
+var currentProxySelectionHook proxySelectionHook
 
 // RegisterTableCaptureHook installs a hook that receives every table rendered by PrintTable.
 // It returns a restore function that reverts to the previous hook when invoked.
@@ -41,6 +50,16 @@ func RegisterTableCaptureHook(h func(TableSnapshot)) func() {
 	currentTableCaptureHook = h
 	return func() {
 		currentTableCaptureHook = previous
+	}
+}
+
+// RegisterProxySelectionHook installs a hook that receives selection requests emitted while
+// running in proxy mode.
+func RegisterProxySelectionHook(h func(ProxySelectionRequest)) func() {
+	previous := currentProxySelectionHook
+	currentProxySelectionHook = h
+	return func() {
+		currentProxySelectionHook = previous
 	}
 }
 
@@ -55,6 +74,28 @@ func emitTableSnapshot(nestedList [][]string, indexStatus int) {
 		HasIndex: indexStatus == 1,
 	}
 	currentTableCaptureHook(snapshot)
+}
+
+func EmitProxySelectionRequest(subject string, nestedList [][]string, indexStatus int, query string, message string) {
+	if currentProxySelectionHook == nil || len(nestedList) == 0 {
+		return
+	}
+
+	sanitized := sanitizeTableData(cloneTableData(nestedList))
+	if len(sanitized) == 0 {
+		return
+	}
+
+	currentProxySelectionHook(ProxySelectionRequest{
+		Subject: subject,
+		Query:   strings.TrimSpace(query),
+		Message: strings.TrimSpace(message),
+		Table: TableSnapshot{
+			Headers:  sanitized[0],
+			Rows:     sanitized[1:],
+			HasIndex: indexStatus == 1,
+		},
+	})
 }
 
 func cloneTableData(src [][]string) [][]string {
@@ -121,6 +162,11 @@ func TableSelector(subject string, nestedList [][]string, initialQuery string) S
 	PrintTable(nestedList, 1)
 	fmt.Println("")
 
+	if ShouldMuteUI() {
+		EmitProxySelectionRequest(subject, nestedList, 1, initialQuery, fmt.Sprintf("selection required for %s", subject))
+		return SelectionResult{}
+	}
+
 	for {
 		fmt.Printf("Choose a %s (enter a number): ", subject)
 		input, _ := reader.ReadString('\n')
@@ -178,14 +224,14 @@ func TableSelectorFuzzy(subject string, nestedList [][]string, initialQuery stri
 
 	// If no initial query provided or if initial query was an invalid number, prompt for input
 	if searchQuery == "" {
-		if subject == "Course" {
-			fmt.Printf("Enter the course name to download the syllabus (or 'exit' to quit): ")
-		} else {
-			fmt.Println("")
-			PrintTable(nestedList, 1)
-			fmt.Println("")
-			fmt.Printf("Enter a search term or number for %s (or 'exit' to quit): ", subject)
+		fmt.Println("")
+		PrintTable(nestedList, 1)
+		fmt.Println("")
+		if ShouldMuteUI() {
+			EmitProxySelectionRequest(subject, nestedList, 1, "", fmt.Sprintf("selection required for %s", subject))
+			return SelectionResult{}
 		}
+		fmt.Printf("Enter a search term or number for %s (or 'exit' to quit): ", subject)
 		input, _ := reader.ReadString('\n')
 		searchQuery = strings.TrimSpace(input)
 
@@ -206,6 +252,10 @@ func TableSelectorFuzzy(subject string, nestedList [][]string, initialQuery stri
 				fmt.Println("")
 				PrintTable(nestedList, 1)
 				fmt.Println("")
+				if ShouldMuteUI() {
+					EmitProxySelectionRequest(subject, nestedList, 1, searchQuery, fmt.Sprintf("invalid selection for %s", subject))
+					return SelectionResult{}
+				}
 				fmt.Printf("Enter a search term or number for %s (or 'exit' to quit): ", subject)
 				input, _ := reader.ReadString('\n')
 				searchQuery = strings.TrimSpace(input)
@@ -231,6 +281,10 @@ func TableSelectorFuzzy(subject string, nestedList [][]string, initialQuery stri
 			fmt.Println("")
 			PrintTable(nestedList, 1)
 			fmt.Println("")
+			if ShouldMuteUI() {
+				EmitProxySelectionRequest(subject, nestedList, 1, searchQuery, fmt.Sprintf("no matches found for %s", subject))
+				return SelectionResult{}
+			}
 			fmt.Printf("Enter a new search term or number for %s (or 'exit' to quit): ", subject)
 			input, _ := reader.ReadString('\n')
 			searchQuery = strings.TrimSpace(input)
@@ -246,6 +300,10 @@ func TableSelectorFuzzy(subject string, nestedList [][]string, initialQuery stri
 				fmt.Println("")
 				PrintTable(nestedList, 1)
 				fmt.Println("")
+				if ShouldMuteUI() {
+					EmitProxySelectionRequest(subject, nestedList, 1, searchQuery, fmt.Sprintf("invalid filtered selection for %s", subject))
+					return SelectionResult{}
+				}
 				fmt.Printf("Enter a new search term or number for %s (or 'exit' to quit): ", subject)
 				input, _ := reader.ReadString('\n')
 				searchQuery = strings.TrimSpace(input)
@@ -273,6 +331,10 @@ func TableSelectorFuzzy(subject string, nestedList [][]string, initialQuery stri
 				fmt.Println("")
 				PrintTable(nestedList, 1)
 				fmt.Println("")
+				if ShouldMuteUI() {
+					EmitProxySelectionRequest(subject, nestedList, 1, searchQuery, fmt.Sprintf("no valid matches found for %s", subject))
+					return SelectionResult{}
+				}
 				fmt.Printf("Enter a new search term or number for %s (or 'exit' to quit): ", subject)
 				input, _ := reader.ReadString('\n')
 				searchQuery = strings.TrimSpace(input)
@@ -286,6 +348,10 @@ func TableSelectorFuzzy(subject string, nestedList [][]string, initialQuery stri
 			fmt.Println("")
 			PrintTable(filteredList, 1)
 			fmt.Println("")
+			if ShouldMuteUI() {
+				EmitProxySelectionRequest(subject, filteredList, 1, searchQuery, fmt.Sprintf("multiple matches found for %s", subject))
+				return SelectionResult{}
+			}
 
 			// Loop until valid selection from filtered results
 			for {
@@ -362,6 +428,11 @@ func PrintTable(nestedList [][]string, indexStatus int) int {
 		for i := 1; i < len(normalizedList); i++ {
 			normalizedList[i] = append([]string{fmt.Sprintf("%d", i)}, normalizedList[i]...)
 		}
+	}
+
+	emitTableSnapshot(sanitizeTableData(normalizedList), indexStatus)
+	if ShouldMuteUI() {
+		return 0
 	}
 
 	colWidths := make([]int, len(normalizedList[0]))
@@ -450,7 +521,6 @@ func PrintTable(nestedList [][]string, indexStatus int) int {
 		}
 	}
 
-	emitTableSnapshot(sanitizeTableData(normalizedList), indexStatus)
 	return 0
 }
 

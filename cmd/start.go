@@ -32,6 +32,12 @@ var classGrpFlag int
 var fuzzyIndexFlag int
 var courseNameFlag string
 var syllabusCourseFlag string
+var coursePageMaterialsFlag string
+var courseAllocationCategoryFlag string
+var courseAllocationCourseFlag string
+var daAssignmentFlag string
+var facilitySelectionFlag string
+var facilityConfirmFlag bool
 
 func configFilePath() string {
 	return helpers.ConfigFilePath()
@@ -456,7 +462,7 @@ func init() {
   {{.CommandPath}} [global flags] <subcommand> [subcommand flags] [arguments]
 {{if .HasAvailableLocalFlags}}
 
-Global Flags:
+Flags:
 {{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}
 {{if .HasAvailableSubCommands}}
 
@@ -481,14 +487,22 @@ Use "{{.CommandPath}} <subcommand> --help" for more information about a subcomma
 	examScheduleCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	calendarCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	calendarCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
+	courseAllocationCmd.PersistentFlags().StringVar(&courseAllocationCategoryFlag, "category", "", "Specify curriculum category search or index")
+	courseAllocationCmd.PersistentFlags().StringVarP(&courseAllocationCourseFlag, "course", "c", "", "Specify course search or index")
 	coursePageCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
 	coursePageCmd.PersistentFlags().StringVarP(&facultyFlag, "faculty", "f", "", "Specify the faculty")
 	coursePageCmd.PersistentFlags().IntVarP(&fuzzyIndexFlag, "fuzzy-index", "i", 0, "Specify the fuzzy index")
+	coursePageCmd.PersistentFlags().StringVar(&coursePageMaterialsFlag, "materials", "", "Specify material indices or ranges (e.g. 1,2-4 or 0 for all)")
 	coursePageArchiveCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	coursePageArchiveCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
 	coursePageArchiveCmd.PersistentFlags().StringVarP(&facultyFlag, "faculty", "f", "", "Specify the faculty")
 	coursePageArchiveCmd.PersistentFlags().IntVarP(&fuzzyIndexFlag, "fuzzy-index", "i", 0, "Specify the fuzzy index")
+	coursePageArchiveCmd.PersistentFlags().StringVar(&coursePageMaterialsFlag, "materials", "", "Specify material indices or ranges (e.g. 1,2-4 or 0 for all)")
+	daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course", "c", "", "Specify subject search query or index")
+	daDetailsCmd.PersistentFlags().StringVarP(&daAssignmentFlag, "assignment", "a", "", "Specify assignment search query or index")
+	facilityCmd.PersistentFlags().StringVarP(&facilitySelectionFlag, "facility", "f", "", "Specify facility search query or index")
+	facilityCmd.PersistentFlags().BoolVar(&facilityConfirmFlag, "confirm", false, "Confirm facility registration without prompting")
 	syllabusCmd.PersistentFlags().StringVarP(&syllabusCourseFlag, "course", "c", "", "Specify course search query ")
 
 	// Define global flags.
@@ -576,7 +590,7 @@ var courseAllocationCmd = &cobra.Command{
 	Short: "View course allocation",
 	Run: helpers.CommandRunner("course-allocation", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.ExecuteInteractiveCourseAllocationView(regNo, cookies, "")
+		features.ExecuteInteractiveCourseAllocationView(regNo, cookies, "", courseAllocationCategoryFlag, courseAllocationCourseFlag)
 	}),
 }
 
@@ -592,9 +606,9 @@ var profileCmd = &cobra.Command{
 var facilityCmd = &cobra.Command{
 	Use:   "facility",
 	Short: "View facilities",
-	Run: helpers.CommandRunner("facility", func(cmd *cobra.Command, args []string) {
+	RunE: helpers.CommandRunnerE("facility", func(cmd *cobra.Command, args []string) error {
 		cookies, regNo := readCookiesFromFile()
-		features.RegisterPhyFacility(regNo, cookies)
+		return features.RegisterPhyFacility(regNo, cookies, facilitySelectionFlag, facilityConfirmFlag)
 	}),
 }
 
@@ -730,7 +744,7 @@ var coursePageCmd = &cobra.Command{
 	Short: "Download course materials for a selected semester, course, and faculty",
 	Run: helpers.CommandRunner("course-page", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.ExecuteCoursePageDownload(regNo, cookies, semesterFlag, courseFlag, facultyFlag, fuzzyIndexFlag)
+		features.ExecuteCoursePageDownload(regNo, cookies, semesterFlag, courseFlag, facultyFlag, fuzzyIndexFlag, coursePageMaterialsFlag)
 	}),
 }
 
@@ -739,7 +753,7 @@ var coursePageArchiveCmd = &cobra.Command{
 	Short: "Download course materials for a selected semester, course, and faculty (Archive)",
 	Run: helpers.CommandRunner("course-page-archive", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.ExecuteCoursePageOldDownload(regNo, cookies, semesterFlag, courseFlag, facultyFlag, fuzzyIndexFlag)
+		features.ExecuteCoursePageOldDownload(regNo, cookies, semesterFlag, courseFlag, facultyFlag, fuzzyIndexFlag, coursePageMaterialsFlag)
 	}),
 }
 
@@ -839,6 +853,6 @@ var daDetailsCmd = &cobra.Command{
 	Short: "Show Digital Assignment Details",
 	Run: helpers.CommandRunner("da", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.PrintAllDAs(regNo, cookies, courseNameFlag)
+		features.PrintAllDAs(regNo, cookies, courseNameFlag, daAssignmentFlag)
 	}),
 }

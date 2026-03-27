@@ -24,11 +24,11 @@ const (
 )
 
 // RegisterPhyFacility fetches and displays physical education facilities available for registration.
-// When FacilityRegistrationEnabled is set to 1, it allows interactive registration.
-// When FacilityRegistrationEnabled is set to 0, it only displays the facilities without prompting for registration.
-func RegisterPhyFacility(regNo string, cookies types.Cookies) {
+// When a facility query is provided, it tries to resolve and optionally register that facility without
+// requiring interactive prompts.
+func RegisterPhyFacility(regNo string, cookies types.Cookies, facilityQuery string, autoConfirm bool) error {
 	if !helpers.ValidateLogin(cookies) {
-		return
+		return nil
 	}
 
 	killSwitch := helpers.CheckKillSwitch()
@@ -44,7 +44,7 @@ func RegisterPhyFacility(regNo string, cookies types.Cookies) {
 			helpers.Println("Error fetching facilities:", err)
 		}
 		displayFacilities(facilities, registrations)
-		return
+		return nil
 	}
 
 	registrations, err := ListRegistrations(regNo, cookies)
@@ -60,7 +60,7 @@ func RegisterPhyFacility(regNo string, cookies types.Cookies) {
 
 	if len(facilities) == 0 && len(registrations) == 0 {
 		helpers.Println("No facilities or registrations found.")
-		return
+		return nil
 	}
 	if err != nil {
 		helpers.Println("Error fetching registrations:", err)
@@ -91,19 +91,23 @@ func RegisterPhyFacility(regNo string, cookies types.Cookies) {
 
 	if killSwitch == 4 {
 		// helpers.Println("Registration feature is currently in view-only mode.")
-		return
+		return nil
 	}
 
-	selectedFacility, err := promptFacilitySelection(facilities, nil)
+	selectedFacility, err := selectFacilityForRegistration(facilities, registrations, facilityQuery)
 	if err != nil {
-		helpers.Println("Registration aborted:", err)
-		return
+		return err
+	}
+
+	err = confirmFacilityRegistration(selectedFacility, autoConfirm)
+	if err != nil {
+		return err
 	}
 
 	err = performRegistration(regNo, cookies, selectedFacility)
 	if err != nil {
 		helpers.Println("Error during registration:", err)
-		return
+		return err
 	}
 
 	helpers.Println("Registration completed successfully.")
@@ -111,7 +115,7 @@ func RegisterPhyFacility(regNo string, cookies types.Cookies) {
 	updatedRegistrations, err := ListRegistrations(regNo, cookies)
 	if err != nil {
 		helpers.Println("Error fetching updated registrations:", err)
-		return
+		return err
 	}
 
 	for _, reg := range updatedRegistrations {
@@ -125,6 +129,7 @@ func RegisterPhyFacility(regNo string, cookies types.Cookies) {
 
 	helpers.Println("\nYour Current Registrations:")
 	displayFacilities(facilities, updatedRegistrations)
+	return nil
 }
 
 func fetchAvailableFacilities(regNo string, cookies types.Cookies) ([]types.Facility, error) {
@@ -380,6 +385,98 @@ func displayFacilities(facilities []types.Facility, registrations []types.Regist
 	helpers.Println()
 }
 
+func facilityStatusText(facility types.Facility, registrations []types.Registration) string {
+	if facility.Registered {
+		for _, reg := range registrations {
+			if strings.EqualFold(strings.TrimSpace(reg.FacilityName), strings.TrimSpace(facility.Name)) {
+				if reg.IsPaid {
+					return "Registered (Paid)"
+				}
+				return "Registered (Not Paid)"
+			}
+		}
+		return "Registered"
+	}
+
+	if facility.SeatsAvailable > 0 {
+		return fmt.Sprintf("%d seats left", facility.SeatsAvailable)
+	}
+
+	return "Full"
+}
+
+func buildFacilitySelectionTable(facilities []types.Facility, registrations []types.Registration) [][]string {
+	table := [][]string{{"FACILITY NAME", "FEES (INCLUDING GST)", "STATUS"}}
+	for _, facility := range facilities {
+		table = append(table, []string{
+			facility.Name,
+			facility.Fees,
+			facilityStatusText(facility, registrations),
+		})
+	}
+	return table
+}
+
+func selectFacilityForRegistration(facilities []types.Facility, registrations []types.Registration, facilityQuery string) (types.Facility, error) {
+	if strings.TrimSpace(facilityQuery) == "" && !helpers.ShouldMuteUI() {
+		return promptFacilitySelection(facilities, nil)
+	}
+
+	table := buildFacilitySelectionTable(facilities, registrations)
+	result := helpers.TableSelectorFuzzy("facility", table, facilityQuery, helpers.NewFuzzySearch)
+	if result.ExitRequest {
+		return types.Facility{}, fmt.Errorf("selection canceled by user")
+	}
+	if !result.Selected || result.Index < 1 || result.Index > len(facilities) {
+		if helpers.ShouldMuteUI() {
+			return types.Facility{}, fmt.Errorf("facility selection required")
+		}
+		return types.Facility{}, fmt.Errorf("invalid facility selection")
+	}
+
+	selectedFacility := facilities[result.Index-1]
+	if selectedFacility.Registered {
+		return types.Facility{}, fmt.Errorf("selected facility is already registered")
+	}
+	if selectedFacility.MiscID == "" || selectedFacility.SeatsAvailable <= 0 {
+		return types.Facility{}, fmt.Errorf("selected facility is full or unavailable for registration")
+	}
+
+	return selectedFacility, nil
+}
+
+func confirmFacilityRegistration(selectedFacility types.Facility, autoConfirm bool) error {
+	if autoConfirm {
+		return nil
+	}
+
+	if helpers.ShouldMuteUI() {
+		return fmt.Errorf("registration confirmation required; rerun with --confirm")
+	}
+
+	reader := bufio.NewReader(os.Stdin)
+	helpers.Printf("You have selected '%s' with %d seats available.\n", selectedFacility.Name, selectedFacility.SeatsAvailable)
+	for {
+		helpers.Print("Do you want to proceed with registration? (yes/no): ")
+		confirmInput, err := reader.ReadString('\n')
+		if err != nil {
+			if debug.Debug {
+				helpers.Println("Error reading confirmation:", err)
+			}
+			return fmt.Errorf("failed to read confirmation")
+		}
+
+		confirmInput = strings.ToLower(strings.TrimSpace(confirmInput))
+		if confirmInput == "yes" || confirmInput == "y" {
+			return nil
+		}
+		if confirmInput == "no" || confirmInput == "n" {
+			return fmt.Errorf("user declined the registration")
+		}
+		helpers.Println("Invalid input. Please respond with 'yes' or 'no'.")
+	}
+}
+
 func promptFacilitySelection(facilities []types.Facility, registrationsMap map[string]bool) (types.Facility, error) {
 	reader := bufio.NewReader(os.Stdin)
 
@@ -414,25 +511,7 @@ func promptFacilitySelection(facilities []types.Facility, registrationsMap map[s
 			continue
 		}
 
-		helpers.Printf("You have selected '%s' with %d seats available.\n", selectedFacility.Name, selectedFacility.SeatsAvailable)
-		helpers.Print("Do you want to proceed with registration? (yes/no): ")
-		confirmInput, err := reader.ReadString('\n')
-		if err != nil {
-			if debug.Debug {
-				helpers.Println("Error reading confirmation:", err)
-			}
-			return types.Facility{}, fmt.Errorf("failed to read confirmation")
-		}
-
-		confirmInput = strings.ToLower(strings.TrimSpace(confirmInput))
-		if confirmInput == "yes" || confirmInput == "y" {
-			return selectedFacility, nil
-		} else if confirmInput == "no" || confirmInput == "n" {
-			return types.Facility{}, fmt.Errorf("user declined the registration")
-		} else {
-			helpers.Println("Invalid input. Please respond with 'yes' or 'no'.")
-			continue
-		}
+		return selectedFacility, nil
 	}
 }
 

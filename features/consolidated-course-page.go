@@ -39,12 +39,12 @@ const (
 
 // dedicated HTTP client replaced by helpers.GetHTTPClient()
 
-func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag int, courseFlag int, facultyFlag string, fuzzyFlag int) {
+func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag int, courseFlag int, facultyFlag string, fuzzyFlag int, materialSelection string) {
 	if !helpers.ValidateLogin(cookies) {
 		return
 	}
 
-	selectedCourse, err := fetchAndSelectCourse(regNo, cookies, courseFlag)
+	selectedCourse, err := fetchAndSelectCourse(regNo, cookies, semesterFlag, courseFlag)
 	if err != nil {
 		helpers.Println("Error selecting course:", err)
 		return
@@ -58,7 +58,7 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag
 
 	displayCourseMaterials(materials)
 
-	selectedMaterials, err := selectCourseMaterials(materials)
+	selectedMaterials, err := selectCourseMaterials(materials, materialSelection)
 	if err != nil {
 		helpers.Println("Error selecting materials:", err)
 		return
@@ -73,7 +73,7 @@ func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag
 	helpers.Println("\nDownload complete!")
 }
 
-func fetchAndSelectCourse(regNo string, cookies types.Cookies, courseFlag int) (types.Course, error) {
+func fetchAndSelectCourse(regNo string, cookies types.Cookies, semesterFlag int, courseFlag int) (types.Course, error) {
 	getCourseURL := "https://vtop.vit.ac.in/vtop/academics/common/CoursePageConsolidated"
 	payloadMap := map[string]string{
 		"_csrf":        cookies.CSRF,
@@ -194,7 +194,11 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, courseFlag int) (
 		for _, sem := range semesters {
 			semTable = append(semTable, []string{sem})
 		}
-		semResult := helpers.TableSelector("Semester", semTable, "")
+		semesterSelection := strconv.Itoa(semesterFlag)
+		if helpers.ShouldMuteUI() && semesterFlag <= 0 {
+			semesterSelection = strconv.Itoa(len(semesters))
+		}
+		semResult := helpers.TableSelector("Semester", semTable, semesterSelection)
 		if semResult.ExitRequest {
 			return types.Course{}, fmt.Errorf("selection canceled by user")
 		}
@@ -451,6 +455,12 @@ func makeANSILink(url, label string) string {
 }
 
 func displayCourseMaterials(materials []types.CourseMaterial) {
+	nestedList := buildCourseMaterialsTable(materials)
+	helpers.Println()
+	helpers.PrintTable(nestedList, 1)
+}
+
+func buildCourseMaterialsTable(materials []types.CourseMaterial) [][]string {
 	showWebColumn := false
 	for _, material := range materials {
 		if strings.TrimSpace(material.WebLink) != "" {
@@ -466,7 +476,6 @@ func displayCourseMaterials(materials []types.CourseMaterial) {
 		header = []string{"DATE", "MODULE", "TOPIC", "REF COUNT"}
 	}
 
-	// Increase topic column width from 30 to 50
 	nestedList := [][]string{header}
 	for _, material := range materials {
 		refCount := strconv.Itoa(len(material.ReferenceMaterials))
@@ -475,7 +484,6 @@ func displayCourseMaterials(materials []types.CourseMaterial) {
 		if showWebColumn {
 			webCol := ""
 			if strings.TrimSpace(material.WebLink) != "" {
-				// Use local ansi hyperlink helper for consistent clickable output
 				webCol = makeANSILink(material.WebLink, "Open")
 			}
 			nestedList = append(nestedList, []string{
@@ -494,11 +502,38 @@ func displayCourseMaterials(materials []types.CourseMaterial) {
 			})
 		}
 	}
-	helpers.Println()
-	helpers.PrintTable(nestedList, 1)
+
+	return nestedList
 }
 
-func selectCourseMaterials(materials []types.CourseMaterial) ([]types.CourseMaterial, error) {
+func selectCourseMaterials(materials []types.CourseMaterial, selection string) ([]types.CourseMaterial, error) {
+	if strings.TrimSpace(selection) != "" {
+		trimmed := strings.TrimSpace(selection)
+		if trimmed == "0" {
+			return materials, nil
+		}
+
+		selectedIndices, invalidInputs := parseIndices(trimmed, len(materials))
+		if len(invalidInputs) > 0 {
+			return nil, fmt.Errorf("invalid material selection: %s", strings.Join(invalidInputs, ", "))
+		}
+		if len(selectedIndices) == 0 {
+			return nil, fmt.Errorf("no valid material indices selected")
+		}
+
+		var selectedMaterials []types.CourseMaterial
+		for _, idx := range selectedIndices {
+			selectedMaterials = append(selectedMaterials, materials[idx-1])
+		}
+		return selectedMaterials, nil
+	}
+
+	if helpers.ShouldMuteUI() {
+		table := buildCourseMaterialsTable(materials)
+		helpers.EmitProxySelectionRequest("material", table, 1, selection, "material selection required")
+		return nil, fmt.Errorf("material selection required")
+	}
+
 	for {
 		helpers.Println()
 		helpers.Print("Enter the index numbers of the topics to download (e.g., 1,2-5,8,5,3), or 0 for bulk download: ")
