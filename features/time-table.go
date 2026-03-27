@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cli-top/debug"
 	"cli-top/helpers"
+	"cli-top/internal/timetableutil"
 	types "cli-top/types"
 	"fmt"
 	"os"
@@ -569,9 +570,9 @@ func GetTimeTable(regNo string, cookies types.Cookies, sem_choice int) {
 	if !helpers.ValidateLogin(cookies) {
 		return
 	}
-	// Fetch all semesters to determine if user is a fresher (only one semester)
-	allSems, _ := helpers.GetSemDetails(cookies, regNo)
-	semester, err := helpers.SelectSemester(regNo, cookies, sem_choice)
+
+	locIndia := time.FixedZone("IST", 5*3600+1800)
+	semester, err := resolveTimetableSemester(regNo, cookies, sem_choice, time.Now().In(locIndia))
 	if err != nil {
 		if debug.Debug {
 			helpers.Println(err)
@@ -596,21 +597,12 @@ func GetTimeTable(regNo string, cookies types.Cookies, sem_choice int) {
 		timetable["Saturday"] = []types.Class{}
 	}
 
-	locIndia := time.FixedZone("IST", 5*3600+1800)
 	workingSats := WorkingSaturdaysFromSemSection(semSec, month, year, locIndia)
 	if len(workingSats) == 0 {
 		workingSats = fetchWorkingSaturdays(regNo, cookies, semester.SemID, classGroupID)
 	}
-	// If user is a fresher (only one semester), only show working Saturdays for that semester
-	if len(allSems) == 1 {
-		// Already filtered by selected semester, nothing to do
-		updateTimetableWithWorkingSaturdays(timetable, workingSats)
-		printTT(timetable, workingSats)
-	} else {
-		// For non-freshers, also only show working Saturdays for the selected semester
-		updateTimetableWithWorkingSaturdays(timetable, workingSats)
-		printTT(timetable, workingSats)
-	}
+	updateTimetableWithWorkingSaturdays(timetable, workingSats)
+	printTT(timetable, workingSats)
 
 	if os.Getenv("CLI_TOP_PROXY_MODE") == "1" {
 		return
@@ -633,6 +625,29 @@ func GetTimeTable(regNo string, cookies types.Cookies, sem_choice int) {
 			helpers.Println("Error uploading ICS file; please import manually.")
 		}
 	}
+}
+
+func resolveTimetableSemester(regNo string, cookies types.Cookies, semChoice int, now time.Time) (types.Semester, error) {
+	if semChoice > 0 || timetableutil.ShouldPromptSemesterSelection(now) {
+		return helpers.SelectSemester(regNo, cookies, semChoice)
+	}
+
+	semesters, err := helpers.GetSemDetails(cookies, regNo)
+	if err != nil {
+		if debug.Debug {
+			helpers.Println("Error fetching semester details:", err)
+		}
+		semesters, err = helpers.GetSemDetailsBackup(cookies, regNo)
+		if err != nil {
+			return types.Semester{}, err
+		}
+	}
+
+	if len(semesters) == 0 {
+		return types.Semester{}, fmt.Errorf("error fetching semester details or no semesters available. Try logging out and logging back in")
+	}
+
+	return LatestSemester(semesters), nil
 }
 
 func makeTT(schedule map[string]map[string][]string, courseMap map[string]types.SubjectTime) map[string][]types.Class {
