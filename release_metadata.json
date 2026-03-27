@@ -1,15 +1,13 @@
 {
-  "version": "2.11.0",
-  "releaseDate": "2026-03-26",
+  "version": "2.11.1",
+  "releaseDate": "2026-03-27",
   "killSwitch": 0,
   "baseUrl": "/buildFiles",
   "changes": [
-    "Added new holiday command to display upcoming holidays.",
-    "Added new today/tomorrow/dayafter commands to display if you can miss classes on those days.",
-    "Added new events command to display upcoming events.",
-    "MacOS binaries are now signed and notarized.",
-    "Fixed regressions in timetable & calendar commands.",
-    "Fixed shimmer related issues.",
-    "Fixed no internet bug with autocompletions"
+    "Added interactive nightslip applications that only unlock when no request is pending.",
+    "Made proxy command flows machine-friendly with structured selection payloads and selector flags.",
+    "Refined the events command with a quieter interactive shortlist and on-demand previews.",
+    "Default timetable selection now picks the latest semester outside semester-transition windows.",
+    "Fixed startup argument handling and improved interactive terminal detection."
   ]
 }
