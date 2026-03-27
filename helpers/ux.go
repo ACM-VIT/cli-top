@@ -68,6 +68,38 @@ func CommandRunner(label string, run func(cmd *cobra.Command, args []string)) fu
 	}
 }
 
+func CommandRunnerE(label string, run func(cmd *cobra.Command, args []string) error) func(cmd *cobra.Command, args []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		muted := ShouldMuteUI()
+		if strings.EqualFold(label, "logout") {
+			muted = true
+		}
+
+		start := time.Now()
+		defer cleanupHeadlineAnimation()
+		if !muted {
+			startOrPrintHeadline(label)
+		}
+
+		err := run(cmd, args)
+
+		if !muted {
+			stopActiveHeadlineAnimation()
+			flushHeadlineNewline()
+			elapsed := time.Since(start).Round(10 * time.Millisecond)
+			if err == nil {
+				successLine := fmt.Sprintf("✓ %s (%s)", strings.ToUpper(label), elapsed)
+				color.New(color.FgHiGreen).Printf("\n%s\n\n", successLine)
+			} else {
+				failureLine := fmt.Sprintf("✗ %s (%s)", strings.ToUpper(label), elapsed)
+				color.New(color.FgHiRed).Printf("\n%s\n\n", failureLine)
+			}
+		}
+
+		return err
+	}
+}
+
 func Infof(format string, args ...any) {
 	if ShouldMuteUI() {
 		return
