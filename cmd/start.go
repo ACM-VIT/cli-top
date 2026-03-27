@@ -32,6 +32,12 @@ var classGrpFlag int
 var fuzzyIndexFlag int
 var courseNameFlag string
 var syllabusCourseFlag string
+var coursePageMaterialsFlag string
+var courseAllocationCategoryFlag string
+var courseAllocationCourseFlag string
+var daAssignmentFlag string
+var facilitySelectionFlag string
+var facilityConfirmFlag bool
 
 func configFilePath() string {
 	return helpers.ConfigFilePath()
@@ -281,22 +287,97 @@ func isStartupSideEffectFreeArg(arg string) bool {
 	}
 }
 
-func ShouldSkipStartupSideEffects(args []string) bool {
-	if len(args) == 0 {
-		return false
+type startupArgsInfo struct {
+	remainingArgs        []string
+	rootHelpRequested    bool
+	rootVersionRequested bool
+	rootUpdateRequested  bool
+}
+
+func inspectStartupArgs(args []string) startupArgsInfo {
+	info := startupArgsInfo{}
+
+	for i, arg := range args {
+		switch {
+		case arg == "--":
+			if i+1 < len(args) {
+				info.remainingArgs = args[i+1:]
+			}
+			return info
+		case arg == "" || arg == "-" || !strings.HasPrefix(arg, "-"):
+			info.remainingArgs = args[i:]
+			return info
+		case strings.HasPrefix(arg, "--"):
+			switch arg {
+			case "--debug":
+				continue
+			case "--update":
+				info.rootUpdateRequested = true
+				continue
+			case "--version":
+				info.rootVersionRequested = true
+				return info
+			case "--help":
+				info.rootHelpRequested = true
+				return info
+			default:
+				info.remainingArgs = args[i:]
+				return info
+			}
+		default:
+			recognizedCluster := true
+			for _, shortFlag := range arg[1:] {
+				switch shortFlag {
+				case 'd':
+				case 'u':
+					info.rootUpdateRequested = true
+				case 'v':
+					info.rootVersionRequested = true
+					return info
+				case 'h':
+					info.rootHelpRequested = true
+					return info
+				default:
+					recognizedCluster = false
+				}
+			}
+
+			if recognizedCluster {
+				continue
+			}
+
+			info.remainingArgs = args[i:]
+			return info
+		}
 	}
 
-	if isStartupSideEffectFreeArg(args[0]) {
+	return info
+}
+
+func shouldSkipStartupSideEffects(info startupArgsInfo) bool {
+	if info.rootHelpRequested || info.rootVersionRequested {
 		return true
 	}
 
-	for _, arg := range args[1:] {
+	if len(info.remainingArgs) == 0 {
+		return false
+	}
+
+	if isStartupSideEffectFreeArg(info.remainingArgs[0]) {
+		return true
+	}
+
+	for _, arg := range info.remainingArgs[1:] {
 		if arg == "--help" || arg == "-h" {
 			return true
 		}
 	}
 
 	return false
+}
+
+func ShouldSkipStartupSideEffects(args []string) bool {
+	return shouldSkipStartupSideEffects(inspectStartupArgs(args))
 }
 
 func ShouldSkipCommandSideEffects(cmd *cobra.Command, rootVersionRequested bool) bool {
@@ -381,7 +462,7 @@ func init() {
   {{.CommandPath}} [global flags] <subcommand> [subcommand flags] [arguments]
 {{if .HasAvailableLocalFlags}}
 
-Global Flags:
+Flags:
 {{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}
 {{if .HasAvailableSubCommands}}
 
@@ -406,14 +487,22 @@ Use "{{.CommandPath}} <subcommand> --help" for more information about a subcomma
 	examScheduleCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	calendarCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	calendarCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
+	courseAllocationCmd.PersistentFlags().StringVar(&courseAllocationCategoryFlag, "category", "", "Specify curriculum category search or index")
+	courseAllocationCmd.PersistentFlags().StringVarP(&courseAllocationCourseFlag, "course", "c", "", "Specify course search or index")
 	coursePageCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
 	coursePageCmd.PersistentFlags().StringVarP(&facultyFlag, "faculty", "f", "", "Specify the faculty")
 	coursePageCmd.PersistentFlags().IntVarP(&fuzzyIndexFlag, "fuzzy-index", "i", 0, "Specify the fuzzy index")
+	coursePageCmd.PersistentFlags().StringVar(&coursePageMaterialsFlag, "materials", "", "Specify material indices or ranges (e.g. 1,2-4 or 0 for all)")
 	coursePageArchiveCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	coursePageArchiveCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
 	coursePageArchiveCmd.PersistentFlags().StringVarP(&facultyFlag, "faculty", "f", "", "Specify the faculty")
 	coursePageArchiveCmd.PersistentFlags().IntVarP(&fuzzyIndexFlag, "fuzzy-index", "i", 0, "Specify the fuzzy index")
+	coursePageArchiveCmd.PersistentFlags().StringVar(&coursePageMaterialsFlag, "materials", "", "Specify material indices or ranges (e.g. 1,2-4 or 0 for all)")
+	daDetailsCmd.PersistentFlags().StringVarP(&courseNameFlag, "course", "c", "", "Specify subject search query or index")
+	daDetailsCmd.PersistentFlags().StringVarP(&daAssignmentFlag, "assignment", "a", "", "Specify assignment search query or index")
+	facilityCmd.PersistentFlags().StringVarP(&facilitySelectionFlag, "facility", "f", "", "Specify facility search query or index")
+	facilityCmd.PersistentFlags().BoolVar(&facilityConfirmFlag, "confirm", false, "Confirm facility registration without prompting")
 	syllabusCmd.PersistentFlags().StringVarP(&syllabusCourseFlag, "course", "c", "", "Specify course search query ")
 
 	// Define global flags.
@@ -454,7 +543,9 @@ Use "{{.CommandPath}} <subcommand> --help" for more information about a subcomma
 }
 
 func Execute() {
-	if !ShouldSkipStartupSideEffects(os.Args[1:]) {
+	startupArgs := inspectStartupArgs(os.Args[1:])
+
+	if !shouldSkipStartupSideEffects(startupArgs) {
 		killSwitch := helpers.CheckKillSwitch()
 		if killSwitch == 2 {
 			helpers.Println("This version of cli-top has been decommissioned.")
@@ -477,7 +568,7 @@ func Execute() {
 			helpers.Println("User UUID:", userUUID)
 		}
 
-		if !updateFlag && (len(os.Args) == 1 || (os.Args[len(os.Args)-1] != "-u" && os.Args[len(os.Args)-1] != "--update")) {
+		if !startupArgs.rootUpdateRequested && helpers.IsInteractiveOutput(os.Stdout) {
 			shouldNotify, latestVersion, highlight := helpers.ShouldShowUpdateNotification()
 			if shouldNotify {
 				helpers.ShowUpdateNotification(latestVersion, highlight)
@@ -486,8 +577,10 @@ func Execute() {
 	}
 
 	rootCmd.SetArgs(os.Args[1:])
-	if err := rootCmd.Execute(); err != nil && debug.Debug {
-		helpers.Println(err)
+	if err := rootCmd.Execute(); err != nil {
+		if debug.Debug {
+			helpers.Println(err)
+		}
 		os.Exit(1)
 	}
 }
@@ -497,7 +590,7 @@ var courseAllocationCmd = &cobra.Command{
 	Short: "View course allocation",
 	Run: helpers.CommandRunner("course-allocation", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.ExecuteInteractiveCourseAllocationView(regNo, cookies, "")
+		features.ExecuteInteractiveCourseAllocationView(regNo, cookies, "", courseAllocationCategoryFlag, courseAllocationCourseFlag)
 	}),
 }
 
@@ -513,9 +606,9 @@ var profileCmd = &cobra.Command{
 var facilityCmd = &cobra.Command{
 	Use:   "facility",
 	Short: "View facilities",
-	Run: helpers.CommandRunner("facility", func(cmd *cobra.Command, args []string) {
+	RunE: helpers.CommandRunnerE("facility", func(cmd *cobra.Command, args []string) error {
 		cookies, regNo := readCookiesFromFile()
-		features.RegisterPhyFacility(regNo, cookies)
+		return features.RegisterPhyFacility(regNo, cookies, facilitySelectionFlag, facilityConfirmFlag)
 	}),
 }
 
@@ -651,7 +744,7 @@ var coursePageCmd = &cobra.Command{
 	Short: "Download course materials for a selected semester, course, and faculty",
 	Run: helpers.CommandRunner("course-page", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.ExecuteCoursePageDownload(regNo, cookies, semesterFlag, courseFlag, facultyFlag, fuzzyIndexFlag)
+		features.ExecuteCoursePageDownload(regNo, cookies, semesterFlag, courseFlag, facultyFlag, fuzzyIndexFlag, coursePageMaterialsFlag)
 	}),
 }
 
@@ -660,7 +753,7 @@ var coursePageArchiveCmd = &cobra.Command{
 	Short: "Download course materials for a selected semester, course, and faculty (Archive)",
 	Run: helpers.CommandRunner("course-page-archive", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.ExecuteCoursePageOldDownload(regNo, cookies, semesterFlag, courseFlag, facultyFlag, fuzzyIndexFlag)
+		features.ExecuteCoursePageOldDownload(regNo, cookies, semesterFlag, courseFlag, facultyFlag, fuzzyIndexFlag, coursePageMaterialsFlag)
 	}),
 }
 
@@ -727,11 +820,13 @@ var logoutCmd = &cobra.Command{
 }
 
 var nightslipCmd = &cobra.Command{
-	Use:   "nightslip",
-	Short: "Show Nightslip Request Status of a user",
-	Run: helpers.CommandRunner("nightslip", func(cmd *cobra.Command, args []string) {
+	Use:           "nightslip",
+	Short:         "Show nightslip status and interactively apply when none is pending",
+	SilenceUsage:  true,
+	SilenceErrors: true,
+	RunE: helpers.CommandRunnerE("nightslip", func(cmd *cobra.Command, args []string) error {
 		cookies, regNo := readCookiesFromFile()
-		features.GetNightSlipStatus(regNo, cookies)
+		return features.RunInteractiveNightSlip(regNo, cookies)
 	}),
 }
 
@@ -758,6 +853,6 @@ var daDetailsCmd = &cobra.Command{
 	Short: "Show Digital Assignment Details",
 	Run: helpers.CommandRunner("da", func(cmd *cobra.Command, args []string) {
 		cookies, regNo := readCookiesFromFile()
-		features.PrintAllDAs(regNo, cookies, courseNameFlag)
+		features.PrintAllDAs(regNo, cookies, courseNameFlag, daAssignmentFlag)
 	}),
 }

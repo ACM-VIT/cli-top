@@ -127,6 +127,7 @@ type NightSlipRequest struct {
 	FromDate   string
 	ToDate     string
 	FromToTime string
+	RawStatus  string
 	Status     string
 }
 

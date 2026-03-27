@@ -125,11 +125,11 @@ cli-top receipts
 ```
 Shows your receipt details.
 
-#### Nightslip Status
+#### Nightslip
 ```bash
 cli-top nightslip
 ```
-Shows your nightslip request status.
+Shows your nightslip request status first. If no request is pending, the command asks whether you want to apply and then walks you through the required details interactively before submission.
 
 #### Leave Status
 ```bash
