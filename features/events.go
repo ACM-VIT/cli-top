@@ -21,7 +21,7 @@ const (
 	eventsRegisterURL           = "https://vtop.vit.ac.in/vtop/event/swf/registered/doEventRegistraiton"
 	eventsUpcomingTableSelector = "table#dataTable1"
 	eventsRegisteredSelector    = "table#dataTable2"
-	eventSelectionPageSize      = 10
+	eventSelectionPageSize      = 6
 )
 
 var eventRegistrationIDRegex = regexp.MustCompile(`doEventRegistraiton\(['"]([^'"]+)['"]\)`)
@@ -51,30 +51,28 @@ func GetEvents(regNo string, cookies types.Cookies) {
 		return
 	}
 
-	if len(upcomingEvents) > 0 {
-		printEventSection("Upcoming Events", upcomingEvents, now)
-	}
-
 	registeredUpcoming := filterCurrentAndUpcomingEvents(registeredEvents, now)
-	if len(registeredUpcoming) > 0 {
-		helpers.Println()
-		printEventSection("Your Upcoming Registrations", registeredUpcoming, now)
-	} else if len(registeredEvents) > 0 {
-		helpers.Printf("\nNo upcoming registered events. Historical registrations on VTOP: %d\n", len(registeredEvents))
-	}
+	registerableEvents := filterRegisterableEvents(upcomingEvents)
 
 	if helpers.ShouldMuteUI() {
+		if len(upcomingEvents) > 0 {
+			printEventSection("Upcoming Events", upcomingEvents, now)
+		}
+		if len(registeredUpcoming) > 0 {
+			helpers.Println()
+			printEventSection("Your Upcoming Registrations", registeredUpcoming, now)
+		} else if len(registeredEvents) > 0 {
+			helpers.Printf("\nNo upcoming registered events. Historical registrations on VTOP: %d\n", len(registeredEvents))
+		}
 		return
 	}
 
-	registerableEvents := filterRegisterableEvents(upcomingEvents)
+	printInteractiveEventsOverview(upcomingEvents, registeredUpcoming, registerableEvents, now)
 	if len(registerableEvents) == 0 {
 		return
 	}
 
-	helpers.Println("\nBrowse open events. Showing the 10 closest first.")
-	helpers.Println("Type a number to select, `m` to show more, a search term to filter, `clear` to reset, or `exit` to finish.")
-	selectedEvent, selected := promptEventSelection(registerableEvents)
+	selectedEvent, selected := promptEventSelection(registerableEvents, registeredUpcoming, now)
 	if !selected {
 		return
 	}
@@ -98,17 +96,11 @@ func GetEvents(regNo string, cookies types.Cookies) {
 	}
 
 	if successMessage != "" {
+		helpers.Println()
 		helpers.Println(successMessage)
 	}
 
-	updatedRegisteredUpcoming := filterCurrentAndUpcomingEvents(updatedRegistered, time.Now().In(loc))
-	if len(updatedRegisteredUpcoming) > 0 {
-		helpers.Println()
-		printEventSection("Updated Registrations", updatedRegisteredUpcoming, time.Now().In(loc))
-	} else if len(updatedUpcoming) > 0 {
-		helpers.Println()
-		printEventSection("Updated Upcoming Events", updatedUpcoming, time.Now().In(loc))
-	}
+	printEventRegistrationResult(selectedEvent, updatedUpcoming, updatedRegistered, time.Now().In(loc))
 }
 
 func ParseEventsHTML(html string, loc *time.Location) ([]types.Event, []types.Event, error) {
@@ -451,41 +443,69 @@ func filterRegisterableEvents(events []types.Event) []types.Event {
 	return filtered
 }
 
-func promptEventSelection(events []types.Event) (types.Event, bool) {
+func printInteractiveEventsOverview(upcomingEvents []types.Event, registeredUpcoming []types.Event, registerableEvents []types.Event, now time.Time) {
+	helpers.Println()
+	helpers.Printf(
+		"Upcoming events: %d | Open registrations: %d | Your upcoming registrations: %d\n",
+		len(upcomingEvents),
+		len(registerableEvents),
+		len(registeredUpcoming),
+	)
+
+	if nextRegistration, ok := findNextUpcomingEvent(registeredUpcoming); ok {
+		helpers.Printf(
+			"Next registered: %s — %s\n",
+			helpers.TruncateWithEllipsis(nextRegistration.Title, 54),
+			formatEventWhenInline(nextRegistration),
+		)
+	}
+
+	if nextDeadline, ok := findClosestRegistrationDeadline(registerableEvents, now); ok {
+		helpers.Printf(
+			"Closest deadline: %s — %s\n",
+			helpers.TruncateWithEllipsis(nextDeadline.Title, 54),
+			formatRegistrationDeadline(nextDeadline),
+		)
+	}
+
+	shortlist := previewEvents(upcomingEvents, eventSelectionPageSize)
+	sectionTitle := "Coming up"
+	totalCount := len(upcomingEvents)
+	if len(registerableEvents) > 0 {
+		shortlist = previewEvents(registerableEvents, eventSelectionPageSize)
+		sectionTitle = "Open registrations"
+		totalCount = len(registerableEvents)
+	}
+
+	if len(shortlist) == 0 {
+		return
+	}
+
+	helpers.Println()
+	helpers.Printf("%s (%d of %d)\n", sectionTitle, len(shortlist), totalCount)
+	helpers.Println()
+	helpers.PrintTable(buildEventSelectionTable(shortlist), 1)
+	helpers.Println()
+
+	if len(registerableEvents) > len(shortlist) {
+		helpers.Printf("Type `m` to show %d more open events.\n", minInt(eventSelectionPageSize, len(registerableEvents)-len(shortlist)))
+	}
+	if len(registerableEvents) > 0 {
+		helpers.Println("Choose from the shortlist, search open registrations, type `mine` to review your registrations, `clear` to reset, or `exit`.")
+	}
+}
+
+func promptEventSelection(events []types.Event, registeredUpcoming []types.Event, now time.Time) (types.Event, bool) {
 	if len(events) == 0 {
 		return types.Event{}, false
 	}
 
 	reader := bufio.NewReader(os.Stdin)
 	searchQuery := ""
-	visibleCount := eventSelectionPageSize
+	visibleCount := minInt(eventSelectionPageSize, len(events))
 
 	for {
-		filteredEvents := filterEventsForSelection(events, searchQuery)
-		if len(filteredEvents) == 0 {
-			helpers.Printf("\nNo matching events found for %q.\n", searchQuery)
-			helpers.Println("Type another search term, `clear` to reset, or `exit` to quit.")
-		} else {
-			if visibleCount > len(filteredEvents) {
-				visibleCount = len(filteredEvents)
-			}
-
-			helpers.Println()
-			if searchQuery == "" {
-				helpers.Printf("Closest Open Events (%d of %d)\n", visibleCount, len(filteredEvents))
-			} else {
-				helpers.Printf("Matching Events for %q (%d of %d)\n", searchQuery, visibleCount, len(filteredEvents))
-			}
-			helpers.Println()
-			helpers.PrintTable(buildEventSelectionTable(filteredEvents[:visibleCount]), 1)
-			helpers.Println()
-
-			if visibleCount < len(filteredEvents) {
-				helpers.Printf("Type `m` to show %d more.\n", minInt(eventSelectionPageSize, len(filteredEvents)-visibleCount))
-			}
-		}
-
-		helpers.Print("Enter a number, search term, `m`, `clear`, or `exit`: ")
+		helpers.Print("Choose an event, search, `m`, `mine`, `clear`, or `exit`: ")
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			if debug.Debug {
@@ -502,28 +522,35 @@ func promptEventSelection(events []types.Event) (types.Event, bool) {
 			continue
 		case "exit":
 			return types.Event{}, false
+		case "mine":
+			printRegisteredEventPreview(registeredUpcoming, now)
+			continue
 		case "clear":
 			searchQuery = ""
-			visibleCount = eventSelectionPageSize
+			visibleCount = minInt(eventSelectionPageSize, len(events))
+			printEventPickerView(events, searchQuery, visibleCount)
 			continue
 		case "m", "more":
+			filteredEvents := filterEventsForSelection(events, searchQuery)
 			if len(filteredEvents) == 0 {
 				continue
 			}
 			if visibleCount >= len(filteredEvents) {
-				helpers.Println("All matching events are already shown.")
+				helpers.Println("All matching open events are already shown.")
 				continue
 			}
 			visibleCount += eventSelectionPageSize
 			if visibleCount > len(filteredEvents) {
 				visibleCount = len(filteredEvents)
 			}
+			printEventPickerView(filteredEvents, searchQuery, visibleCount)
 			continue
 		}
 
+		filteredEvents := filterEventsForSelection(events, searchQuery)
 		if choice, err := strconv.Atoi(input); err == nil {
 			if len(filteredEvents) == 0 {
-				helpers.Println("There are no visible events to select.")
+				helpers.Println("There are no visible open events to select.")
 				continue
 			}
 			if choice < 1 || choice > visibleCount {
@@ -534,7 +561,15 @@ func promptEventSelection(events []types.Event) (types.Event, bool) {
 		}
 
 		searchQuery = input
-		visibleCount = eventSelectionPageSize
+		filteredEvents = filterEventsForSelection(events, searchQuery)
+		if len(filteredEvents) == 0 {
+			helpers.Printf("\nNo matching open events found for %q.\n", searchQuery)
+			helpers.Println("Try another search term, `clear` to reset, or `exit` to quit.")
+			continue
+		}
+
+		visibleCount = minInt(eventSelectionPageSize, len(filteredEvents))
+		printEventPickerView(filteredEvents, searchQuery, visibleCount)
 	}
 }
 
@@ -564,17 +599,13 @@ func filterEventsForSelection(events []types.Event, searchQuery string) []types.
 
 func confirmEventRegistration(event types.Event) bool {
 	helpers.Println()
-	helpers.Printf("Selected Event: %s\n", event.Title)
-	helpers.Printf("Association: %s\n", event.Association)
-	helpers.Printf("Date: %s\n", formatEventDateRange(event))
-	helpers.Printf("Time: %s\n", formatEventTimeRange(event))
-	helpers.Printf("Venue: %s\n", event.Venue)
-	if !event.RegistrationDeadline.IsZero() {
-		helpers.Printf("Registration closes: %s\n", formatRegistrationDeadline(event))
-	}
-	if event.Description != "" {
-		helpers.Println("Description:")
-		helpers.Println(event.Description)
+	helpers.Println("Register for this event?")
+	helpers.Println()
+	helpers.PrintTable(buildEventReviewTable(event), 0)
+	description := formatEventDescriptionPreview(event.Description)
+	if description != "" {
+		helpers.Println()
+		helpers.Printf("About: %s\n", description)
 	}
 
 	reader := bufio.NewReader(os.Stdin)
@@ -597,6 +628,148 @@ func confirmEventRegistration(event types.Event) bool {
 			helpers.Println("Invalid input. Please respond with 'yes' or 'no'.")
 		}
 	}
+}
+
+func printEventPickerView(events []types.Event, searchQuery string, visibleCount int) {
+	if len(events) == 0 {
+		return
+	}
+	if visibleCount > len(events) {
+		visibleCount = len(events)
+	}
+
+	helpers.Println()
+	if searchQuery == "" {
+		helpers.Printf("Open registrations (%d of %d)\n", visibleCount, len(events))
+	} else {
+		helpers.Printf("Matches for %q (%d of %d)\n", searchQuery, visibleCount, len(events))
+	}
+	helpers.Println()
+	helpers.PrintTable(buildEventSelectionTable(events[:visibleCount]), 1)
+	helpers.Println()
+
+	if visibleCount < len(events) {
+		helpers.Printf("Type `m` to show %d more.\n", minInt(eventSelectionPageSize, len(events)-visibleCount))
+	}
+}
+
+func printRegisteredEventPreview(events []types.Event, now time.Time) {
+	helpers.Println()
+	if len(events) == 0 {
+		helpers.Println("You have no upcoming registrations.")
+		return
+	}
+
+	visibleCount := minInt(eventSelectionPageSize, len(events))
+	helpers.Printf("Your upcoming registrations (%d of %d)\n", visibleCount, len(events))
+	helpers.Println()
+	helpers.PrintTable(buildEventsTable(events[:visibleCount], now), 0)
+	helpers.Println()
+	helpers.Println("Search still applies to open registrations.")
+}
+
+func buildEventReviewTable(event types.Event) [][]string {
+	return [][]string{
+		{"Event", "When", "Club", "Where", "Closes"},
+		{
+			helpers.TruncateWithEllipsis(event.Title, 64),
+			formatEventWhenInline(event),
+			formatAssociationCompact(event.Association),
+			formatVenueCompact(event.Venue),
+			formatRegistrationDeadline(event),
+		},
+	}
+}
+
+func printEventRegistrationResult(selectedEvent types.Event, updatedUpcoming []types.Event, updatedRegistered []types.Event, now time.Time) {
+	helpers.Println()
+	if registeredEvent, ok := findMatchingEvent(updatedRegistered, selectedEvent); ok {
+		helpers.Println("Registered event")
+		helpers.Println()
+		helpers.PrintTable(buildEventReviewTable(registeredEvent), 0)
+		return
+	}
+
+	if updatedEvent, ok := findMatchingEvent(updatedUpcoming, selectedEvent); ok {
+		helpers.Println("Updated event status")
+		helpers.Println()
+		helpers.PrintTable(buildEventsTable([]types.Event{updatedEvent}, now), 0)
+		return
+	}
+
+	helpers.Println("Registration submitted.")
+}
+
+func previewEvents(events []types.Event, limit int) []types.Event {
+	if len(events) == 0 {
+		return nil
+	}
+	if limit <= 0 || len(events) <= limit {
+		return append([]types.Event(nil), events...)
+	}
+	return append([]types.Event(nil), events[:limit]...)
+}
+
+func findNextUpcomingEvent(events []types.Event) (types.Event, bool) {
+	for _, event := range events {
+		if !event.StartDateTime.IsZero() {
+			return event, true
+		}
+	}
+	return types.Event{}, false
+}
+
+func findClosestRegistrationDeadline(events []types.Event, now time.Time) (types.Event, bool) {
+	var closest types.Event
+	found := false
+
+	for _, event := range events {
+		if event.RegistrationDeadline.IsZero() || event.RegistrationDeadline.Before(now) {
+			continue
+		}
+		if !found || event.RegistrationDeadline.Before(closest.RegistrationDeadline) {
+			closest = event
+			found = true
+		}
+	}
+
+	return closest, found
+}
+
+func findMatchingEvent(events []types.Event, selectedEvent types.Event) (types.Event, bool) {
+	for _, event := range events {
+		if selectedEvent.EventID != "" && event.EventID == selectedEvent.EventID {
+			return event, true
+		}
+		if event.Title == selectedEvent.Title && event.StartDateTime.Equal(selectedEvent.StartDateTime) {
+			return event, true
+		}
+	}
+	return types.Event{}, false
+}
+
+func formatEventWhenInline(event types.Event) string {
+	dateRange := formatEventDateRange(event)
+	timeRange := formatEventTimeRange(event)
+
+	switch {
+	case dateRange == "-" && timeRange == "-":
+		return "-"
+	case dateRange == "-":
+		return timeRange
+	case timeRange == "-":
+		return dateRange
+	default:
+		return fmt.Sprintf("%s, %s", dateRange, timeRange)
+	}
+}
+
+func formatEventDescriptionPreview(value string) string {
+	value = helpers.SanitizeString(strings.ReplaceAll(value, "\n", " "))
+	if value == "" || value == "-" {
+		return ""
+	}
+	return helpers.TruncateWithEllipsis(value, 180)
 }
 
 func formatEventDateRange(event types.Event) string {
