@@ -1,13 +1,11 @@
 {
-  "version": "2.11.1",
-  "releaseDate": "2026-03-27",
+  "version": "2.12.0",
+  "releaseDate": "2026-04-23",
   "killSwitch": 0,
   "baseUrl": "/buildFiles",
   "changes": [
-    "Added interactive nightslip applications that only unlock when no request is pending.",
-    "Made proxy command flows machine-friendly with structured selection payloads and selector flags.",
-    "Refined the events command with a quieter interactive shortlist and on-demand previews.",
-    "Default timetable selection now picks the latest semester outside semester-transition windows.",
-    "Fixed startup argument handling and improved interactive terminal detection."
+    "Added ability to post leave request",
+    "Fixed timetable bugs",
+    "Added regression tests"
   ]
 }
