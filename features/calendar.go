@@ -99,7 +99,18 @@ func getDateList(regNo string, cookies types.Cookies, semester types.Semester, g
 }
 
 func processDates(regNo string, cookies types.Cookies, semester types.Semester, grp string, datelist []string, flag int) ([][]int, int, int) {
+	if len(datelist) == 0 {
+		if debug.Debug {
+			helpers.Println("No months found")
+		}
+		return nil, -1, -1
+	}
+
 	var months []string
+	if len(datelist[0]) < len("01-JAN-2006") {
+		helpers.Println("Invalid calendar date:", datelist[0])
+		return nil, -1, -1
+	}
 	year := datelist[0][7:]
 	var color_list [][]int
 
@@ -184,6 +195,10 @@ func processDates(regNo string, cookies types.Cookies, semester types.Semester, 
 	// Create the nested array with correct days per month/year from each date string
 	return_list := [][]int{}
 	for i := 0; i < len(datelist); i++ {
+		if len(datelist[i]) < len("01-JAN-2006") {
+			helpers.Println("Invalid calendar date:", datelist[i])
+			return nil, -1, -1
+		}
 		monStr := datelist[i][3:6]
 		yStr := datelist[i][7:]
 		mon, ok := monthMap[monStr]
@@ -453,10 +468,19 @@ func readmonths(doc *goquery.Document) []string {
 	doc.Find("a.btn.btn-md.btn-primary").Each(func(i int, s *goquery.Selection) {
 		onclick, exists := s.Attr("onclick")
 		if exists {
-			start := strings.Index(onclick, "'") + 1
-			end := strings.Index(onclick[start:], "'") + start
-			date := onclick[start:end]
-			monthlist = append(monthlist, date)
+			start := strings.Index(onclick, "'")
+			if start == -1 {
+				return
+			}
+			remaining := onclick[start+1:]
+			end := strings.Index(remaining, "'")
+			if end == -1 {
+				return
+			}
+			date := strings.TrimSpace(remaining[:end])
+			if date != "" {
+				monthlist = append(monthlist, date)
+			}
 		}
 	})
 	return monthlist
@@ -466,11 +490,13 @@ func extractclassgrp(doc *goquery.Document) [][]string {
 	var grp_list [][]string
 	doc.Find("select#classGroupId").Each(func(i int, s *goquery.Selection) {
 		s.Find("option").Each(func(i int, option *goquery.Selection) {
-			value, _ := option.Attr("value")
-			text := strings.TrimSpace(option.Text())
+			value := strings.TrimSpace(option.AttrOr("value", ""))
+			if value == "" {
+				return
+			}
+			text := strings.TrimSpace(strings.Join(strings.Fields(option.Text()), " "))
 			grp_list = append(grp_list, []string{text, value})
 		})
 	})
-	grp_list = grp_list[1:]
 	return grp_list
 }
