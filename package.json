@@ -1,6 +1,6 @@
 {
   "name": "cli-top",
-  "version": "2.10.5",
+  "version": "2.12.0",
   "description": "Command-line tool for ease of access",
   "bin": {
     "cli-top": "npm/bin/cli-top.js"

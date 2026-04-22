@@ -325,7 +325,16 @@ func executeFeatureCommand(command string, flags map[string]string, cookies type
 			ToTime:          flagsValue(flags, "to-time"),
 		})
 	case "leave":
-		features.GetLeaveStatus(regNo, cookies)
+		return features.ExecuteLeave(regNo, cookies, features.LeaveApplyInput{
+			Apply:         parseBoolFlag(flags, "apply"),
+			LeaveCode:     flagsValue(flags, "leave-code"),
+			VisitingPlace: flagsValue(flags, "visiting-place"),
+			Reason:        flagsValue(flags, "reason"),
+			FromDate:      flagsValue(flags, "from-date"),
+			FromTime:      flagsValue(flags, "from-time"),
+			ToDate:        flagsValue(flags, "to-date"),
+			ToTime:        flagsValue(flags, "to-time"),
+		})
 	case "msg":
 		features.GetClassMessage(regNo, cookies)
 	case "da":

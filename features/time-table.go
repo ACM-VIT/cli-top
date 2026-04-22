@@ -572,7 +572,8 @@ func GetTimeTable(regNo string, cookies types.Cookies, sem_choice int) {
 	}
 
 	locIndia := time.FixedZone("IST", 5*3600+1800)
-	semester, err := resolveTimetableSemester(regNo, cookies, sem_choice, time.Now().In(locIndia))
+	now := time.Now().In(locIndia)
+	semester, err := resolveTimetableSemester(regNo, cookies, sem_choice, now)
 	if err != nil {
 		if debug.Debug {
 			helpers.Println(err)
@@ -580,16 +581,16 @@ func GetTimeTable(regNo string, cookies types.Cookies, sem_choice int) {
 		return
 	}
 
-	grp_list := getClassGroups(regNo, cookies, semester)
 	url := "https://vtop.vit.ac.in/vtop/processViewTimeTable"
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, semester.SemID, "UTC", "POST", "")
-	if err != nil && debug.Debug {
-		helpers.Println(err)
+	if err != nil {
+		if debug.Debug {
+			helpers.Println(err)
+		}
+		helpers.Println("Error fetching timetable:", err)
+		return
 	}
 
-	grp_list = getClassGroups(regNo, cookies, semester)
-	datelist := getDateList(regNo, cookies, semester, grp_list[1][1])
-	semSec, month, year := processDates(regNo, cookies, semester, grp_list[1][1], datelist, 0)
 	courseMap := getCourseNameFromHTML(bodyText)
 	timetable := makeTT(schedule, courseMap)
 
@@ -597,14 +598,45 @@ func GetTimeTable(regNo string, cookies types.Cookies, sem_choice int) {
 		timetable["Saturday"] = []types.Class{}
 	}
 
-	workingSats := WorkingSaturdaysFromSemSection(semSec, month, year, locIndia)
+	grpList := getClassGroups(regNo, cookies, semester)
+	calendarClassGroupID, foundClassGroup := resolveTimetableCalendarClassGroupID(grpList)
+	if !foundClassGroup && debug.Debug {
+		helpers.Println("No class groups found; trying combined class group calendar")
+	}
+
+	var (
+		semSec      [][]int
+		month       = -1
+		year        = -1
+		workingSats []WorkingSaturday
+	)
+
+	datelist := getDateList(regNo, cookies, semester, calendarClassGroupID)
+	if len(datelist) > 0 {
+		semSec, month, year = processDates(regNo, cookies, semester, calendarClassGroupID, datelist, 0)
+		if len(semSec) > 0 && month >= 0 && year >= 0 {
+			workingSats = WorkingSaturdaysFromSemSection(semSec, month, year, locIndia)
+		}
+	} else {
+		if sem_choice <= 0 {
+			printTimetableFATNoticeIfNeeded(regNo, cookies, semester, now)
+		}
+		if debug.Debug {
+			helpers.Println("No calendar months found for selected timetable semester")
+		}
+	}
+
 	if len(workingSats) == 0 {
-		workingSats = fetchWorkingSaturdays(regNo, cookies, semester.SemID, classGroupID)
+		workingSats = fetchWorkingSaturdays(regNo, cookies, semester.SemID, calendarClassGroupID)
 	}
 	updateTimetableWithWorkingSaturdays(timetable, workingSats)
 	printTT(timetable, workingSats)
 
 	if os.Getenv("CLI_TOP_PROXY_MODE") == "1" {
+		return
+	}
+	if len(semSec) == 0 || month < 0 || year < 0 {
+		helpers.Println("Calendar is not available for this semester yet, so timetable ICS generation was skipped.")
 		return
 	}
 
@@ -625,6 +657,115 @@ func GetTimeTable(regNo string, cookies types.Cookies, sem_choice int) {
 			helpers.Println("Error uploading ICS file; please import manually.")
 		}
 	}
+}
+
+func resolveTimetableCalendarClassGroupID(classGroups [][]string) (string, bool) {
+	for _, group := range classGroups {
+		if len(group) < 2 {
+			continue
+		}
+		id := strings.TrimSpace(group[1])
+		if strings.EqualFold(id, classGroupID) {
+			return id, true
+		}
+	}
+	for _, group := range classGroups {
+		if len(group) < 2 {
+			continue
+		}
+		id := strings.TrimSpace(group[1])
+		if id != "" {
+			return id, true
+		}
+	}
+	return classGroupID, false
+}
+
+func printTimetableFATNoticeIfNeeded(regNo string, cookies types.Cookies, selectedSemester types.Semester, now time.Time) {
+	previousSemester, ok := previousSemesterBefore(selectedSemester, regNo, cookies)
+	if !ok {
+		return
+	}
+
+	exams, err := fetchExamEventsForSemesterQuiet(regNo, cookies, previousSemester.SemID)
+	if err != nil {
+		if debug.Debug {
+			helpers.Println("Error checking exam schedule:", err)
+		}
+		return
+	}
+
+	if !examCategoryActive(exams, "FAT", now) {
+		return
+	}
+
+	helpers.Printf("FAT examinations are ongoing for %s, but here's your timetable for the upcoming %s.\n\n",
+		timetableSemesterDisplayName(previousSemester), timetableSemesterDisplayName(selectedSemester))
+}
+
+func previousSemesterBefore(selectedSemester types.Semester, regNo string, cookies types.Cookies) (types.Semester, bool) {
+	semesters, err := helpers.GetSemDetails(cookies, regNo)
+	if err != nil {
+		if debug.Debug {
+			helpers.Println("Error fetching semester details:", err)
+		}
+		semesters, err = helpers.GetSemDetailsBackup(cookies, regNo)
+		if err != nil {
+			if debug.Debug {
+				helpers.Println("Error fetching backup semester details:", err)
+			}
+			return types.Semester{}, false
+		}
+	}
+
+	for i, semester := range semesters {
+		if semester.SemID == selectedSemester.SemID {
+			if i == 0 {
+				return types.Semester{}, false
+			}
+			return semesters[i-1], true
+		}
+	}
+	return types.Semester{}, false
+}
+
+func examCategoryActive(exams []types.ExamEvent, category string, now time.Time) bool {
+	today := dateOnly(now, now.Location())
+	var startDate time.Time
+	var endDate time.Time
+	found := false
+
+	for _, exam := range exams {
+		if !strings.EqualFold(exam.Category, category) {
+			continue
+		}
+		examDate := dateOnly(exam.ExamDate, now.Location())
+		if !found || examDate.Before(startDate) {
+			startDate = examDate
+		}
+		if !found || examDate.After(endDate) {
+			endDate = examDate
+		}
+		found = true
+	}
+
+	return found && !today.Before(startDate) && !today.After(endDate)
+}
+
+func dateOnly(t time.Time, loc *time.Location) time.Time {
+	local := t.In(loc)
+	return time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, loc)
+}
+
+func timetableSemesterDisplayName(semester types.Semester) string {
+	name := strings.TrimSpace(semester.SemName)
+	if name == "" {
+		return semester.SemID
+	}
+	if beforeCampus, _, ok := strings.Cut(name, " - "); ok {
+		name = strings.TrimSpace(beforeCampus)
+	}
+	return name
 }
 
 func resolveTimetableSemester(regNo string, cookies types.Cookies, semChoice int, now time.Time) (types.Semester, error) {
