@@ -148,7 +148,7 @@ cli-top leave --apply \
   --to-date 2026-04-24 \
   --to-time 06:30
 ```
-The command validates the leave type against VTOP's form, normalizes dates and times, checks the date/time range, and rejects malformed place/reason text before posting to VTOP.
+The command validates the leave type locally against known VTOP codes, normalizes dates and times, checks the date/time range, rejects malformed place/reason text before opening the leave workflow, and verifies the leave type against VTOP's form before posting.
 
 ### Communication
 

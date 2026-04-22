@@ -63,6 +63,9 @@ func TestNormalizeLeaveApplyInputNormalizesDatesAndTimes(t *testing.T) {
 	if got.FromTime != "20:30" || got.ToTime != "06:15" {
 		t.Fatalf("unexpected times: %+v", got)
 	}
+	if got.LeaveCode != "HT1" {
+		t.Fatalf("expected leave code to be trimmed to HT1, got %q", got.LeaveCode)
+	}
 }
 
 func TestNormalizeLeaveApplyInputRejectsUnsafeTextAndBadTimeWindow(t *testing.T) {
@@ -90,6 +93,37 @@ func TestNormalizeLeaveApplyInputRejectsUnsafeTextAndBadTimeWindow(t *testing.T)
 	})
 	if err == nil || !strings.Contains(err.Error(), "--to-date must be on or after --from-date") {
 		t.Fatalf("expected invalid date range to be rejected, got %v", err)
+	}
+}
+
+func TestNormalizeLeaveApplyInputValidatesLeaveCodeLocally(t *testing.T) {
+	_, err := appfeatures.NormalizeLeaveApplyInput(appfeatures.LeaveApplyInput{
+		LeaveCode:     "BAD",
+		VisitingPlace: "Chennai",
+		Reason:        "Family visit",
+		FromDate:      "2026-04-23",
+		FromTime:      "20:30",
+		ToDate:        "2026-04-24",
+		ToTime:        "06:15",
+	})
+	if err == nil || !strings.Contains(err.Error(), `invalid --leave-code "BAD"`) {
+		t.Fatalf("expected invalid leave code to be rejected locally, got %v", err)
+	}
+
+	got, err := appfeatures.NormalizeLeaveApplyInput(appfeatures.LeaveApplyInput{
+		LeaveCode:     "home town",
+		VisitingPlace: "Chennai",
+		Reason:        "Family visit",
+		FromDate:      "2026-04-23",
+		FromTime:      "20:30",
+		ToDate:        "2026-04-24",
+		ToTime:        "06:15",
+	})
+	if err != nil {
+		t.Fatalf("NormalizeLeaveApplyInput returned error: %v", err)
+	}
+	if got.LeaveCode != "HT1" {
+		t.Fatalf("expected label to normalize to HT1, got %q", got.LeaveCode)
 	}
 }
 
