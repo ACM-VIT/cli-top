@@ -38,6 +38,14 @@ var courseAllocationCourseFlag string
 var daAssignmentFlag string
 var facilitySelectionFlag string
 var facilityConfirmFlag bool
+var leaveApplyFlag bool
+var leaveCodeFlag string
+var leaveVisitingPlaceFlag string
+var leaveReasonFlag string
+var leaveFromDateFlag string
+var leaveFromTimeFlag string
+var leaveToDateFlag string
+var leaveToTimeFlag string
 
 func configFilePath() string {
 	return helpers.ConfigFilePath()
@@ -504,6 +512,14 @@ Use "{{.CommandPath}} <subcommand> --help" for more information about a subcomma
 	facilityCmd.PersistentFlags().StringVarP(&facilitySelectionFlag, "facility", "f", "", "Specify facility search query or index")
 	facilityCmd.PersistentFlags().BoolVar(&facilityConfirmFlag, "confirm", false, "Confirm facility registration without prompting")
 	syllabusCmd.PersistentFlags().StringVarP(&syllabusCourseFlag, "course", "c", "", "Specify course search query ")
+	leavestatusCmd.PersistentFlags().BoolVar(&leaveApplyFlag, "apply", false, "Submit a leave request non-interactively")
+	leavestatusCmd.PersistentFlags().StringVar(&leaveCodeFlag, "leave-code", "", "Leave type code or label, e.g. HT1 or HOME TOWN")
+	leavestatusCmd.PersistentFlags().StringVar(&leaveVisitingPlaceFlag, "visiting-place", "", "Place being visited")
+	leavestatusCmd.PersistentFlags().StringVar(&leaveReasonFlag, "reason", "", "Reason for leave")
+	leavestatusCmd.PersistentFlags().StringVar(&leaveFromDateFlag, "from-date", "", "Leave start date in YYYY-MM-DD format")
+	leavestatusCmd.PersistentFlags().StringVar(&leaveFromTimeFlag, "from-time", "", "Leave start time, e.g. 20:30 or 08:30 PM")
+	leavestatusCmd.PersistentFlags().StringVar(&leaveToDateFlag, "to-date", "", "Leave end date in YYYY-MM-DD format")
+	leavestatusCmd.PersistentFlags().StringVar(&leaveToTimeFlag, "to-time", "", "Leave end time, e.g. 06:30 or 06:30 AM")
 
 	// Define global flags.
 	rootCmd.PersistentFlags().BoolVarP(&debugFlag, "debug", "d", false, "Print Debug Messages")
@@ -831,12 +847,49 @@ var nightslipCmd = &cobra.Command{
 }
 
 var leavestatusCmd = &cobra.Command{
-	Use:   "leave",
-	Short: "Show Leave Status",
-	Run: helpers.CommandRunner("leave", func(cmd *cobra.Command, args []string) {
+	Use:           "leave",
+	Short:         "Show leave status and interactively apply when none is pending",
+	SilenceUsage:  true,
+	SilenceErrors: true,
+	RunE: helpers.CommandRunnerE("leave", func(cmd *cobra.Command, args []string) error {
+		if !leaveApplyFlag && hasLeaveApplyFields(cmd) {
+			err := fmt.Errorf("leave application fields were provided without --apply")
+			helpers.Println(err.Error())
+			return err
+		}
+
 		cookies, regNo := readCookiesFromFile()
-		features.GetLeaveStatus(regNo, cookies)
+		if leaveApplyFlag {
+			return features.ExecuteLeave(regNo, cookies, features.LeaveApplyInput{
+				Apply:         true,
+				LeaveCode:     leaveCodeFlag,
+				VisitingPlace: leaveVisitingPlaceFlag,
+				Reason:        leaveReasonFlag,
+				FromDate:      leaveFromDateFlag,
+				FromTime:      leaveFromTimeFlag,
+				ToDate:        leaveToDateFlag,
+				ToTime:        leaveToTimeFlag,
+			})
+		}
+		return features.RunInteractiveLeave(regNo, cookies)
 	}),
+}
+
+func hasLeaveApplyFields(cmd *cobra.Command) bool {
+	for _, flagName := range []string{
+		"leave-code",
+		"visiting-place",
+		"reason",
+		"from-date",
+		"from-time",
+		"to-date",
+		"to-time",
+	} {
+		if cmd.Flags().Changed(flagName) {
+			return true
+		}
+	}
+	return false
 }
 
 var classMessagesCmd = &cobra.Command{

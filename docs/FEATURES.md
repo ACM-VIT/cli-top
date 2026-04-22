@@ -131,11 +131,24 @@ cli-top nightslip
 ```
 Shows your nightslip request status first. If no request is pending, the command asks whether you want to apply and then walks you through the required details interactively before submission.
 
-#### Leave Status
+#### Leave
 ```bash
-cli-top leavestatus
+cli-top leave
 ```
-Shows your leave request status.
+Shows your leave request status first. If no request is pending, the command asks whether you want to apply and then walks you through the leave type, place, reason, dates, and times interactively before submission.
+
+For deterministic automation, submit non-interactively with explicit flags:
+```bash
+cli-top leave --apply \
+  --leave-code HT1 \
+  --visiting-place "Chennai" \
+  --reason "Family visit" \
+  --from-date 2026-04-23 \
+  --from-time 20:30 \
+  --to-date 2026-04-24 \
+  --to-time 06:30
+```
+The command validates the leave type against VTOP's form, normalizes dates and times, checks the date/time range, and rejects malformed place/reason text before posting to VTOP.
 
 ### Communication
 
