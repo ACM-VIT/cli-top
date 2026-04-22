@@ -38,6 +38,16 @@ const (
 	leaveReasonMaxLength        = 500
 )
 
+var knownLeaveTypeOptions = []nightsliputil.FormOption{
+	{Value: "WV", Label: "WINTER VACATION"},
+	{Value: "HT1", Label: "HOME TOWN"},
+	{Value: "EY1", Label: "EMERGENCY LEAVE"},
+	{Value: "LG1", Label: "LOCAL GUARDIAN"},
+	{Value: "WP", Label: "WITH PARENT LEAVE"},
+	{Value: "SV", Label: "SUMMER VACATION"},
+	{Value: "EP", Label: "OFFICIAL LEAVES"},
+}
+
 type LeaveApplyInput struct {
 	Apply         bool
 	LeaveCode     string
@@ -57,6 +67,16 @@ type resolvedLeaveApplyInput struct {
 var errLeaveUserCanceled = errors.New("leave application canceled")
 
 func ExecuteLeave(regNo string, cookies types.Cookies, input LeaveApplyInput) error {
+	if input.Apply {
+		normalizedInput, err := normalizeLeaveApplyInput(input)
+		if err != nil {
+			helpers.Println()
+			helpers.Println(err.Error())
+			return err
+		}
+		input = normalizedInput
+	}
+
 	if !helpers.ValidateLogin(cookies) {
 		return nil
 	}
@@ -153,6 +173,14 @@ func GetLeaveStatus(regNo string, cookies types.Cookies) {
 }
 
 func ApplyLeave(regNo string, cookies types.Cookies, input LeaveApplyInput) error {
+	normalizedInput, err := normalizeLeaveApplyInput(input)
+	if err != nil {
+		helpers.Println()
+		helpers.Println(err.Error())
+		return err
+	}
+	input = normalizedInput
+
 	existingRequests, err := fetchLeaveRequests(regNo, cookies)
 	if err != nil {
 		if debug.Debug {
@@ -674,7 +702,10 @@ func promptLeaveConfirmation(reader *bufio.Reader, prompt string) (bool, error) 
 func normalizeLeaveApplyInput(input LeaveApplyInput) (LeaveApplyInput, error) {
 	var err error
 
-	input.LeaveCode = strings.TrimSpace(input.LeaveCode)
+	input.LeaveCode, err = normalizeKnownLeaveCode(input.LeaveCode, "--leave-code")
+	if err != nil {
+		return LeaveApplyInput{}, err
+	}
 	input.VisitingPlace, err = normalizeLeaveTextField(input.VisitingPlace, "visiting place", "--visiting-place", leaveVisitingPlaceMaxLength)
 	if err != nil {
 		return LeaveApplyInput{}, err
@@ -857,6 +888,19 @@ func formatLeaveStatusDate(value string) string {
 		return value
 	}
 	return parsed.Format("02/01/06")
+}
+
+func normalizeKnownLeaveCode(value string, flagName string) (string, error) {
+	sanitized := helpers.SanitizeString(value)
+	if sanitized == "" {
+		return "", fmt.Errorf("missing %s", flagName)
+	}
+
+	if matchedValue, ok := matchLeaveOptionValue(knownLeaveTypeOptions, sanitized); ok {
+		return matchedValue, nil
+	}
+
+	return "", fmt.Errorf("invalid %s %q; available leaveCode values: %s", flagName, sanitized, formatLeaveOptions(knownLeaveTypeOptions))
 }
 
 func matchLeaveOptionValue(options []nightsliputil.FormOption, providedValue string) (string, bool) {
