@@ -76,6 +76,7 @@ type LeaveRequest struct {
 	LeaveType  string
 	From       string
 	To         string
+	RawStatus  string
 	Status     string
 }
 
