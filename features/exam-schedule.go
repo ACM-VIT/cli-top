@@ -146,6 +146,14 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 }
 
 func fetchExamEventsForSemester(regNo string, cookies types.Cookies, semID string) ([]types.ExamEvent, error) {
+	return fetchExamEventsForSemesterWithDebug(regNo, cookies, semID, debug.Debug)
+}
+
+func fetchExamEventsForSemesterQuiet(regNo string, cookies types.Cookies, semID string) ([]types.ExamEvent, error) {
+	return fetchExamEventsForSemesterWithDebug(regNo, cookies, semID, false)
+}
+
+func fetchExamEventsForSemesterWithDebug(regNo string, cookies types.Cookies, semID string, emitDebug bool) ([]types.ExamEvent, error) {
 	url := "https://vtop.vit.ac.in/vtop/examinations/doSearchExamScheduleForStudent"
 	bodyText, err := helpers.FetchReq(regNo, cookies, url, semID, "UTC", "POST", "")
 	if err != nil {
@@ -157,7 +165,7 @@ func fetchExamEventsForSemester(regNo string, cookies types.Cookies, semID strin
 		return nil, err
 	}
 
-	return parseExamSchedule(doc)
+	return parseExamScheduleWithDebug(doc, emitDebug)
 }
 
 func safeGetCellText(cells *goquery.Selection, index int) string {
@@ -168,6 +176,10 @@ func safeGetCellText(cells *goquery.Selection, index int) string {
 }
 
 func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
+	return parseExamScheduleWithDebug(doc, debug.Debug)
+}
+
+func parseExamScheduleWithDebug(doc *goquery.Document, emitDebug bool) ([]types.ExamEvent, error) {
 	var allExams []types.ExamEvent
 
 	now := time.Now()
@@ -178,7 +190,7 @@ func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
 		// Check for section headers
 		if s.Find("td.panelHead-secondary").Length() > 0 {
 			headerText := strings.TrimSpace(s.Find("td.panelHead-secondary").Text())
-			if debug.Debug {
+			if emitDebug {
 				helpers.Printf("Found exam section header: %s\n", headerText)
 			}
 			currentExamType = headerText
@@ -187,7 +199,7 @@ func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
 
 		cells := s.Find(ExamCellSelector)
 		if cells.Length() < 8 {
-			if debug.Debug {
+			if emitDebug {
 				helpers.Printf("Skipping row %d with insufficient cells (%d)\n", i+1, cells.Length())
 			}
 			return
@@ -195,7 +207,7 @@ func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
 
 		serialNo := safeGetCellText(cells, 0)
 		if _, err := strconv.Atoi(serialNo); err != nil {
-			if debug.Debug {
+			if emitDebug {
 				helpers.Printf("Skipping non-data row %d with serial '%s'\n", i+1, serialNo)
 			}
 			return
@@ -217,7 +229,7 @@ func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
 
 		examDate, err := time.ParseInLocation("02-Jan-2006", examDateStr, now.Location())
 		if err != nil {
-			if debug.Debug {
+			if emitDebug {
 				helpers.Printf("Error parsing exam date '%s': %v\n", examDateStr, err)
 			}
 			return
@@ -247,7 +259,7 @@ func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
 		allExams = append(allExams, examEvent)
 	})
 
-	if debug.Debug {
+	if emitDebug {
 		var cat1Count, cat2Count, mtCount, fatCount int
 		for _, exam := range allExams {
 			switch exam.Category {
