@@ -10,8 +10,9 @@
   <a href="https://acmvit.in/" target="_blank">
     <img alt="Made by ACM" src="https://img.shields.io/badge/MADE%20BY-ACM%20VIT-blue?style=for-the-badge"/>
   </a>
-  <!-- Uncomment the below line to add the license badge. Make sure the right license badge is reflected. -->
-  <!-- <img alt="license" src="https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge" /> -->
+  <a href="LICENSE">
+    <img alt="License: GPL v3" src="https://img.shields.io/badge/License-GPLv3-blue.svg?style=for-the-badge"/>
+  </a>
 </p>
 
 ---
@@ -160,3 +161,11 @@ After installation, you can access various features of **cli-top** by running sp
 - [Yashika Panda](https://github.com/yashikaa2005)
 - [Shruthilaya K](https://github.com/shruthilayak11)
 - [Srijan Srivastava](https://github.com/Srijan1202)
+
+
+## License
+
+Copyright (C) 2023-2026 ACM-VIT and cli-top contributors.
+
+This project is licensed under the GNU General Public License version 3 only
+(`GPL-3.0-only`). See [LICENSE](LICENSE) for the full license text.
