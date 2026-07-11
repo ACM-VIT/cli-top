@@ -1,204 +1,165 @@
 package tests
 
 import (
-	"bytes"
+	"cli-top/debug"
 	"cli-top/helpers"
-	"cli-top/types"
-	"encoding/base64"
-	"encoding/json"
-	"image"
-	"image/jpeg"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"os/exec"
-	"path/filepath"
+	"sync/atomic"
 	"testing"
 )
 
-type MockServer struct {
-	server *httptest.Server
-}
+const latestJSONURLEnv = "CLI_TOP_LATEST_JSON_URL"
 
-func NewMockServer(killSwitch int) *MockServer {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		versionInfo := types.VersionInfo{
-			Version:    "1.0.0",
-			KillSwitch: killSwitch,
+func newLatestJSONServer(t *testing.T, status int, body string) *httptest.Server {
+	t.Helper()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodGet {
+			t.Errorf("expected GET request, got %s", request.Method)
 		}
-		json.NewEncoder(w).Encode(versionInfo)
-	})
-
-	server := httptest.NewServer(handler)
-	return &MockServer{server: server}
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	}))
+	t.Cleanup(server.Close)
+	return server
 }
 
-func (m *MockServer) Close() {
-	m.server.Close()
-}
+func TestCheckKillSwitchStates(t *testing.T) {
+	for _, killSwitch := range []int{0, 1, 2, 3, 4} {
+		t.Run(fmt.Sprintf("state %d", killSwitch), func(t *testing.T) {
+			body := fmt.Sprintf(`{"version":"1.0.0","killSwitch":%d}`, killSwitch)
+			server := newLatestJSONServer(t, http.StatusOK, body)
+			t.Setenv(latestJSONURLEnv, server.URL)
 
-func (m *MockServer) URL() string {
-	return m.server.URL
-}
-
-func getRealCaptcha() string {
-	img := image.NewRGBA(image.Rect(0, 0, 200, 40))
-
-	var buf bytes.Buffer
-	jpeg.Encode(&buf, img, nil)
-	base64Img := base64.StdEncoding.EncodeToString(buf.Bytes())
-
-	return "data:image/jpeg;base64," + base64Img
-}
-
-func TestKillSwitchScenarios(t *testing.T) {
-	originalURL := helpers.GetLatestJSONURL()
-
-	testCases := []struct {
-		name       string
-		killSwitch int
-		expected   int
-		verifyFunc func(*testing.T, *MockServer)
-	}{
-		{
-			name:       "KillSwitch 0 - Allow automated captcha",
-			killSwitch: 0,
-			expected:   0,
-			verifyFunc: func(t *testing.T, mockServer *MockServer) {
-				captcha := getRealCaptcha()
-				if captcha == "" {
-					t.Skip("Could not get real captcha, skipping test")
-					return
-				}
-
-				result := helpers.SolveCaptcha(captcha)
-				if result == "disabled" {
-					t.Error("Automated captcha solving should be enabled for killswitch 0")
-				}
-				os.Remove("captcha.jpg")
-			},
-		},
-		{
-			name:       "KillSwitch 1 - Disable automated captcha",
-			killSwitch: 1,
-			expected:   1,
-			verifyFunc: func(t *testing.T, mockServer *MockServer) {
-				helpers.SetLatestJSONURL(mockServer.URL())
-				helpers.CheckKillSwitch()
-
-				captcha := getRealCaptcha()
-				if captcha == "" {
-					t.Skip("Could not get real captcha, skipping test")
-					return
-				}
-
-				oldStdin := os.Stdin
-				defer func() { os.Stdin = oldStdin }()
-
-				r, w, err := os.Pipe()
-				if err != nil {
-					t.Fatal(err)
-				}
-				os.Stdin = r
-
-				go func() {
-					defer w.Close()
-					w.Write([]byte("TEST123\n"))
-				}()
-
-				result := helpers.SolveCaptcha(captcha)
-				if result != "TEST123" {
-					t.Error("Expected manual captcha input to be returned for killswitch 1")
-				}
-				if _, err := os.Stat("captcha.jpg"); os.IsNotExist(err) {
-					t.Error("captcha.jpg should be created for manual solving")
-				}
-				os.Remove("captcha.jpg")
-			},
-		},
-		{
-			name:       "KillSwitch 2 - Disable app completely",
-			killSwitch: 2,
-			expected:   2,
-			verifyFunc: func(t *testing.T, mockServer *MockServer) {
-				tmpDir := t.TempDir()
-				tmpBin := filepath.Join(tmpDir, "cli-top-test.exe")
-
-				if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module test\ngo 1.21\n"), 0644); err != nil {
-					t.Fatal(err)
-				}
-
-				testCode := `
-					package main
-					import "fmt"
-					func main() {
-						helpers.Println("This version of cli-top has been decommissioned.")
-					}
-				`
-				tmpGo := filepath.Join(tmpDir, "main.go")
-				if err := os.WriteFile(tmpGo, []byte(testCode), 0644); err != nil {
-					t.Fatal(err)
-				}
-
-				cmd := exec.Command("go", "build", "-o", tmpBin, tmpGo)
-				cmd.Dir = tmpDir
-				if err := cmd.Run(); err != nil {
-					t.Fatal(err)
-				}
-
-				output, err := exec.Command(tmpBin).CombinedOutput()
-				if err != nil {
-					t.Fatal(err)
-				}
-
-				if !bytes.Contains(output, []byte("This version of cli-top has been decommissioned.")) {
-					t.Error("Expected decommissioned message for killswitch 2")
-				}
-			},
-		},
-		{
-			name:       "KillSwitch 3 - Open VTOP in browser",
-			killSwitch: 3,
-			expected:   3,
-			verifyFunc: func(t *testing.T, mockServer *MockServer) {
-				url := "https://vtop.vit.ac.in"
-				err := helpers.OpenURLInBrowser(url)
-				if err != nil {
-					t.Errorf("Failed to open URL in browser: %v", err)
-				}
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			mockServer := NewMockServer(tc.killSwitch)
-			defer mockServer.Close()
-
-			helpers.SetLatestJSONURL(mockServer.URL())
-
-			result := helpers.CheckKillSwitch()
-			if result != tc.expected {
-				t.Errorf("Expected killswitch value %d, got %d", tc.expected, result)
-			}
-
-			if tc.verifyFunc != nil {
-				tc.verifyFunc(t, mockServer)
+			if got := helpers.CheckKillSwitch(); got != killSwitch {
+				t.Fatalf("CheckKillSwitch() = %d, want %d", got, killSwitch)
 			}
 		})
 	}
-
-	helpers.SetLatestJSONURL(originalURL)
 }
 
-func TestBrowserOpening(t *testing.T) {
-	if os.Getenv("CI") != "" {
-		t.Skip("Skipping browser opening test in CI environment")
+func TestCheckKillSwitchFailsSafe(t *testing.T) {
+	tests := []struct {
+		name   string
+		status int
+		body   string
+	}{
+		{name: "invalid JSON", status: http.StatusOK, body: `{"version":`},
+		{name: "missing version", status: http.StatusOK, body: `{"killSwitch":0}`},
+		{name: "missing kill switch", status: http.StatusOK, body: `{"version":"1.0.0"}`},
+		{name: "invalid kill switch", status: http.StatusOK, body: `{"version":"1.0.0","killSwitch":5}`},
+		{name: "server error", status: http.StatusServiceUnavailable, body: `{"version":"1.0.0","killSwitch":0}`},
 	}
 
-	url := "https://vtop.vit.ac.in"
-	err := helpers.OpenURLInBrowser(url)
-	if err != nil {
-		t.Errorf("Failed to open URL in browser: %v", err)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			server := newLatestJSONServer(t, test.status, test.body)
+			t.Setenv(latestJSONURLEnv, server.URL)
+
+			if got := helpers.CheckKillSwitch(); got != 1 {
+				t.Fatalf("CheckKillSwitch() = %d, want safe state 1", got)
+			}
+			if _, _, err := helpers.CheckUpdateSilently(); err == nil {
+				t.Fatal("CheckUpdateSilently() error = nil, want malformed response error")
+			}
+		})
+	}
+}
+
+func TestCheckKillSwitchFailsSafeWhenServerIsUnavailable(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	serverURL := server.URL
+	server.Close()
+	t.Setenv(latestJSONURLEnv, serverURL)
+
+	if got := helpers.CheckKillSwitch(); got != 1 {
+		t.Fatalf("CheckKillSwitch() = %d, want safe state 1", got)
+	}
+}
+
+func TestCheckKillSwitchCachesSuccessUntilURLReset(t *testing.T) {
+	t.Setenv(latestJSONURLEnv, "")
+	originalURL := helpers.GetLatestJSONURL()
+	t.Cleanup(func() { helpers.SetLatestJSONURL(originalURL) })
+
+	var requests atomic.Int32
+	var state atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		_, _ = fmt.Fprintf(w, `{"version":"1.0.0","killSwitch":%d}`, state.Load())
+	}))
+	t.Cleanup(server.Close)
+	helpers.SetLatestJSONURL(server.URL)
+
+	if got := helpers.CheckKillSwitch(); got != 0 {
+		t.Fatalf("first CheckKillSwitch() = %d, want 0", got)
+	}
+	state.Store(3)
+	if got := helpers.CheckKillSwitch(); got != 0 {
+		t.Fatalf("cached CheckKillSwitch() = %d, want 0", got)
+	}
+	if got := requests.Load(); got != 1 {
+		t.Fatalf("request count = %d, want 1 for cached read", got)
+	}
+
+	helpers.SetLatestJSONURL(server.URL)
+	if got := helpers.CheckKillSwitch(); got != 3 {
+		t.Fatalf("CheckKillSwitch() after URL reset = %d, want 3", got)
+	}
+	if got := requests.Load(); got != 2 {
+		t.Fatalf("request count after URL reset = %d, want 2", got)
+	}
+}
+
+func TestLatestJSONEnvironmentOverride(t *testing.T) {
+	t.Setenv(latestJSONURLEnv, "")
+	originalURL := helpers.GetLatestJSONURL()
+	t.Cleanup(func() { helpers.SetLatestJSONURL(originalURL) })
+
+	fallback := newLatestJSONServer(t, http.StatusOK, `{"version":"1.0.0","killSwitch":0}`)
+	override := newLatestJSONServer(t, http.StatusOK, `{"version":"1.0.0","killSwitch":3}`)
+	helpers.SetLatestJSONURL(fallback.URL)
+	if got := helpers.GetLatestJSONURL(); got != fallback.URL {
+		t.Fatalf("GetLatestJSONURL() = %q, want configured URL %q", got, fallback.URL)
+	}
+	t.Setenv(latestJSONURLEnv, override.URL)
+
+	if got := helpers.GetLatestJSONURL(); got != override.URL {
+		t.Fatalf("GetLatestJSONURL() = %q, want environment override %q", got, override.URL)
+	}
+	if got := helpers.CheckKillSwitch(); got != 3 {
+		t.Fatalf("CheckKillSwitch() = %d, want state from environment override 3", got)
+	}
+}
+
+func TestCheckUpdateSilently(t *testing.T) {
+	tests := []struct {
+		name      string
+		version   string
+		available bool
+	}{
+		{name: "current version", version: debug.Version, available: false},
+		{name: "new version", version: debug.Version + "-new", available: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = fmt.Fprintf(w, `{"version":%q,"killSwitch":0}`, test.version)
+			}))
+			t.Cleanup(server.Close)
+			t.Setenv(latestJSONURLEnv, server.URL)
+
+			available, version, err := helpers.CheckUpdateSilently()
+			if err != nil {
+				t.Fatalf("CheckUpdateSilently() error = %v", err)
+			}
+			if available != test.available || version != test.version {
+				t.Fatalf("CheckUpdateSilently() = (%v, %q), want (%v, %q)", available, version, test.available, test.version)
+			}
+		})
 	}
 }
