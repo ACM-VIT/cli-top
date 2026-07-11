@@ -34,9 +34,6 @@ const (
 var (
 	activeHeadlineMu   sync.Mutex
 	activeHeadlineStop func()
-
-	headlineNewlineMu    sync.Mutex
-	headlineNeedsNewline bool
 )
 
 func ShouldMuteUI() bool {
@@ -60,7 +57,6 @@ func CommandRunner(label string, run func(cmd *cobra.Command, args []string)) fu
 
 		if !muted {
 			stopActiveHeadlineAnimation()
-			flushHeadlineNewline()
 			elapsed := time.Since(start).Round(10 * time.Millisecond)
 			successLine := fmt.Sprintf("✓ %s (%s)", strings.ToUpper(label), elapsed)
 			color.New(color.FgHiGreen).Printf("\n%s\n\n", successLine)
@@ -85,7 +81,6 @@ func CommandRunnerE(label string, run func(cmd *cobra.Command, args []string) er
 
 		if !muted {
 			stopActiveHeadlineAnimation()
-			flushHeadlineNewline()
 			elapsed := time.Since(start).Round(10 * time.Millisecond)
 			if err == nil {
 				successLine := fmt.Sprintf("✓ %s (%s)", strings.ToUpper(label), elapsed)
@@ -98,14 +93,6 @@ func CommandRunnerE(label string, run func(cmd *cobra.Command, args []string) er
 
 		return err
 	}
-}
-
-func Infof(format string, args ...any) {
-	if ShouldMuteUI() {
-		return
-	}
-	StopHeadlineForOutput()
-	fmt.Printf(format, args...)
 }
 
 func startOrPrintHeadline(label string) {
@@ -211,13 +198,15 @@ func startHeadlineAnimation(label string) func() {
 	if ShouldMuteUI() {
 		return nil
 	}
-	supports := terminalSupportsColor()
-	if !supports {
+	return startHeadlineAnimationWithSupport(label, terminalSupportsColor())
+}
+
+func startHeadlineAnimationWithSupport(label string, supportsColor bool) func() {
+	if !supportsColor {
 		return nil
 	}
 
-	initial := renderHeadlineWithSupport(label, supports)
-	clearHeadlineNewlineFlag()
+	initial := renderHeadlineWithSupport(label, supportsColor)
 	fmt.Fprintf(color.Output, "\n%s\n\n", initial)
 
 	done := make(chan struct{})
@@ -230,7 +219,7 @@ func startHeadlineAnimation(label string) func() {
 		for {
 			select {
 			case <-ticker.C:
-				redrawHeadlineAboveCursor(renderHeadlineWithSupport(label, supports))
+				redrawHeadlineAboveCursor(renderHeadlineWithSupport(label, supportsColor))
 			case <-done:
 				ticker.Stop()
 				return
@@ -242,8 +231,7 @@ func startHeadlineAnimation(label string) func() {
 		once.Do(func() {
 			close(done)
 			<-stopped
-			redrawHeadlineAboveCursor(renderCompletedHeadlineWithSupport(label, supports))
-			clearHeadlineNewlineFlag()
+			redrawHeadlineAboveCursor(renderCompletedHeadlineWithSupport(label, supportsColor))
 		})
 	}
 }
@@ -270,34 +258,8 @@ func stopActiveHeadlineAnimation() {
 
 func StopHeadlineForOutput() {
 	stopActiveHeadlineAnimation()
-	flushHeadlineNewline()
 }
 
 func cleanupHeadlineAnimation() {
 	stopActiveHeadlineAnimation()
-	flushHeadlineNewline()
-}
-
-func markHeadlineNeedsNewline() {
-	headlineNewlineMu.Lock()
-	headlineNeedsNewline = true
-	headlineNewlineMu.Unlock()
-}
-
-func clearHeadlineNewlineFlag() {
-	headlineNewlineMu.Lock()
-	headlineNeedsNewline = false
-	headlineNewlineMu.Unlock()
-}
-
-func flushHeadlineNewline() {
-	headlineNewlineMu.Lock()
-	needed := headlineNeedsNewline
-	if needed {
-		headlineNeedsNewline = false
-	}
-	headlineNewlineMu.Unlock()
-	if needed {
-		fmt.Fprint(color.Output, "\r\n")
-	}
 }
