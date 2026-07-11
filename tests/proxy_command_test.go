@@ -14,16 +14,24 @@ func TestParseProxyFlagsCanonicalizesAliases(t *testing.T) {
 		"--materials", "1,2-4",
 		"--assignment", "cat1",
 		"--facility", "badminton",
+		"--reason", "family visit",
+		"--details", "late lab",
+		"--building-id", "MB",
+		"--venue", "Main Gate",
 		"--confirm",
 	})
 
 	expected := map[string]string{
-		"category":   "score",
-		"course":     "34",
-		"materials":  "1,2-4",
-		"assignment": "cat1",
-		"facility":   "badminton",
-		"confirm":    "true",
+		"category":    "score",
+		"course":      "34",
+		"materials":   "1,2-4",
+		"assignment":  "cat1",
+		"facility":    "badminton",
+		"reason":      "family visit",
+		"details":     "late lab",
+		"building-id": "MB",
+		"venue":       "Main Gate",
+		"confirm":     "true",
 	}
 
 	if !reflect.DeepEqual(flags, expected) {
