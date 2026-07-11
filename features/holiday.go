@@ -112,10 +112,7 @@ func resolveHolidaySemester(regNo string, cookies types.Cookies, semChoice int) 
 		if debug.Debug {
 			helpers.Println("Error fetching semester details:", err)
 		}
-		semesters, err = helpers.GetSemDetailsBackup(cookies, regNo)
-		if err != nil {
-			return types.Semester{}, err
-		}
+		return types.Semester{}, err
 	}
 
 	if len(semesters) == 0 {

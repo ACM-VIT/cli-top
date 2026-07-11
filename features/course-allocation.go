@@ -4,10 +4,7 @@ import (
 	"bufio"
 	"cli-top/helpers"
 	"cli-top/types"
-	"fmt"
 	"math/rand"
-	"net/http"
-	"net/http/cookiejar"
 	"os"
 	"regexp"
 	"strconv"
@@ -15,7 +12,6 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"golang.org/x/net/publicsuffix"
 )
 
 const (
@@ -51,19 +47,6 @@ type CourseAllocationDetail struct {
 	Faculty string
 }
 
-var httpClient *http.Client
-
-func init() {
-	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
-	if err != nil {
-		panic(fmt.Sprintf("features: failed to create cookie jar: %v", err))
-	}
-	httpClient = &http.Client{
-		Timeout: time.Duration(60) * time.Second,
-		Jar:     jar,
-	}
-}
-
 func ExecuteInteractiveCourseAllocationView(regNo string, cookies types.Cookies, courseAllocationPageURL string, categoryQuery string, courseQuery string) {
 	if !helpers.ValidateLogin(cookies) {
 		helpers.Println("User not logged in or session expired.")
@@ -80,8 +63,8 @@ func ExecuteInteractiveCourseAllocationView(regNo string, cookies types.Cookies,
 		"_csrf":        cookies.CSRF,
 		"nocache":      strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10),
 	}
-	initialFormData := helpers.FormatBodyDataClient(initialPayloadMap)
-	initialPageHTMLBytes, _, err := helpers.FetchReqClient(httpClient, regNo, cookies, courseAllocationPageURL, "", initialFormData, "POST", "application/x-www-form-urlencoded")
+	initialFormData := helpers.FormatBodyData(initialPayloadMap)
+	initialPageHTMLBytes, _, err := helpers.FetchReqClient(helpers.GetHTTPClient(), cookies, courseAllocationPageURL, "", initialFormData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		return
 	}
@@ -120,7 +103,7 @@ func ExecuteInteractiveCourseAllocationView(regNo string, cookies types.Cookies,
 	}
 
 	for {
-		selectedCategory, categoryAction := selectCurriculumCategory(initialDoc, currentAjaxCsrfToken, currentAjaxAuthID, ajaxBaseURL, regNo, cookies, categoryQuery)
+		selectedCategory, categoryAction := selectCurriculumCategory(initialDoc, categoryQuery)
 		switch categoryAction {
 		case actionExitApp:
 			return
@@ -183,7 +166,7 @@ func extractScriptParams(htmlContent string) (csrfToken string, authID string) {
 	return
 }
 
-func selectCurriculumCategory(initialDoc *goquery.Document, csrfToken, authID, baseURL, regNo string, cookies types.Cookies, categoryQuery string) (types.Category, string) {
+func selectCurriculumCategory(initialDoc *goquery.Document, categoryQuery string) (types.Category, string) {
 	var categories []types.Category
 	initialDoc.Find(curriculumCategorySelector).Each(func(_ int, s *goquery.Selection) {
 		val, exists := s.Attr("value")
@@ -217,8 +200,8 @@ func selectCourseFromCategory(category types.Category, csrfToken, authID, baseUR
 		"_csrf": csrfToken, "cccategory": category.ID,
 		"authorizedID": authID, "x": time.Now().UTC().Format(time.RFC1123),
 	}
-	formDataCourses := helpers.FormatBodyDataClient(courseListParams)
-	courseListHTMLBytes, _, err := helpers.FetchReqClient(httpClient, regNo, cookies, baseURL+getCoursesListEndpoint, "", formDataCourses, "POST", "application/x-www-form-urlencoded")
+	formDataCourses := helpers.FormatBodyData(courseListParams)
+	courseListHTMLBytes, _, err := helpers.FetchReqClient(helpers.GetHTTPClient(), cookies, baseURL+getCoursesListEndpoint, "", formDataCourses, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		helpers.Printf("Error fetching course list for category %s: %v\n", category.Name, err)
 		return types.Course{}, actionError
@@ -269,8 +252,8 @@ func displayCourseAllocationDetails(course types.Course, csrfToken, authID, base
 		"_csrf": csrfToken, "courseCode": course.ID,
 		"authorizedID": authID, "x": time.Now().UTC().Format(time.RFC1123),
 	}
-	formDataDetails := helpers.FormatBodyDataClient(courseDetailParams)
-	courseDetailHTMLBytes, _, err := helpers.FetchReqClient(httpClient, regNo, cookies, baseURL+getCoursesDetailEndpoint, "", formDataDetails, "POST", "application/x-www-form-urlencoded")
+	formDataDetails := helpers.FormatBodyData(courseDetailParams)
+	courseDetailHTMLBytes, _, err := helpers.FetchReqClient(helpers.GetHTTPClient(), cookies, baseURL+getCoursesDetailEndpoint, "", formDataDetails, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		helpers.Printf("Error fetching course details for %s: %v\n", course.Name, err)
 		return actionError

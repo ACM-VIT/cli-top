@@ -33,11 +33,8 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string, assignm
 		if debug.Debug {
 			helpers.Println("Error retrieving semester details:", err)
 		}
-		allSems, err = helpers.GetSemDetailsBackup(cookies, regNo)
-		if err != nil {
-			helpers.Println("Error retrieving semester details:", err)
-			return
-		}
+		helpers.Println("Error retrieving semester details:", err)
+		return
 	}
 	if len(allSems) == 0 {
 		helpers.Println("No semesters found.")
@@ -66,10 +63,6 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string, assignm
 		helpers.Println("No subjects available in any semester.")
 		return
 	}
-
-	// if !helpers.ShouldMuteUI() {
-	// 	helpers.Infof("\nFetching digital assignments for %d subject(s)...\n", len(listOfSubjects))
-	// }
 
 	type subjectFetchResult struct {
 		data types.SubjectDAs
@@ -362,10 +355,10 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string, assignm
 				"classIdNumber": selectedClassID,
 				"x":             fmt.Sprintf("%d", time.Now().Unix()),
 			}
-			formData := helpers.FormatBodyDataClient(payloadMap)
+			formData := helpers.FormatBodyData(payloadMap)
 
 			client := &http.Client{Timeout: 30 * time.Second}
-			body, headers, err := helpers.FetchReqClient(client, regNo, cookies, baseURL, "", formData, "POST", "application/x-www-form-urlencoded")
+			body, headers, err := helpers.FetchReqClient(client, cookies, baseURL, "", formData, "POST", "application/x-www-form-urlencoded")
 			if err != nil {
 				if debug.Debug {
 					helpers.Println("Error fetching DA download:", err)
@@ -430,6 +423,9 @@ func PrintAllDAs(regNo string, cookies types.Cookies, courseName string, assignm
 }
 
 func openFile(filePath string) {
+	if helpers.ShouldMuteUI() {
+		return
+	}
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":

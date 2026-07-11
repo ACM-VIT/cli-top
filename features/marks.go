@@ -31,7 +31,7 @@ const (
 	CourseSlotCellIndex         = 7
 )
 
-func GetMarks(regNo string, cookies types.Cookies, semID string, semChoice int) {
+func GetMarks(regNo string, cookies types.Cookies, semChoice int) {
 	if !helpers.ValidateLogin(cookies) {
 		return
 	}

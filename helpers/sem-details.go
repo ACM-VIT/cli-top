@@ -1,7 +1,6 @@
 package helpers
 
 import (
-	"bufio"
 	"bytes"
 	"cli-top/debug"
 	"cli-top/types"
@@ -10,129 +9,42 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/net/html"
+	"github.com/PuerkitoBio/goquery"
 )
 
-type selectCandidate struct {
-	id      string
-	name    string
-	class   string
-	options []types.Semester
-}
-
-// Initialize a single reader instance for the package
-var reader = bufio.NewReader(os.Stdin)
-
 func FindAndSaveSemIds(body []byte) ([]types.Semester, error) {
-	var (
-		candidates []selectCandidate
-		currentSel *selectCandidate
-		inOption   bool
-		optionVal  string
-		textBuf    strings.Builder
-	)
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("parse semester page: %w", err)
+	}
 
-	z := html.NewTokenizer(bytes.NewReader(body))
-	for {
-		switch z.Next() {
-		case html.ErrorToken:
-			if len(candidates) == 0 {
-				if debug.Debug {
-					fmt.Println("No semesters found in document.")
+	selectors := []string{
+		"select[id*='semesterSubId']",
+		"select[name*='semesterSubId']",
+		"select.form-select",
+		"select",
+	}
+	for _, selector := range selectors {
+		var semesters []types.Semester
+		doc.Find(selector).EachWithBreak(func(_ int, selection *goquery.Selection) bool {
+			selection.Find("option").Each(func(_ int, option *goquery.Selection) {
+				id := strings.TrimSpace(option.AttrOr("value", ""))
+				name := strings.TrimSpace(option.Text())
+				if id != "" && name != "" {
+					semesters = append(semesters, types.Semester{SemID: id, SemName: name})
 				}
-				return nil, fmt.Errorf("no semesters found")
-			}
-			chosen := pickSemesterSelect(candidates)
-			if len(chosen.options) == 0 {
-				return nil, fmt.Errorf("no semesters found")
-			}
-			return chosen.options, nil
-		case html.StartTagToken, html.SelfClosingTagToken:
-			tagName, hasAttr := z.TagName()
-			switch string(tagName) {
-			case "select":
-				if currentSel != nil {
-					candidates = append(candidates, *currentSel)
-				}
-				currentSel = &selectCandidate{}
-				if hasAttr {
-					for {
-						key, val, more := z.TagAttr()
-						switch string(key) {
-						case "id":
-							currentSel.id = string(val)
-						case "name":
-							currentSel.name = string(val)
-						case "class":
-							currentSel.class = string(val)
-						}
-						if !more {
-							break
-						}
-					}
-				}
-			case "option":
-				if currentSel == nil {
-					break
-				}
-				inOption = true
-				optionVal = ""
-				textBuf.Reset()
-				if hasAttr {
-					for {
-						key, val, more := z.TagAttr()
-						if string(key) == "value" {
-							optionVal = string(val)
-						}
-						if !more {
-							break
-						}
-					}
-				}
-			}
-		case html.TextToken:
-			if inOption {
-				textBuf.Write(z.Text())
-			}
-		case html.EndTagToken:
-			tagName, _ := z.TagName()
-			switch string(tagName) {
-			case "option":
-				if inOption && currentSel != nil {
-					text := strings.TrimSpace(textBuf.String())
-					if optionVal != "" && text != "" {
-						currentSel.options = append(currentSel.options, types.Semester{SemID: optionVal, SemName: text})
-					}
-				}
-				inOption = false
-			case "select":
-				if currentSel != nil {
-					candidates = append(candidates, *currentSel)
-					currentSel = nil
-				}
-			}
+			})
+			return len(semesters) == 0
+		})
+		if len(semesters) > 0 {
+			return semesters, nil
 		}
 	}
-}
 
-func pickSemesterSelect(candidates []selectCandidate) selectCandidate {
-	for _, c := range candidates {
-		if len(c.options) == 0 {
-			continue
-		}
-		if strings.Contains(c.id, "semesterSubId") || strings.Contains(c.name, "semesterSubId") {
-			return c
-		}
-		if strings.Contains(c.class, "form-select") {
-			return c
-		}
+	if debug.Debug {
+		fmt.Println("No semesters found in document.")
 	}
-	for _, c := range candidates {
-		if len(c.options) > 0 {
-			return c
-		}
-	}
-	return selectCandidate{}
+	return nil, fmt.Errorf("no semesters found")
 }
 
 // GetSemDetails fetches semester details
@@ -143,61 +55,37 @@ func GetSemDetails(cookies types.Cookies, regNo string) ([]types.Semester, error
 	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
 		return nil, fmt.Errorf("please login first using the cli-top login command")
 	}
-	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentAttendance"
-	var allSems []types.Semester
-	bodyText, err := FetchReq(regNo, cookies, url, "", "", "POST", "")
-	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error fetching semester details", err)
+	endpoints := []string{
+		"https://vtop.vit.ac.in/vtop/academics/common/StudentAttendance",
+		"https://vtop.vit.ac.in/vtop/academics/common/StudentCoursePage",
+	}
+	var lastErr error
+	for _, endpoint := range endpoints {
+		body, err := FetchReq(regNo, cookies, endpoint, "", "", "POST", "")
+		if err != nil {
+			lastErr = err
+			continue
 		}
-		return allSems, err
-	}
-
-	allSems, err = FindAndSaveSemIds(bodyText)
-	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error fetching semester details", err)
+		semesters, err := FindAndSaveSemIds(body)
+		if err != nil {
+			lastErr = err
+			continue
 		}
-		return allSems, err
+		ReverseSlice(semesters)
+		storeSemesters(regNo, semesters)
+		return semesters, nil
 	}
-	ReverseSlice(allSems)
-	storeSemesters(regNo, allSems)
-	return allSems, nil
-}
-
-func GetSemDetailsBackup(cookies types.Cookies, regNo string) ([]types.Semester, error) {
-	if cached, ok := getCachedSemesters(regNo); ok {
-		return cached, nil
+	if debug.Debug && lastErr != nil {
+		fmt.Println("Error fetching semester details:", lastErr)
 	}
-	url := "https://vtop.vit.ac.in/vtop/academics/common/StudentCoursePage"
-	var allSems []types.Semester
-	bodyText, err := FetchReq(regNo, cookies, url, "", "", "POST", "")
-	if err != nil {
-		return allSems, err
-	}
-	allSems, err = FindAndSaveSemIds(bodyText)
-	if err != nil {
-		return allSems, err
-	}
-	ReverseSlice(allSems)
-	storeSemesters(regNo, allSems)
-	return allSems, nil
+	return nil, fmt.Errorf("fetch semester details: %w", lastErr)
 }
 
 func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) (types.Semester, error) {
 	semDetails, err := GetSemDetails(cookies, regNo)
 	var selectedSem types.Semester
 	if err != nil {
-		if debug.Debug {
-			fmt.Println("Error featching sem details:", err)
-		}
-		semDetails, err = GetSemDetailsBackup(cookies, regNo)
-		if err != nil {
-			if debug.Debug {
-				fmt.Println("Error fetching semester details in backup", err)
-			}
-			return selectedSem, err
-		}
+		return selectedSem, err
 	}
 	if len(semDetails) == 0 {
 		if debug.Debug {
@@ -226,27 +114,5 @@ func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) (types.
 	}
 	selectedSem = semDetails[choice.Index-1]
 
-	_ = clearInputBuffer()
 	return selectedSem, nil
-}
-
-func clearInputBuffer() error {
-	for {
-
-		if reader.Buffered() == 0 {
-			return nil
-		}
-
-		b, err := reader.ReadByte()
-		if err != nil {
-			if debug.Debug {
-				fmt.Println("Error clearing input buffer:", err)
-			}
-			return err
-		}
-
-		if b == '\n' {
-			return nil
-		}
-	}
 }

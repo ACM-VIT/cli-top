@@ -47,7 +47,7 @@ func fetchWorkingSaturdays(regNo string, cookies types.Cookies, semSubID, classG
 	}
 	form0 := helpers.FormatBodyData(payload0)
 	_ = form0
-	body0, _, err0 := helpers.FetchReqClient(client, regNo, cookies, calendarPreviewURL, "https://vtop.vit.ac.in/vtop/content", []byte(form0), "POST", "application/x-www-form-urlencoded")
+	body0, _, err0 := helpers.FetchReqClient(client, cookies, calendarPreviewURL, "https://vtop.vit.ac.in/vtop/content", form0, "POST", "application/x-www-form-urlencoded")
 	_ = body0
 	_ = err0
 
@@ -59,7 +59,7 @@ func fetchWorkingSaturdays(regNo string, cookies types.Cookies, semSubID, classG
 	}
 	formVerify := helpers.FormatBodyData(payloadVerify)
 	_ = formVerify
-	bodyVerify, _, errVerify := helpers.FetchReqClient(client, regNo, cookies, calendarPreviewURL, "https://vtop.vit.ac.in/vtop/content", []byte(formVerify), "POST", "application/x-www-form-urlencoded")
+	bodyVerify, _, errVerify := helpers.FetchReqClient(client, cookies, calendarPreviewURL, "https://vtop.vit.ac.in/vtop/content", formVerify, "POST", "application/x-www-form-urlencoded")
 	_ = bodyVerify
 	_ = errVerify
 
@@ -72,7 +72,7 @@ func fetchWorkingSaturdays(regNo string, cookies types.Cookies, semSubID, classG
 	}
 	form1 := helpers.FormatBodyData(payload1)
 	_ = form1
-	body1, _, err1 := helpers.FetchReqClient(client, regNo, cookies, getDateForSemPreviewURL, "", []byte(form1), "POST", "application/x-www-form-urlencoded")
+	body1, _, err1 := helpers.FetchReqClient(client, cookies, getDateForSemPreviewURL, "", form1, "POST", "application/x-www-form-urlencoded")
 	_ = body1
 	_ = err1
 
@@ -87,7 +87,7 @@ func fetchWorkingSaturdays(regNo string, cookies types.Cookies, semSubID, classG
 		"x":            fmt.Sprintf("%d", time.Now().Unix()),
 	}
 	form2 := helpers.FormatBodyData(payload2)
-	body3, _, err3 := helpers.FetchReqClient(client, regNo, cookies, processViewCalendarURL, "", []byte(form2), "POST", "application/x-www-form-urlencoded")
+	body3, _, err3 := helpers.FetchReqClient(client, cookies, processViewCalendarURL, "", form2, "POST", "application/x-www-form-urlencoded")
 	if err3 != nil {
 		return result
 	}
@@ -542,30 +542,6 @@ var schedule = map[string]map[string][]string{
 	},
 }
 
-// func updateTimetableWithWorkingSaturdays(timetable map[string][]types.Class, workingSaturdays []WorkingSaturday) {
-// 	for _, ws := range workingSaturdays {
-// 		classes, ok := timetable[ws.DayOrder]
-// 		if !ok {
-// 			continue
-// 		}
-// 		for _, c := range classes {
-// 			timetable["Saturday"] = append(timetable["Saturday"], types.Class{
-// 				Subject:   c.Subject,
-// 				Slot:      c.Slot,
-// 				Venue:     c.Venue,
-// 				StartTime: c.StartTime,
-// 				EndTime:   c.EndTime,
-// 				DayOrder:  ws.DayOrder,
-// 			})
-// 		}
-// 	}
-// 	if _, exists := timetable["Saturday"]; exists {
-// 		sort.Slice(timetable["Saturday"], func(i, j int) bool {
-// 			return timetable["Saturday"][i].StartTime < timetable["Saturday"][j].StartTime
-// 		})
-// 	}
-// }
-
 func GetTimeTable(regNo string, cookies types.Cookies, sem_choice int) {
 	if !helpers.ValidateLogin(cookies) {
 		return
@@ -709,13 +685,7 @@ func previousSemesterBefore(selectedSemester types.Semester, regNo string, cooki
 		if debug.Debug {
 			helpers.Println("Error fetching semester details:", err)
 		}
-		semesters, err = helpers.GetSemDetailsBackup(cookies, regNo)
-		if err != nil {
-			if debug.Debug {
-				helpers.Println("Error fetching backup semester details:", err)
-			}
-			return types.Semester{}, false
-		}
+		return types.Semester{}, false
 	}
 
 	for i, semester := range semesters {
@@ -778,10 +748,7 @@ func resolveTimetableSemester(regNo string, cookies types.Cookies, semChoice int
 		if debug.Debug {
 			helpers.Println("Error fetching semester details:", err)
 		}
-		semesters, err = helpers.GetSemDetailsBackup(cookies, regNo)
-		if err != nil {
-			return types.Semester{}, err
-		}
+		return types.Semester{}, err
 	}
 
 	if len(semesters) == 0 {

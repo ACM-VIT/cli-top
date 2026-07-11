@@ -1,26 +1,30 @@
 package helpers
 
 import (
+	"bytes"
 	"cli-top/debug"
-	types "cli-top/types"
 	"encoding/base64"
 	"fmt"
 	"image"
-	"image/jpeg"
+	_ "image/jpeg"
 	"math"
 	"os"
-	"sort"
 	"strings"
 )
 
 func preImg(img [][]int) [][]int {
 	avg := 0
+	pixels := 0
 	for _, row := range img {
 		for _, f := range row {
 			avg += f
+			pixels++
 		}
 	}
-	avg /= 24 * 22
+	if pixels == 0 {
+		return nil
+	}
+	avg /= pixels
 
 	bits := make([][]int, len(img))
 	for i := range img {
@@ -37,11 +41,16 @@ func preImg(img [][]int) [][]int {
 }
 
 func saturation(d []uint8) [][][]int {
+	if len(d) != 40*200*4 {
+		return nil
+	}
 	saturate := make([]int, len(d)/4)
 	for i := 0; i < len(d); i += 4 {
 		min := uint8(math.Min(float64(d[i]), math.Min(float64(d[i+1]), float64(d[i+2]))))
 		max := uint8(math.Max(float64(d[i]), math.Max(float64(d[i+1]), float64(d[i+2]))))
-		saturate[i/4] = int(math.Round((float64(max-min) * 255) / float64(max)))
+		if max != 0 {
+			saturate[i/4] = int(math.Round((float64(max-min) * 255) / float64(max)))
+		}
 	}
 
 	img := make([][]int, 40)
@@ -108,13 +117,23 @@ func matAdd(a []float32, b []float32) []float32 {
 }
 
 func maxSoft(a []float32) []float32 {
-	n := append([]float32(nil), a...)
-	s := float32(0)
-	for _, f := range n {
-		s += float32(math.Exp(float64(f)))
+	if len(a) == 0 {
+		return nil
 	}
-	for i := range a {
-		n[i] = float32(math.Exp(float64(a[i]))) / s
+	maxValue := a[0]
+	for _, value := range a[1:] {
+		if value > maxValue {
+			maxValue = value
+		}
+	}
+	n := make([]float32, len(a))
+	s := float32(0)
+	for i, value := range a {
+		n[i] = float32(math.Exp(float64(value - maxValue)))
+		s += n[i]
+	}
+	for i := range n {
+		n[i] /= s
 	}
 	return n
 }
@@ -128,95 +147,89 @@ func flattenFloat32(arr [][]float32) []float32 {
 }
 
 func argmax(slice []float32) int {
-	var maxValue float32
-	kvs := make([]types.Kv, len(slice))
-	for i, v := range slice {
-		kvs[i] = types.Kv{Key: i, Value: v}
-		if i == 0 || v > maxValue {
-			maxValue = v
+	if len(slice) == 0 {
+		return -1
+	}
+	maxIndex := 0
+	for i := 1; i < len(slice); i++ {
+		if slice[i] > slice[maxIndex] {
+			maxIndex = i
 		}
 	}
-	sort.Slice(kvs, func(i, j int) bool {
-		return kvs[i].Value > kvs[j].Value
-	})
-	return kvs[0].Key
+	return maxIndex
 }
 
 func SolveCaptcha(imageURL string) string {
 	labelTxt := "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 	killSwitch := CheckKillSwitch()
-
-	if strings.HasPrefix(imageURL, "data:image/jpeg;base64,") {
-		base64Data := strings.TrimPrefix(imageURL, "data:image/jpeg;base64,")
-		data, err := base64.StdEncoding.DecodeString(base64Data)
-		if err != nil && debug.Debug {
-			fmt.Println("Error decoding base64:", err)
-			return ""
-		}
-
-		img, _, err := image.Decode(strings.NewReader(string(data)))
-		if err != nil && debug.Debug {
-			fmt.Println(err)
-		}
-		// Save the image to a file (optional)
-		outFile, err := os.Create("captcha.jpg")
-		if err != nil && debug.Debug {
-			fmt.Println(err)
-		}
-		defer outFile.Close()
-
-		err = jpeg.Encode(outFile, img, nil)
-		if err != nil && debug.Debug {
-			fmt.Println(err)
-		}
-
-		var captcha string
-		if killSwitch == 1 {
-			fmt.Println("Captcha auto-solver has been disabled. \nPlease manually solve the captcha and answer here:")
-			fmt.Scanln(&captcha)
-		} else {
-			err = os.Remove("captcha.jpg")
-			if err != nil && debug.Debug {
-				fmt.Println(err)
-			}
-		}
-
-		bounds := img.Bounds()
-		rgba := image.NewRGBA(bounds)
-		for y := 0; y < bounds.Dy(); y++ {
-			for x := 0; x < bounds.Dx(); x++ {
-				rgba.Set(x, y, img.At(x, y))
-			}
-		}
-
-		pd := rgba.Pix
-		bls := saturation(pd)
-
-		var out string
-		for i := 0; i < 6; i++ {
-			bls[i] = preImg(bls[i])
-			flatBls := flatten(bls[i])
-			result := matMul([][]int{flatBls}, weights)
-			result = matAdd(result, biases)
-			result = maxSoft(result)
-			maxIndex := argmax(result)
-			out += string(labelTxt[maxIndex])
-		}
-
-		if debug.Debug {
-			fmt.Println("(Helper - Captcha):", out)
-		}
-
-		if killSwitch == 1 {
-			return captcha
-		} else if killSwitch == 2 {
-			return "disabled"
-		} else {
-			return out
-		}
-
-	} else {
+	if killSwitch == 2 {
+		return "disabled"
+	}
+	if !strings.HasPrefix(imageURL, "data:image/jpeg;base64,") {
 		fmt.Println("Unsupported URL scheme")
 		return ""
 	}
+
+	data, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(imageURL, "data:image/jpeg;base64,"))
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error decoding captcha:", err)
+		}
+		return ""
+	}
+	if killSwitch == 1 {
+		StopHeadlineForOutput()
+		if err := os.WriteFile("captcha.jpg", data, 0o600); err != nil {
+			if debug.Debug {
+				fmt.Println("Error saving captcha:", err)
+			}
+			return ""
+		}
+		fmt.Println("Captcha auto-solver has been disabled. \nPlease manually solve captcha.jpg and answer here:")
+		var captcha string
+		fmt.Scanln(&captcha)
+		return strings.TrimSpace(captcha)
+	}
+
+	img, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error decoding captcha image:", err)
+		}
+		return ""
+	}
+	bounds := img.Bounds()
+	if bounds.Dx() != 200 || bounds.Dy() != 40 {
+		if debug.Debug {
+			fmt.Printf("Unexpected captcha dimensions: %dx%d\n", bounds.Dx(), bounds.Dy())
+		}
+		return ""
+	}
+	rgba := image.NewRGBA(image.Rect(0, 0, bounds.Dx(), bounds.Dy()))
+	for y := 0; y < bounds.Dy(); y++ {
+		for x := 0; x < bounds.Dx(); x++ {
+			rgba.Set(x, y, img.At(bounds.Min.X+x, bounds.Min.Y+y))
+		}
+	}
+
+	blocks := saturation(rgba.Pix)
+	if len(blocks) != 6 {
+		return ""
+	}
+	var resultText strings.Builder
+	for _, block := range blocks {
+		flatBlock := flatten(preImg(block))
+		result := maxSoft(matAdd(matMul([][]int{flatBlock}, weights), biases))
+		maxIndex := argmax(result)
+		if maxIndex < 0 || maxIndex >= len(labelTxt) {
+			return ""
+		}
+		resultText.WriteByte(labelTxt[maxIndex])
+	}
+
+	result := resultText.String()
+	if debug.Debug {
+		fmt.Println("(Helper - Captcha):", result)
+	}
+	return result
 }

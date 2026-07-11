@@ -39,14 +39,13 @@ type Course struct {
 	Title string
 }
 
-func sanitizeFilename(filename string) string {
-	re := regexp.MustCompile(`[^a-zA-Z0-9_\-\.]`)
-	return re.ReplaceAllString(filename, "_")
-}
-
 func DownloadSyllabus(courseCode, courseName string, cookies types.Cookies, authorizedID, outputDir string) (string, error) {
 	downloadURL := "https://vtop.vit.ac.in/vtop/courseSyllabusDownload1"
-	payload := fmt.Sprintf("_csrf=%s&_csrf=%s&authorizedID=%s&courseCode=%s", cookies.CSRF, cookies.CSRF, authorizedID, courseCode)
+	payload := helpers.FormatBodyData(map[string]string{
+		"_csrf":        cookies.CSRF,
+		"authorizedID": authorizedID,
+		"courseCode":   courseCode,
+	})
 
 	bodyBytes, err := helpers.FetchReq("", cookies, downloadURL, "", payload, "POST", "")
 	if err != nil {
@@ -84,7 +83,7 @@ func DownloadSyllabus(courseCode, courseName string, cookies types.Cookies, auth
 		return "", fmt.Errorf("unexpected content type: %s", ct)
 	}
 	filename := fmt.Sprintf("%s_%s.pdf", courseName, courseCode)
-	sanitizedFilename := sanitizeFilename(filename)
+	sanitizedFilename := helpers.SanitizeFilename(filename)
 	outputPath := filepath.Join(outputDir, sanitizedFilename)
 	if err := os.MkdirAll(outputDir, os.ModePerm); err != nil {
 		return "", fmt.Errorf("failed to create output directory: %w", err)

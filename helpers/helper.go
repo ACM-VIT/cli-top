@@ -23,20 +23,7 @@ import (
 	"github.com/h2non/filetype"
 
 	"github.com/PuerkitoBio/goquery"
-	//"golang.org/x/net/html"
 )
-
-// func GetTextContent(n *html.Node) string {
-// 	var textContent string
-// 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-// 		if c.Type == html.TextNode {
-// 			textContent += c.Data
-// 		} else if c.Type == html.ElementNode {
-// 			textContent += GetTextContent(c)
-// 		}
-// 	}
-// 	return textContent
-// }
 
 func StrToInt(str string) int {
 	num, err := strconv.Atoi(str)
@@ -44,20 +31,6 @@ func StrToInt(str string) int {
 		fmt.Println("Error converting string to integer:", err)
 	}
 	return num
-}
-
-func FindOptionWithTagValue(doc *goquery.Document, targetValue string) string {
-	return doc.Find("option[value='" + targetValue + "']").Text()
-}
-
-func RemoveEmptyStrings(data []string) []string {
-	var cleanedData []string
-	for _, item := range data {
-		if item != "" {
-			cleanedData = append(cleanedData, item)
-		}
-	}
-	return cleanedData
 }
 
 func GenerateCalendarImportLinks(icsURL string, calendarName string) {
@@ -143,15 +116,6 @@ func TruncateWithEllipses(text string, maxLength int) string {
 	return text
 }
 
-func AddLeftPadding(text string, padding int) string {
-	paddingString := strings.Repeat(" ", padding)
-	lines := strings.Split(text, "\n")
-	for i, line := range lines {
-		lines[i] = paddingString + line
-	}
-	return strings.Join(lines, "\n")
-}
-
 func EscapeString(str string) string {
 	str = strings.ReplaceAll(str, "\\", "\\\\")
 	str = strings.ReplaceAll(str, ";", "\\;")
@@ -233,39 +197,23 @@ func SanitizeFilename(name string) string {
 func SaveFile(data []byte, filePath string) error {
 	return os.WriteFile(filePath, data, 0644)
 }
-func FormatBodyDataClient(payloadMap map[string]string) []byte {
-	if len(payloadMap) == 0 {
-		return nil
-	}
-	var buf bytes.Buffer
-	first := true
-	for key, value := range payloadMap {
-		if !first {
-			buf.WriteByte('&')
-		} else {
-			first = false
-		}
-		buf.WriteString(url.QueryEscape(key))
-		buf.WriteByte('=')
-		buf.WriteString(url.QueryEscape(value))
-	}
-	return buf.Bytes()
-}
-
-func FetchReqClient(client *http.Client, regNo string, cookies types.Cookies, url string, referer string, formData []byte, method string, contentType string) ([]byte, http.Header, error) {
+func FetchReqClient(client *http.Client, cookies types.Cookies, url string, referer string, formData string, method string, contentType string) ([]byte, http.Header, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultRequestTimeout)
 	defer cancel()
-	return FetchReqClientWithContext(ctx, client, regNo, cookies, url, referer, formData, method, contentType)
+	return FetchReqClientWithContext(ctx, client, cookies, url, referer, formData, method, contentType)
 }
 
-func FetchReqClientWithContext(ctx context.Context, client *http.Client, regNo string, cookies types.Cookies, url string, referer string, formData []byte, method string, contentType string) ([]byte, http.Header, error) {
+func FetchReqClientWithContext(ctx context.Context, client *http.Client, cookies types.Cookies, url string, referer string, formData string, method string, contentType string) ([]byte, http.Header, error) {
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	if client == nil {
+		client = GetHTTPClient()
 	}
 	if err := ValidateVtopURL(url); err != nil {
 		return nil, nil, err
 	}
-	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(formData))
+	req, err := http.NewRequestWithContext(ctx, method, url, strings.NewReader(formData))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
@@ -303,69 +251,40 @@ func FetchReqClientWithContext(ctx context.Context, client *http.Client, regNo s
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read response body: %w", err)
 	}
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return body, resp.Header, fmt.Errorf("VTOP request failed with status %s", resp.Status)
+	}
 
 	return body, resp.Header, nil
 }
 
-// func buildCookieHeader(cookies types.Cookies) string {
-// 	return fmt.Sprintf("JSESSIONID=%s; SERVERID=%s;", cookies.JSESSIONID, cookies.SERVERID)
-// }
-
 func GetFileExtension(filename string, body []byte, headers http.Header) string {
-	ext := filepath.Ext(filename)
-	if ext != "" {
+	if ext := filepath.Ext(filename); ext != "" {
 		return ext
 	}
 
-	contentDisposition := headers.Get("Content-Disposition")
-	if contentDisposition != "" {
+	if contentDisposition := headers.Get("Content-Disposition"); contentDisposition != "" {
 		_, params, err := mime.ParseMediaType(contentDisposition)
 		if err == nil {
-			if cdFilename, ok := params["filename"]; ok && cdFilename != "" {
-				ext = filepath.Ext(cdFilename)
-				if ext != "" {
-					return ext
-				}
+			if ext := filepath.Ext(params["filename"]); ext != "" {
+				return ext
 			}
 		}
+	}
+
+	if ext := ooxmlExtension(body); ext != "" {
+		return ext
 	}
 
 	kind, err := filetypeMatch(body)
 	if err == nil && kind != "unknown" {
-		fmt.Printf("Filetype package detected: %s\n", kind)
 		switch kind {
-		case "doc":
-			return ".doc"
-		case "xls":
-			return ".xls"
-		case "ppt":
-			return ".ppt"
-		case "docx":
-			return ".docx"
-		case "xlsx":
-			return ".xlsx"
-		case "pptx":
-			return ".pptx"
-		case "pdf":
-			return ".pdf"
-		case "zip":
-			if isOOXML(body) {
-				ooxmlExt := getOOXMLExtension(body)
-				if ooxmlExt != "" {
-					return ooxmlExt
-				}
-			}
-			return ".zip"
-		default:
-			fmt.Printf("Filetype package detected unknown type: %s\n", kind)
+		case "doc", "xls", "ppt", "docx", "xlsx", "pptx", "pdf", "zip":
+			return "." + kind
 		}
-	} else {
-		fmt.Println("Filetype package could not determine the file type.")
 	}
 
-	mimeType := http.DetectContentType(body)
-	fmt.Printf("MIME type detected: %s\n", mimeType)
-	switch mimeType {
+	switch http.DetectContentType(body) {
 	case "application/msword":
 		return ".doc"
 	case "application/vnd.ms-excel":
@@ -381,107 +300,44 @@ func GetFileExtension(filename string, body []byte, headers http.Header) string 
 	case "application/pdf":
 		return ".pdf"
 	case "application/zip":
-		if isOOXML(body) {
-			ooxmlExt := getOOXMLExtension(body)
-			if ooxmlExt != "" {
-				return ooxmlExt
-			}
-		}
 		return ".zip"
-	default:
-		fmt.Printf("Unhandled MIME type: %s\n", mimeType)
 	}
 
 	if len(body) >= 8 && bytes.Equal(body[:8], []byte{0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1}) {
-		fmt.Println("OLE Compound Document detected.")
 		if bytes.Contains(body, []byte("WordDocument")) {
-			fmt.Println("Identified as .doc")
 			return ".doc"
 		}
 		if bytes.Contains(body, []byte("Workbook")) || bytes.Contains(body, []byte("Book")) {
-			fmt.Println("Identified as .xls")
 			return ".xls"
 		}
 		if bytes.Contains(body, []byte("PowerPoint Document")) {
-			fmt.Println("Identified as .ppt")
 			return ".ppt"
 		}
-		fmt.Println("OLE Compound Document but specific type not identified. Assigning .bin")
 		return ".bin"
 	}
 
 	if len(body) >= 4 && string(body[:4]) == "PK\x03\x04" {
-		fmt.Println("ZIP archive detected. Inspecting internal structure for OOXML formats.")
-		readerAt := bytes.NewReader(body)
-		size := int64(len(body))
-		zipReader, err := zip.NewReader(readerAt, size)
-		if err == nil {
-			for _, f := range zipReader.File {
-				if strings.HasPrefix(f.Name, "ppt/") {
-					fmt.Println("Identified as .pptx")
-					return ".pptx"
-				} else if strings.HasPrefix(f.Name, "word/") {
-					fmt.Println("Identified as .docx")
-					return ".docx"
-				} else if strings.HasPrefix(f.Name, "xl/") {
-					fmt.Println("Identified as .xlsx")
-					return ".xlsx"
-				}
-			}
-		} else {
-			fmt.Printf("Error reading ZIP structure: %v\n", err)
-		}
+		return ".zip"
 	}
 
-	fmt.Println("Failed to determine file extension; assigning .bin")
+	if debug.Debug {
+		fmt.Println("Unable to determine file extension; using .bin")
+	}
 	return ".bin"
 }
 
-// func urlQueryEscape(s string) string {
-// 	return strings.ReplaceAll(url.QueryEscape(s), "+", "%20")
-// }
-
-// func mimeParseMediaType(v string) (mediatype string, params map[string]string, err error) {
-// 	return mime.ParseMediaType(v)
-// }
-
-// func isOLECompoundDocument(body []byte) bool {
-// 	return len(body) >= 8 && bytes.Equal(body[:8], []byte{0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1})
-// }
-
-// func bytesContains(body []byte, substr string) bool {
-// 	return bytes.Contains(body, []byte(substr))
-// }
-
-func isOOXML(body []byte) bool {
-	readerAt := bytes.NewReader(body)
-	size := int64(len(body))
-	zipReader, err := zip.NewReader(readerAt, size)
+func ooxmlExtension(body []byte) string {
+	zipReader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
 	if err != nil {
-		return false
-	}
-	for _, f := range zipReader.File {
-		if strings.HasPrefix(f.Name, "ppt/") || strings.HasPrefix(f.Name, "word/") || strings.HasPrefix(f.Name, "xl/") {
-			return true
-		}
-	}
-	return false
-}
-
-func getOOXMLExtension(body []byte) string {
-	readerAt := bytes.NewReader(body)
-	size := int64(len(body))
-	zipReader, err := zip.NewReader(readerAt, size)
-	if err != nil {
-		fmt.Printf("Error reading ZIP structure: %v\n", err)
 		return ""
 	}
 	for _, f := range zipReader.File {
-		if strings.HasPrefix(f.Name, "ppt/") {
+		switch {
+		case strings.HasPrefix(f.Name, "ppt/"):
 			return ".pptx"
-		} else if strings.HasPrefix(f.Name, "word/") {
+		case strings.HasPrefix(f.Name, "word/"):
 			return ".docx"
-		} else if strings.HasPrefix(f.Name, "xl/") {
+		case strings.HasPrefix(f.Name, "xl/"):
 			return ".xlsx"
 		}
 	}
@@ -573,6 +429,9 @@ func GetOrCreateDownloadDir(subDir string) (string, error) {
 
 // OpenFolder opens the folder containing the specified path using the system's default file manager
 func OpenFolder(path string) {
+	if ShouldMuteUI() {
+		return
+	}
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
@@ -601,12 +460,3 @@ func OpenFolder(path string) {
 		fmt.Printf("Error opening folder: %v\n", err)
 	}
 }
-func ParseFloat(s string) float64 {
-	f, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
-	if err != nil {
-		return 0
-	}
-	return f
-}
-
-var VtopLoginGlobal func() (types.Cookies, string)

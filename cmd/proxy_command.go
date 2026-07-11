@@ -50,25 +50,6 @@ type proxyError struct {
 	Message string `json:"message"`
 }
 
-var interactiveProxyCommands = map[string]struct{}{
-	"timetable": {},
-	"holiday":   {},
-	"today":     {},
-	"tomorrow":  {},
-	"dayafter":  {},
-	"marks":     {},
-	"grades":    {},
-	"calendar":  {},
-	"events":    {},
-
-	"course-page":         {},
-	"course-page-archive": {},
-	"course-allocation":   {},
-	"da":                  {},
-	"facility":            {},
-	"syllabus":            {},
-}
-
 var defaultSyncCommands = []string{"profile", "timetable", "attendance", "marks", "cgpa", "exams"}
 
 type syncResultEntry struct {
@@ -131,22 +112,15 @@ func runProxyCommand(args []string) {
 		}
 	}()
 
+	restoreLogin := helpers.SetVtopLoginHandler(func() (types.Cookies, string, error) {
+		return proxyLogin(username, password)
+	})
+	defer restoreLogin()
+
 	if command == "sync" {
 		runSyncProxyCommand(&resp, flags, cookies, regNo, start)
 		return
 	}
-
-	prevLogin := helpers.VtopLoginGlobal
-	helpers.VtopLoginGlobal = func() (types.Cookies, string) {
-		freshCookies, freshReg, loginErr := proxyLogin(username, password)
-		if loginErr != nil {
-			return types.Cookies{}, ""
-		}
-		return freshCookies, freshReg
-	}
-	defer func() {
-		helpers.VtopLoginGlobal = prevLogin
-	}()
 
 	tableSnapshots := []helpers.TableSnapshot{}
 	restore := helpers.RegisterTableCaptureHook(func(snapshot helpers.TableSnapshot) {
@@ -260,9 +234,9 @@ func executeFeatureCommand(command string, flags map[string]string, cookies type
 	case "profile":
 		features.Profile(cookies, regNo)
 	case "marks":
-		features.GetMarks(regNo, cookies, "", parseIntFlag(flags, "semester"))
+		features.GetMarks(regNo, cookies, parseIntFlag(flags, "semester"))
 	case "grades":
-		features.GetGrades(regNo, cookies, "", parseIntFlag(flags, "semester"))
+		features.GetGrades(regNo, cookies, parseIntFlag(flags, "semester"))
 	case "attendance":
 		features.GetAttendance(regNo, cookies, parseIntFlag(flags, "semester"))
 	case "timetable":
@@ -296,7 +270,6 @@ func executeFeatureCommand(command string, flags map[string]string, cookies type
 			parseIntFlag(flags, "semester"),
 			parseIntFlag(flags, "course"),
 			flagsValue(flags, "faculty"),
-			parseIntFlag(flags, "fuzzyIndex"),
 			flagsValue(flags, "materials"),
 		)
 	case "course-page-archive":
@@ -306,7 +279,6 @@ func executeFeatureCommand(command string, flags map[string]string, cookies type
 			parseIntFlag(flags, "semester"),
 			parseIntFlag(flags, "course"),
 			flagsValue(flags, "faculty"),
-			parseIntFlag(flags, "fuzzyIndex"),
 			flagsValue(flags, "materials"),
 		)
 	case "course-allocation":
@@ -317,6 +289,8 @@ func executeFeatureCommand(command string, flags map[string]string, cookies type
 			CostCentreID:    flagsValue(flags, "cost-centre-id"),
 			AppliedTo:       flagsValue(flags, "applied-to"),
 			RoomTypeID:      flagsValue(flags, "room-type-id"),
+			BuildingID:      flagsValue(flags, "building-id"),
+			Venue:           flagsValue(flags, "venue"),
 			LateHourEventID: flagsValue(flags, "event-id"),
 			Details:         flagsValue(flags, "details"),
 			FromDate:        flagsValue(flags, "from-date"),
@@ -484,9 +458,4 @@ func flagsValue(flags map[string]string, key string) string {
 		return ""
 	}
 	return flags[key]
-}
-
-func isInteractiveProxyCommand(command string) bool {
-	_, ok := interactiveProxyCommands[command]
-	return ok
 }

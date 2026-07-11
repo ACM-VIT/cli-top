@@ -27,8 +27,6 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 		return
 	}
 
-	url := "https://vtop.vit.ac.in/vtop/examinations/doSearchExamScheduleForStudent"
-
 	allSems, err := helpers.GetSemDetails(cookies, regNo)
 	if err != nil {
 		if debug.Debug {
@@ -43,48 +41,31 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 		return
 	}
 
-	var semID string
+	candidates, err := semesterCandidates(allSems, sem_choice)
+	if err != nil {
+		helpers.Println("Invalid semester selection.")
+		return
+	}
+
 	var allExams []types.ExamEvent
-
-	for i := len(allSems) - 1; i >= 0; i-- {
-		semID = allSems[i].SemID
-		bodyText, err := helpers.FetchReq(regNo, cookies, url, semID, "UTC", "POST", "")
+	for _, semester := range candidates {
+		allExams, err = fetchExamEventsForSemester(regNo, cookies, semester.SemID)
 		if err != nil {
 			if debug.Debug {
-				helpers.Printf("Error fetching exam schedule for Semester %s: %v\n", allSems[i].SemName, err)
-			}
-			continue
-		}
-
-		if debug.Debug {
-			helpers.Printf("HTML Response for Semester %s:\n%s\n", allSems[i].SemName, string(bodyText))
-		}
-
-		doc, err := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
-		if err != nil {
-			if debug.Debug {
-				helpers.Printf("Error parsing HTML document for Semester %s: %v\n", allSems[i].SemName, err)
-			}
-			continue
-		}
-
-		allExams, err = parseExamSchedule(doc)
-		if err != nil {
-			if debug.Debug {
-				helpers.Printf("Error parsing exam schedule for Semester %s: %v\n", allSems[i].SemName, err)
+				helpers.Printf("Error fetching exam schedule for Semester %s: %v\n", semester.SemName, err)
 			}
 			continue
 		}
 
 		if len(allExams) > 0 {
 			if debug.Debug {
-				helpers.Printf("Selected Semester: %s (%s)\n", allSems[i].SemName, semID)
+				helpers.Printf("Selected Semester: %s (%s)\n", semester.SemName, semester.SemID)
 			}
 			break
-		} else {
-			if debug.Debug {
-				helpers.Printf("No exams found for Semester: %s (%s). Trying previous semester.\n", allSems[i].SemName, semID)
-			}
+		}
+
+		if debug.Debug {
+			helpers.Printf("No exams found for Semester: %s (%s).\n", semester.SemName, semester.SemID)
 		}
 	}
 
@@ -173,10 +154,6 @@ func safeGetCellText(cells *goquery.Selection, index int) string {
 		return strings.TrimSpace(cells.Eq(index).Text())
 	}
 	return "-"
-}
-
-func parseExamSchedule(doc *goquery.Document) ([]types.ExamEvent, error) {
-	return parseExamScheduleWithDebug(doc, debug.Debug)
 }
 
 func parseExamScheduleWithDebug(doc *goquery.Document, emitDebug bool) ([]types.ExamEvent, error) {

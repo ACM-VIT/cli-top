@@ -23,17 +23,7 @@ import (
 	"github.com/schollz/progressbar/v3"
 )
 
-// const (
-// 	CourseOptionSelector = "select#courseCode option"
-// 	SlotOptionSelector   = "select#slotId option"
-// 	CourseTableSelector  = "table"
-// 	CourseRowSelector    = "tbody tr"
-// 	CourseCellSelector   = "td"
-// )
-
-// legacy HTTP client removed in favour of helpers.GetHTTPClient()
-
-func ExecuteCoursePageOldDownload(regNo string, cookies types.Cookies, semesterFlag int, courseFlag int, facultyFlag string, fuzzyFlag int, materialSelection string) {
+func ExecuteCoursePageOldDownload(regNo string, cookies types.Cookies, semesterFlag int, courseFlag int, facultyFlag string, materialSelection string) {
 	if !helpers.ValidateLogin(cookies) {
 		return
 	}
@@ -139,8 +129,8 @@ func fetchAndSelectCourseOld(regNo string, cookies types.Cookies, semSubId strin
 		"x":             time.Now().UTC().Format(time.RFC1123),
 	}
 
-	formData := helpers.FormatBodyDataClient(payloadMap)
-	body, _, err := helpers.FetchReqClient(helpers.GetHTTPClient(), regNo, cookies, getCourseURL, "", formData, "POST", "application/x-www-form-urlencoded")
+	formData := helpers.FormatBodyData(payloadMap)
+	body, _, err := helpers.FetchReqClient(helpers.GetHTTPClient(), cookies, getCourseURL, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		return types.Course{}, err
 	}
@@ -193,8 +183,8 @@ func fetchSlotIds(regNo string, cookies types.Cookies, semSubId string, classId 
 		"x":             time.Now().UTC().Format(time.RFC1123),
 	}
 
-	formData := helpers.FormatBodyDataClient(payloadMap)
-	body, _, err := helpers.FetchReqClient(helpers.GetHTTPClient(), regNo, cookies, getSlotURL, "", formData, "POST", "application/x-www-form-urlencoded")
+	formData := helpers.FormatBodyData(payloadMap)
+	body, _, err := helpers.FetchReqClient(helpers.GetHTTPClient(), cookies, getSlotURL, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		return nil, err
 	}
@@ -278,8 +268,8 @@ func fetchFaculties(regNo string, cookies types.Cookies, semSubId string, classI
 		"x":             time.Now().UTC().Format(time.RFC1123),
 	}
 
-	formData := helpers.FormatBodyDataClient(payloadMap)
-	body, _, err := helpers.FetchReqClient(helpers.GetHTTPClient(), regNo, cookies, getFacultyURL, "", formData, "POST", "application/x-www-form-urlencoded")
+	formData := helpers.FormatBodyData(payloadMap)
+	body, _, err := helpers.FetchReqClient(helpers.GetHTTPClient(), cookies, getFacultyURL, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		return nil, err
 	}
@@ -386,8 +376,8 @@ func fetchCourseMaterialsPage(regNo string, cookies types.Cookies, selectedFacul
 		"authorizedID": regNo,
 		"x":            time.Now().UTC().Format(time.RFC1123),
 	}
-	formData := helpers.FormatBodyDataClient(payloadMap)
-	body, _, err := helpers.FetchReqClient(helpers.GetHTTPClient(), regNo, cookies, url, "", formData, "POST", "application/x-www-form-urlencoded")
+	formData := helpers.FormatBodyData(payloadMap)
+	body, _, err := helpers.FetchReqClient(helpers.GetHTTPClient(), cookies, url, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		return "", err
 	}
@@ -863,7 +853,7 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 					"materialDate": refMat.MaterialDate,
 					"x":            time.Now().UTC().Format(time.RFC1123),
 				}
-				formData := helpers.FormatBodyDataClient(payloadMap)
+				formData := helpers.FormatBodyData(payloadMap)
 
 				var body []byte
 				var headers http.Header
@@ -877,7 +867,7 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 						timeout = 5 * time.Minute
 					}
 					ctx, cancelCtx := context.WithTimeout(context.Background(), timeout)
-					body, headers, downloadErr = helpers.FetchReqClientWithContext(ctx, helpers.GetHTTPClient(), regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
+					body, headers, downloadErr = helpers.FetchReqClientWithContext(ctx, helpers.GetHTTPClient(), cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
 					cancelCtx()
 					if downloadErr == nil && len(body) > 0 {
 						if (isPotentialPptx && len(body) > 4096) || isSuccessfulDownload(body) {
@@ -1036,7 +1026,7 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 				"materialDate": fd.RefMat.MaterialDate,
 				"x":            time.Now().UTC().Format(time.RFC1123),
 			}
-			formData := helpers.FormatBodyDataClient(payloadMap)
+			formData := helpers.FormatBodyData(payloadMap)
 
 			var body []byte
 			var headers http.Header
@@ -1055,7 +1045,7 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 					timeout = 10 * time.Minute
 				}
 				ctx, cancelCtx := context.WithTimeout(context.Background(), timeout)
-				body, headers, downloadErr = helpers.FetchReqClientWithContext(ctx, helpers.GetHTTPClient(), regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
+				body, headers, downloadErr = helpers.FetchReqClientWithContext(ctx, helpers.GetHTTPClient(), cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
 				cancelCtx()
 
 				if downloadErr == nil && len(body) > 0 {
@@ -1100,7 +1090,7 @@ func downloadMaterialsIndividually(regNo string, cookies types.Cookies, selected
 
 					randomParam := fmt.Sprintf("&nocache=%d", time.Now().UnixNano())
 					ctxFresh, cancelFresh := context.WithTimeout(context.Background(), timeout)
-					body, headers, downloadErr = helpers.FetchReqClientWithContext(ctxFresh, helpers.GetHTTPClient(), regNo, cookies, downloadURL+randomParam, "", formData, "POST", "application/x-www-form-urlencoded")
+					body, headers, downloadErr = helpers.FetchReqClientWithContext(ctxFresh, helpers.GetHTTPClient(), cookies, downloadURL+randomParam, "", formData, "POST", "application/x-www-form-urlencoded")
 					cancelFresh()
 
 					if downloadErr == nil && len(body) > 0 {
@@ -1211,11 +1201,3 @@ func generateFilePath(dirPath string, indexNo int, moduleNo, topicNo, topicName 
 
 	return filePath
 }
-
-// func getOptimalConcurrency() int {
-// 	numCPU := runtime.NumCPU()
-// 	if runtime.GOOS == "linux" {
-// 		return numCPU * 2
-// 	}
-// 	return numCPU
-// }

@@ -198,12 +198,6 @@ type VersionInfo struct {
 	AndroidURL string            `json:"androidUrl"`
 }
 
-type TrackingData struct {
-	UUID      string `json:"uuid"`
-	Command   string `json:"command"`
-	Timestamp string `json:"timestamp"`
-}
-
 type VersionTrackingData struct {
 	UUID      string `json:"uuid"`
 	Command   string `json:"command"`
@@ -213,11 +207,6 @@ type VersionTrackingData struct {
 
 type RegisterData struct {
 	UUID string `json:"uuid"`
-}
-
-type Kv struct {
-	Key   int
-	Value float32
 }
 
 type UploadResponse struct {

@@ -696,31 +696,6 @@ func normalizeNightSlipDate(value string, flagName string) (string, error) {
 	return "", fmt.Errorf("invalid %s; use YYYY-MM-DD", flagName)
 }
 
-func normalizeNightSlipTime(value string, flagName string) (string, error) {
-	value = strings.ToUpper(strings.TrimSpace(value))
-	if value == "" {
-		return "", fmt.Errorf("missing %s", flagName)
-	}
-
-	layouts := []string{
-		"03:04 PM",
-		"3:04 PM",
-		"03:04PM",
-		"3:04PM",
-		"15:04",
-		"15:04:05",
-	}
-
-	for _, layout := range layouts {
-		parsed, err := time.Parse(layout, value)
-		if err == nil {
-			return parsed.Format("03:04 PM"), nil
-		}
-	}
-
-	return "", fmt.Errorf("invalid %s; use a time like 08:30 PM or 20:30", flagName)
-}
-
 func wasNightSlipSubmitted(before []types.NightSlipRequest, after []types.NightSlipRequest, input NightSlipApplyInput) bool {
 	beforeCounts := make(map[string]int, len(before))
 	for _, request := range before {
