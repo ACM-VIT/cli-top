@@ -15,22 +15,115 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fatih/color"
 	"github.com/spf13/viper"
 )
 
-var latestJSONURL = "https://cli-top.acmvit.in/latest.json"
+var (
+	latestJSONURL = officialLatestJSONURL
+	latestJSONMu  sync.RWMutex
+	killSwitch    killSwitchCache
+)
 
-const releaseNotesURL = "https://cli-top.acmvit.in/releases.json"
+const (
+	officialLatestJSONURL = "https://cli-top.acmvit.in/latest.json"
+	latestJSONURLEnv      = "CLI_TOP_LATEST_JSON_URL"
+	latestJSONTimeout     = 5 * time.Second
+	killSwitchCacheTTL    = 30 * time.Second
+	facilityViewOnlyMode  = 4
+	releaseNotesURL       = "https://cli-top.acmvit.in/releases.json"
+)
 
 func SetLatestJSONURL(url string) {
+	latestJSONMu.Lock()
+	defer latestJSONMu.Unlock()
 	latestJSONURL = url
+	killSwitch = killSwitchCache{}
 }
 
 func GetLatestJSONURL() string {
+	if override := strings.TrimSpace(os.Getenv(latestJSONURLEnv)); override != "" {
+		return override
+	}
+	latestJSONMu.RLock()
+	defer latestJSONMu.RUnlock()
 	return latestJSONURL
+}
+
+type killSwitchCache struct {
+	endpoint  string
+	value     int
+	expiresAt time.Time
+}
+
+func cachedKillSwitch(endpoint string) (int, bool) {
+	latestJSONMu.RLock()
+	defer latestJSONMu.RUnlock()
+	if killSwitch.endpoint != endpoint || !time.Now().Before(killSwitch.expiresAt) {
+		return 0, false
+	}
+	return killSwitch.value, true
+}
+
+func cacheKillSwitch(endpoint string, value int) {
+	latestJSONMu.Lock()
+	defer latestJSONMu.Unlock()
+	killSwitch = killSwitchCache{
+		endpoint:  endpoint,
+		value:     value,
+		expiresAt: time.Now().Add(killSwitchCacheTTL),
+	}
+}
+
+type latestJSONDocument struct {
+	types.VersionInfo
+	KillSwitch *int `json:"killSwitch"`
+}
+
+func fetchLatestVersionInfo() (types.VersionInfo, error) {
+	return fetchLatestVersionInfoFrom(GetLatestJSONURL())
+}
+
+func fetchLatestVersionInfoFrom(endpoint string) (types.VersionInfo, error) {
+	request, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return types.VersionInfo{}, fmt.Errorf("create latest-version request: %w", err)
+	}
+
+	response, err := (&http.Client{Timeout: latestJSONTimeout}).Do(request)
+	if err != nil {
+		return types.VersionInfo{}, fmt.Errorf("fetch latest-version information: %w", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		return types.VersionInfo{}, fmt.Errorf("fetch latest-version information: unexpected HTTP status %s", response.Status)
+	}
+
+	var document latestJSONDocument
+	decoder := json.NewDecoder(response.Body)
+	if err := decoder.Decode(&document); err != nil {
+		return types.VersionInfo{}, fmt.Errorf("decode latest-version information: %w", err)
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		if err == nil {
+			err = fmt.Errorf("multiple JSON values")
+		}
+		return types.VersionInfo{}, fmt.Errorf("decode latest-version information: %w", err)
+	}
+	if strings.TrimSpace(document.Version) == "" {
+		return types.VersionInfo{}, fmt.Errorf("decode latest-version information: missing version")
+	}
+	if document.KillSwitch == nil || *document.KillSwitch < 0 || *document.KillSwitch > 4 {
+		return types.VersionInfo{}, fmt.Errorf("decode latest-version information: invalid killSwitch")
+	}
+
+	versionInfo := document.VersionInfo
+	versionInfo.KillSwitch = *document.KillSwitch
+	return versionInfo, nil
 }
 
 func displayUpdateLogo() {
@@ -60,41 +153,10 @@ func displayUpdateLogo() {
 // Version info structure to match the JSON response
 
 func CheckUpdate() {
-	client := &http.Client{}
-	req, err := http.NewRequest("GET", latestJSONURL, nil)
-
-	if err != nil && debug.Debug {
-		fmt.Println(err)
-		return
-	}
-	resp, err := client.Do(req)
-	if err != nil && debug.Debug {
-		fmt.Println(err)
-		return
-	}
-	if resp == nil {
-		fmt.Println("Failed to connect to update server")
-		return
-	}
-	defer resp.Body.Close()
-
-	bodyText, err := io.ReadAll(resp.Body)
-	if err != nil && debug.Debug {
-		fmt.Println(err)
-		return
-	}
-
-	// Parse the response as JSON
-	var versionInfo types.VersionInfo
-	if err := json.Unmarshal(bodyText, &versionInfo); err != nil {
+	versionInfo, err := fetchLatestVersionInfo()
+	if err != nil {
 		if debug.Debug {
-			fmt.Println("Error parsing version info:", err)
-		}
-		// Fallback to the old string comparison method
-		if !strings.Contains(string(bodyText), debug.Version) {
-			fmt.Println("A new version of cli-top is available.\nCheck out: https://cli-top.acmvit.in/ for the latest release.")
-		} else {
-			fmt.Println("You are using the latest stable version of cli-top.")
+			fmt.Println("Error checking for update:", err)
 		}
 		return
 	}
@@ -147,58 +209,42 @@ func OpenURLInBrowser(url string) error {
 }
 
 func CheckKillSwitch() int {
-	client := &http.Client{}
-	req, err := http.NewRequest("GET", latestJSONURL, nil)
-
-	if err != nil && debug.Debug {
-		fmt.Println(err)
-	}
-	resp, err := client.Do(req)
-	if err != nil && debug.Debug {
-		fmt.Println(err)
-	}
-	if resp == nil {
-		fmt.Println()
-		fmt.Println("Internet connection not available")
-		fmt.Println("Please reconnect and try again")
-		fmt.Println()
-		os.Exit(1)
-	}
-	defer resp.Body.Close()
-	bodyText, err := io.ReadAll(resp.Body)
-	if err != nil && debug.Debug {
-		fmt.Println(err)
+	endpoint := GetLatestJSONURL()
+	if value, ok := cachedKillSwitch(endpoint); ok {
+		return value
 	}
 
-	var versionInfo types.VersionInfo
-	if err := json.Unmarshal(bodyText, &versionInfo); err != nil && debug.Debug {
-		fmt.Println("Error parsing version info:", err)
-		return 1
+	versionInfo, err := fetchLatestVersionInfoFrom(endpoint)
+	if err != nil {
+		if debug.Debug {
+			fmt.Println("Error checking kill switch:", err)
+		}
+		// Metadata controls whether facility registration is allowed. If its
+		// state cannot be verified, keep the feature readable but prevent the
+		// irreversible registration request.
+		return facilityViewOnlyMode
 	}
 
+	cacheKillSwitch(endpoint, versionInfo.KillSwitch)
 	return versionInfo.KillSwitch
 }
 
 // Update checks for a new version and auto-updates the current binary.
 func Update() {
 	fmt.Println("Checking for updates...")
-	resp, err := http.Get(latestJSONURL)
+	vi, err := fetchLatestVersionInfoFrom(officialLatestJSONURL)
 	if err != nil {
 		fmt.Println("Error checking for update:", err)
 		return
 	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-	var vi types.VersionInfo
-	if json.Unmarshal(body, &vi) != nil || vi.Version == debug.Version {
+	if vi.Version == debug.Version {
 		fmt.Println("You are using the latest stable version of cli-top.")
 		return
 	}
 
 	fmt.Printf("A new version %s is available. Downloading update…\n", vi.Version)
 
-	candidates := resolveDownloadCandidates(vi, runtime.GOOS, latestJSONURL)
+	candidates := resolveDownloadCandidates(vi, runtime.GOOS, officialLatestJSONURL)
 	if len(candidates) == 0 {
 		fmt.Println("Auto-update is not supported on", runtime.GOOS)
 		return
@@ -690,28 +736,8 @@ func fetchReleaseHighlight(version string) string {
 }
 
 func CheckUpdateSilently() (bool, string, error) {
-	client := &http.Client{Timeout: 5 * time.Second}
-	req, err := http.NewRequest("GET", latestJSONURL, nil)
+	versionInfo, err := fetchLatestVersionInfo()
 	if err != nil {
-		return false, "", err
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return false, "", err
-	}
-	if resp == nil {
-		return false, "", fmt.Errorf("failed to connect to update server")
-	}
-	defer resp.Body.Close()
-
-	bodyText, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return false, "", err
-	}
-
-	var versionInfo types.VersionInfo
-	if err := json.Unmarshal(bodyText, &versionInfo); err != nil {
 		return false, "", err
 	}
 

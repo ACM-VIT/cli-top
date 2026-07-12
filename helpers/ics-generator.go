@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -114,14 +115,15 @@ func UploadICSFile(filePath string, serverURL string) (string, error) {
 
 	uploadURL := serverURL + "/upload"
 
-	req, err := http.NewRequest("POST", uploadURL, &requestBody)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultRequestTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uploadURL, &requestBody)
 	if err != nil {
 		return "", fmt.Errorf("failed to create POST request: %v", err)
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := GetHTTPClient().Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to upload ICS file: %v", err)
 	}

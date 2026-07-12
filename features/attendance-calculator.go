@@ -45,7 +45,6 @@ func GetAttendance(regNo string, cookies types.Cookies, sem_choice int) {
 	if !helpers.ValidateLogin(cookies) {
 		return
 	}
-	url := "https://vtop.vit.ac.in/vtop/processViewStudentAttendance"
 
 	semDetails, err := helpers.GetSemDetails(cookies, regNo)
 	if err != nil {
@@ -61,58 +60,61 @@ func GetAttendance(regNo string, cookies types.Cookies, sem_choice int) {
 		return
 	}
 
-	var semID string
-	var attendanceList [][]string
-	found := false
+	candidates, err := semesterCandidates(semDetails, sem_choice)
+	if err != nil {
+		helpers.Println("Invalid semester selection.")
+		return
+	}
 
-	// Iterate from the latest semester to the earliest
-	for i := len(semDetails) - 1; i >= 0; i-- {
-		semID = semDetails[i].SemID
-		bodyText, err := helpers.FetchReq(regNo, cookies, url, semID, "UTC", "POST", "")
+	var attendanceRecords []AttendanceRecord
+	for _, semester := range candidates {
+		attendanceRecords, err = fetchAttendanceRecordsForSemester(regNo, cookies, semester.SemID)
 		if err != nil {
 			if debug.Debug {
-				helpers.Printf("Error fetching attendance for Semester %s: %v\n", semDetails[i].SemName, err)
+				helpers.Printf("Error fetching attendance for Semester %s: %v\n", semester.SemName, err)
 			}
-			continue // Try the previous semester
+			continue
 		}
 
-		doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(bodyText)))
-		if err != nil {
+		if len(attendanceRecords) > 0 {
 			if debug.Debug {
-				helpers.Printf("Error parsing HTML document for Semester %s: %v\n", semDetails[i].SemName, err)
-			}
-			continue // Try the previous semester
-		}
-
-		attendanceList = findAndSaveAttendance(doc)
-
-		// Check if attendance data exists (more than header row)
-		if len(attendanceList) > 1 {
-			found = true
-			if debug.Debug {
-				helpers.Printf("Selected Semester: %s (%s)\n", semDetails[i].SemName, semID)
+				helpers.Printf("Selected Semester: %s (%s)\n", semester.SemName, semester.SemID)
 			}
 			break
-		} else {
-			if debug.Debug {
-				helpers.Printf("No attendance data found for Semester: %s (%s). Trying previous semester.\n", semDetails[i].SemName, semID)
-			}
+		}
+
+		if debug.Debug {
+			helpers.Printf("No attendance data found for Semester: %s (%s).\n", semester.SemName, semester.SemID)
 		}
 	}
 
-	// If no attendance data found in any semester
-	if !found {
-		helpers.Println("No attendance data available in any semester.")
+	if len(attendanceRecords) == 0 {
+		if sem_choice > 0 {
+			helpers.Println("No attendance data available for the selected semester.")
+		} else {
+			helpers.Println("No attendance data available in any semester.")
+		}
 		return
 	}
 
 	helpers.Println()
-	helpers.PrintTable(attendanceList, 1)
+	helpers.PrintTable(attendanceRecordsToTable(attendanceRecords), 1)
 	helpers.Println()
 }
 
-func findAndSaveAttendance(doc *goquery.Document) [][]string {
-	return attendanceRecordsToTable(ExtractAttendanceRecords(doc))
+func semesterCandidates(semesters []types.Semester, semChoice int) ([]types.Semester, error) {
+	if semChoice < 0 || semChoice > len(semesters) {
+		return nil, fmt.Errorf("invalid semester selection")
+	}
+	if semChoice > 0 {
+		return []types.Semester{semesters[semChoice-1]}, nil
+	}
+
+	candidates := make([]types.Semester, len(semesters))
+	for i := range semesters {
+		candidates[i] = semesters[len(semesters)-1-i]
+	}
+	return candidates, nil
 }
 
 func attendanceRecordsToTable(records []AttendanceRecord) [][]string {
@@ -202,10 +204,6 @@ type attendanceStatus struct {
 	Display     string
 	CanMiss     int
 	NeedsAttend int
-}
-
-func calculateAttendance(attended, total, classtype int) string {
-	return calculateAttendanceStatus(attended, total, classtype == 1).Display
 }
 
 func calculateAttendanceStatus(attended, total int, isLab bool) attendanceStatus {

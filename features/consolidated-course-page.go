@@ -39,7 +39,7 @@ const (
 
 // dedicated HTTP client replaced by helpers.GetHTTPClient()
 
-func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag int, courseFlag int, facultyFlag string, fuzzyFlag int, materialSelection string) {
+func ExecuteCoursePageDownload(regNo string, cookies types.Cookies, semesterFlag int, courseFlag int, facultyFlag string, materialSelection string) {
 	if !helpers.ValidateLogin(cookies) {
 		return
 	}
@@ -82,8 +82,8 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semesterFlag int,
 		"verifyMenu":   "true",
 	}
 
-	formData := helpers.FormatBodyDataClient(payloadMap)
-	body, _, err := helpers.FetchReqClient(helpers.GetHTTPClient(), regNo, cookies, getCourseURL, "", formData, "POST", "application/x-www-form-urlencoded")
+	formData := helpers.FormatBodyData(payloadMap)
+	body, _, err := helpers.FetchReqClient(helpers.GetHTTPClient(), cookies, getCourseURL, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		return types.Course{}, err
 	}
@@ -119,26 +119,6 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semesterFlag int,
 			})
 		}
 	})
-	// // Merge semester names from semDetails into semSet, but remove duplicates by normalizing.
-	// semDetails, err := helpers.GetSemDetails(cookies, regNo)
-	// if err == nil && len(semDetails) > 0 {
-	// 	for _, sem := range semDetails {
-	// 		// Normalize by removing trailing " - VLR" if present
-	// 		normalized := strings.TrimSuffix(sem.SemName, " - VLR")
-	// 		semSet[normalized] = struct{}{}
-	// 	}
-	// }
-	// if err != nil {
-	// 	return types.Course{}, err
-	// }
-	// // Also normalize keys already in semSet (from goquery)
-	// normalizedSemSet := make(map[string]struct{})
-	// for sem := range semSet {
-	// 	normalized := strings.TrimSuffix(sem, " - VLR")
-	// 	normalizedSemSet[normalized] = struct{}{}
-	// }
-	// semSet = normalizedSemSet
-
 	type semInfo struct {
 		Raw    string
 		Year   int
@@ -174,19 +154,6 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semesterFlag int,
 		semesters = append(semesters, si.Raw)
 	}
 
-	// fallSemester := "Fall Semester 2025-26"
-	// fallIdx := -1
-	// i := 0
-	// for _, sem := range semesters {
-	// 	if sem == fallSemester {
-	// 		fallIdx = i
-	// 		break
-	// 	}
-	// 	i++
-	// }
-
-	// Ask user to select semester
-
 	var selectedSemester string
 
 	if len(semesters) > 1 {
@@ -209,12 +176,6 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semesterFlag int,
 	} else {
 		selectedSemester = semesters[0]
 	}
-
-	// if fallIdx != -1 {
-	// 	 if semResult.Index-1 < fallIdx {
-	// 		coursePageOldAfterSemSelection(regNo, cookies, selectedSemester, courseFlag, facultyFlag)
-	// 	 }
-	// }
 
 	var filteredCourses []types.Course
 	for _, c := range courses {
@@ -270,8 +231,8 @@ func fetchFacultieswithMaterials(regNo string, cookies types.Cookies, courseID s
 		"authorizedID": regNo,
 		"x":            time.Now().UTC().Format(time.RFC1123),
 	}
-	formData := helpers.FormatBodyDataClient(payloadMap)
-	body, _, err := helpers.FetchReqClient(helpers.GetHTTPClient(), regNo, cookies, getFacultyMaterialURL, "", formData, "POST", "application/x-www-form-urlencoded")
+	formData := helpers.FormatBodyData(payloadMap)
+	body, _, err := helpers.FetchReqClient(helpers.GetHTTPClient(), cookies, getFacultyMaterialURL, "", formData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		return nil, types.Faculty{}, err
 	}
@@ -743,7 +704,7 @@ func downloadMaterialsHope(regNo string, cookies types.Cookies, selectedCourse t
 					"authorizedID": regNo,
 					"fileId":       refMat.MaterialID,
 				}
-				formData := helpers.FormatBodyDataClient(payloadMap)
+				formData := helpers.FormatBodyData(payloadMap)
 
 				// Retry logic with exponential backoff + jitter + last long attempt
 				maxAttempts := 5
@@ -761,7 +722,7 @@ func downloadMaterialsHope(regNo string, cookies types.Cookies, selectedCourse t
 					}
 
 					ctx, cancelCtx := context.WithTimeout(context.Background(), timeout)
-					b, h, fetchErr := helpers.FetchReqClientWithContext(ctx, helpers.GetHTTPClient(), regNo, cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
+					b, h, fetchErr := helpers.FetchReqClientWithContext(ctx, helpers.GetHTTPClient(), cookies, downloadURL, "", formData, "POST", "application/x-www-form-urlencoded")
 					cancelCtx()
 					body, headers = b, h
 					if fetchErr != nil {
@@ -789,7 +750,7 @@ func downloadMaterialsHope(regNo string, cookies types.Cookies, selectedCourse t
 					randomParam := fmt.Sprintf("?nocache=%d", time.Now().UnixNano())
 					ctxFresh, cancelFresh := context.WithTimeout(context.Background(), timeout)
 					b2, h2, fetchErr := helpers.FetchReqClientWithContext(
-						ctxFresh, helpers.GetHTTPClient(), regNo, cookies, downloadURL+randomParam, "",
+						ctxFresh, helpers.GetHTTPClient(), cookies, downloadURL+randomParam, "",
 						formData, "POST", "application/x-www-form-urlencoded",
 					)
 					cancelFresh()
@@ -954,14 +915,6 @@ func clearSingleNewline() {
 		exec.Command("cmd", "/C", "cls").Run()
 	}
 }
-
-// func getOptimalConcurrency() int {
-// 	numCPU := runtime.NumCPU()
-// 	if runtime.GOOS == "linux" {
-// 		return numCPU * 2
-// 	}
-// 	return numCPU
-// }
 
 func getOptimizedConcurrency() int {
 	return 4

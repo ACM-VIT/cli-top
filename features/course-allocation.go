@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -51,17 +52,29 @@ type CourseAllocationDetail struct {
 	Faculty string
 }
 
-var httpClient *http.Client
-
-func init() {
+func newCourseAllocationHTTPClient(pageURL string, cookies types.Cookies) (*http.Client, error) {
 	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 	if err != nil {
-		panic(fmt.Sprintf("features: failed to create cookie jar: %v", err))
+		return nil, fmt.Errorf("create course-allocation cookie jar: %w", err)
 	}
-	httpClient = &http.Client{
-		Timeout: time.Duration(60) * time.Second,
-		Jar:     jar,
+
+	parsedURL, err := url.Parse(pageURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse course-allocation URL: %w", err)
 	}
+
+	var sessionCookies []*http.Cookie
+	if cookies.JSESSIONID != "" {
+		sessionCookies = append(sessionCookies, &http.Cookie{Name: "JSESSIONID", Value: cookies.JSESSIONID, Path: "/"})
+	}
+	if cookies.SERVERID != "" {
+		sessionCookies = append(sessionCookies, &http.Cookie{Name: "SERVERID", Value: cookies.SERVERID, Path: "/"})
+	}
+	jar.SetCookies(parsedURL, sessionCookies)
+
+	client := *helpers.GetHTTPClient()
+	client.Jar = jar
+	return &client, nil
 }
 
 func ExecuteInteractiveCourseAllocationView(regNo string, cookies types.Cookies, courseAllocationPageURL string, categoryQuery string, courseQuery string) {
@@ -73,6 +86,11 @@ func ExecuteInteractiveCourseAllocationView(regNo string, cookies types.Cookies,
 	if courseAllocationPageURL == "" {
 		courseAllocationPageURL = DefaultCourseAllocationPageURL
 	}
+	httpClient, err := newCourseAllocationHTTPClient(courseAllocationPageURL, cookies)
+	if err != nil {
+		helpers.Printf("Error initializing course allocation session: %v\n", err)
+		return
+	}
 
 	initialPayloadMap := map[string]string{
 		"verifyMenu":   "true",
@@ -80,8 +98,8 @@ func ExecuteInteractiveCourseAllocationView(regNo string, cookies types.Cookies,
 		"_csrf":        cookies.CSRF,
 		"nocache":      strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10),
 	}
-	initialFormData := helpers.FormatBodyDataClient(initialPayloadMap)
-	initialPageHTMLBytes, _, err := helpers.FetchReqClient(httpClient, regNo, cookies, courseAllocationPageURL, "", initialFormData, "POST", "application/x-www-form-urlencoded")
+	initialFormData := helpers.FormatBodyData(initialPayloadMap)
+	initialPageHTMLBytes, _, err := helpers.FetchReqClient(httpClient, types.Cookies{}, courseAllocationPageURL, "", initialFormData, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		return
 	}
@@ -120,7 +138,7 @@ func ExecuteInteractiveCourseAllocationView(regNo string, cookies types.Cookies,
 	}
 
 	for {
-		selectedCategory, categoryAction := selectCurriculumCategory(initialDoc, currentAjaxCsrfToken, currentAjaxAuthID, ajaxBaseURL, regNo, cookies, categoryQuery)
+		selectedCategory, categoryAction := selectCurriculumCategory(initialDoc, categoryQuery)
 		switch categoryAction {
 		case actionExitApp:
 			return
@@ -131,7 +149,7 @@ func ExecuteInteractiveCourseAllocationView(regNo string, cookies types.Cookies,
 		case actionSelected:
 		CourseLoop:
 			for {
-				selectedCourse, courseAction := selectCourseFromCategory(selectedCategory, currentAjaxCsrfToken, currentAjaxAuthID, ajaxBaseURL, regNo, cookies, courseQuery)
+				selectedCourse, courseAction := selectCourseFromCategory(httpClient, selectedCategory, currentAjaxCsrfToken, currentAjaxAuthID, ajaxBaseURL, courseQuery)
 				switch courseAction {
 				case actionExitApp:
 					return
@@ -140,7 +158,7 @@ func ExecuteInteractiveCourseAllocationView(regNo string, cookies types.Cookies,
 				case actionError:
 					continue
 				case actionSelected:
-					detailsAction := displayCourseAllocationDetails(selectedCourse, currentAjaxCsrfToken, currentAjaxAuthID, ajaxBaseURL, regNo, cookies)
+					detailsAction := displayCourseAllocationDetails(httpClient, selectedCourse, currentAjaxCsrfToken, currentAjaxAuthID, ajaxBaseURL)
 					if detailsAction == actionExitApp {
 						return
 					}
@@ -183,7 +201,7 @@ func extractScriptParams(htmlContent string) (csrfToken string, authID string) {
 	return
 }
 
-func selectCurriculumCategory(initialDoc *goquery.Document, csrfToken, authID, baseURL, regNo string, cookies types.Cookies, categoryQuery string) (types.Category, string) {
+func selectCurriculumCategory(initialDoc *goquery.Document, categoryQuery string) (types.Category, string) {
 	var categories []types.Category
 	initialDoc.Find(curriculumCategorySelector).Each(func(_ int, s *goquery.Selection) {
 		val, exists := s.Attr("value")
@@ -212,13 +230,13 @@ func selectCurriculumCategory(initialDoc *goquery.Document, csrfToken, authID, b
 	return categories[selectionResult.Index-1], actionSelected
 }
 
-func selectCourseFromCategory(category types.Category, csrfToken, authID, baseURL, regNo string, cookies types.Cookies, courseQuery string) (types.Course, string) {
+func selectCourseFromCategory(httpClient *http.Client, category types.Category, csrfToken, authID, baseURL, courseQuery string) (types.Course, string) {
 	courseListParams := map[string]string{
 		"_csrf": csrfToken, "cccategory": category.ID,
 		"authorizedID": authID, "x": time.Now().UTC().Format(time.RFC1123),
 	}
-	formDataCourses := helpers.FormatBodyDataClient(courseListParams)
-	courseListHTMLBytes, _, err := helpers.FetchReqClient(httpClient, regNo, cookies, baseURL+getCoursesListEndpoint, "", formDataCourses, "POST", "application/x-www-form-urlencoded")
+	formDataCourses := helpers.FormatBodyData(courseListParams)
+	courseListHTMLBytes, _, err := helpers.FetchReqClient(httpClient, types.Cookies{}, baseURL+getCoursesListEndpoint, "", formDataCourses, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		helpers.Printf("Error fetching course list for category %s: %v\n", category.Name, err)
 		return types.Course{}, actionError
@@ -263,14 +281,14 @@ func selectCourseFromCategory(category types.Category, csrfToken, authID, baseUR
 	return courses[selectionResult.Index-1], actionSelected
 }
 
-func displayCourseAllocationDetails(course types.Course, csrfToken, authID, baseURL, regNo string, cookies types.Cookies) string {
+func displayCourseAllocationDetails(httpClient *http.Client, course types.Course, csrfToken, authID, baseURL string) string {
 	time.Sleep(time.Duration(100+rand.Intn(150)) * time.Millisecond)
 	courseDetailParams := map[string]string{
 		"_csrf": csrfToken, "courseCode": course.ID,
 		"authorizedID": authID, "x": time.Now().UTC().Format(time.RFC1123),
 	}
-	formDataDetails := helpers.FormatBodyDataClient(courseDetailParams)
-	courseDetailHTMLBytes, _, err := helpers.FetchReqClient(httpClient, regNo, cookies, baseURL+getCoursesDetailEndpoint, "", formDataDetails, "POST", "application/x-www-form-urlencoded")
+	formDataDetails := helpers.FormatBodyData(courseDetailParams)
+	courseDetailHTMLBytes, _, err := helpers.FetchReqClient(httpClient, types.Cookies{}, baseURL+getCoursesDetailEndpoint, "", formDataDetails, "POST", "application/x-www-form-urlencoded")
 	if err != nil {
 		helpers.Printf("Error fetching course details for %s: %v\n", course.Name, err)
 		return actionError

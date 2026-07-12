@@ -1,143 +1,84 @@
-# CLI-TOP Features
+# cli-top command reference
 
-CLI-TOP is a command-line interface for VIT's VTOP portal. Here are all the available commands and their usage:
+Use `cli-top --help` to list public commands and `cli-top COMMAND --help` to inspect a command.
 
-## Global Flags
-- `-d, --debug`: Print Debug Messages
-- `-u, --update`: Check for Updates
-- `-v, --version`: Print Version Number
+## Global flags
 
-## Commands
+| Flag | Effect |
+| --- | --- |
+| `-d`, `--debug` | Enable debug output. |
+| `-h`, `--help` | Show help. |
+| `-u`, `--update` | Check for updates when used as `cli-top --update`. |
+| `-v`, `--version` | Print the installed version when used as `cli-top --version`. |
 
-### Academic Information
+## Account
 
-#### Profile
+### Login
+
 ```bash
-cli-top profile
+cli-top login [--username USERNAME] [--password PASSWORD]
 ```
-Shows your VTOP Student Profile information.
 
-#### Marks
+Stores the username and encrypted password in cli-top's local configuration. If either value is omitted, cli-top prompts for it. This command does not open a VTOP session; the next portal-backed command authenticates with the stored credentials.
+
+### Logout
+
 ```bash
-cli-top marks [-s SEMESTER]
+cli-top logout
 ```
-Shows marks details for a particular semester.
 
-#### Grades
-```bash
-cli-top grades [-s SEMESTER]
-```
-Shows grade details for a particular semester.
+Clears stored VTOP credentials and session data.
 
-#### CGPA
-```bash
-cli-top cgpa
-```
-Shows your CGPA details.
+## Academic records
 
-### Course Management
+| Command | Flags | Purpose |
+| --- | --- | --- |
+| `cli-top profile` | — | Show the student profile. |
+| `cli-top marks` | `-s`, `--semester INDEX` | Show marks for a semester. |
+| `cli-top grades` | `-s`, `--semester INDEX` | Show grades for a semester. |
+| `cli-top cgpa` | — | Show registered and earned credits, CGPA, and grade counts. |
+| `cli-top attendance` | `-s`, `--semester INDEX` | Show attendance and skip/attend guidance. |
+| `cli-top exams` | `-s`, `--semester INDEX` | Show the upcoming exam schedule. |
 
-#### Course Page
-```bash
-cli-top course-page [-s SEMESTER] [-c COURSE] [-f FACULTY] [-i FUZZY_INDEX]
-```
-Download course materials for a selected semester, course, and faculty.
+Without `--semester`, `attendance` and `exams` search recent semesters for available data. Commands with an interactive semester picker prompt when no selection is supplied.
 
-#### Syllabus
-```bash
-cli-top syllabus [-c COURSE]
-```
-Download syllabus for a selected course.
+## Schedule and planning
 
-#### Attendance
-```bash
-cli-top attendance [-s SEMESTER]
-```
-Shows attendance details for a particular semester.
+| Command | Flags | Purpose |
+| --- | --- | --- |
+| `cli-top timetable` | `-s`, `--semester INDEX` | Show a semester timetable. |
+| `cli-top holiday` | `-s`, `--semester INDEX`; `-g`, `--class-group INDEX` | Show upcoming class-impacting holidays. |
+| `cli-top today` | `-s`, `--semester INDEX`; `-g`, `--class-group INDEX` | Show today's effective schedule and attendance-aware skip guidance. |
+| `cli-top tomorrow` | `-s`, `--semester INDEX`; `-g`, `--class-group INDEX` | Show tomorrow's effective schedule and attendance-aware skip guidance. |
+| `cli-top dayafter` | `-s`, `--semester INDEX`; `-g`, `--class-group INDEX` | Show the same planner for the day after tomorrow. Alias: `day-after`. |
+| `cli-top calendar` | `-s`, `--semester INDEX`; `-g`, `--class-group INDEX` | Show the academic calendar with class scheduling. |
 
-#### Timetable
-```bash
-cli-top timetable [-s SEMESTER]
-```
-Shows time table for a particular semester.
+## Courses and downloads
 
-#### Holiday
-```bash
-cli-top holiday [-s SEMESTER] [-g CLASS_GROUP]
-```
-Shows upcoming class-impacting holidays for a particular semester.
+| Command | Flags | Purpose |
+| --- | --- | --- |
+| `cli-top course-allocation` | `--category QUERY_OR_INDEX`; `-c`, `--course QUERY_OR_INDEX` | Browse course-allocation details. |
+| `cli-top course-page` | `-s`, `--semester INDEX`; `-c`, `--course INDEX`; `-f`, `--faculty QUERY_OR_INDEX`; `--materials LIST` | Download materials from the current consolidated course page. |
+| `cli-top course-page-archive` | `-s`, `--semester INDEX`; `-c`, `--course INDEX`; `-f`, `--faculty QUERY_OR_INDEX`; `--materials LIST` | Download materials through the older course-page workflow. |
+| `cli-top syllabus` | `-c`, `--course QUERY_OR_INDEX` | Download a course syllabus. |
+| `cli-top da` | `-c`, `--course QUERY_OR_INDEX`; `-a`, `--assignment QUERY_OR_INDEX` | Review digital-assignment deadlines and submission status, and download available question papers. |
 
-#### Today
-```bash
-cli-top today [-s SEMESTER] [-g CLASS_GROUP]
-```
-Shows today's effective schedule and whether your current attendance gives you room to skip each class.
+For `--materials`, use comma-separated indices and ranges such as `1,2-4`, or `0` for all materials. Omit selection flags to use the interactive pickers.
 
-#### Tomorrow
-```bash
-cli-top tomorrow [-s SEMESTER] [-g CLASS_GROUP]
-```
-Shows tomorrow's effective schedule and whether your current attendance gives you room to skip each class.
+## Campus services
 
-#### Day After
-```bash
-cli-top dayafter [-s SEMESTER] [-g CLASS_GROUP]
-```
-Shows the day after tomorrow's effective schedule and whether your current attendance gives you room to skip each class.
+| Command | Flags | Purpose |
+| --- | --- | --- |
+| `cli-top events` | — | View upcoming club events and interactively register for an open event. |
+| `cli-top facility` | `-f`, `--facility QUERY_OR_INDEX`; `--confirm` | View or register for a physical facility. |
+| `cli-top hostel` | — | Show hostel details. |
+| `cli-top library-dues` | — | Show library dues. |
+| `cli-top receipts` | — | Show receipts and payment history. |
+| `cli-top nightslip` | — | Show nightslip status and, when none is pending, optionally apply interactively. |
+| `cli-top leave` | See below. | Show leave status and, when none is pending, optionally apply interactively. |
 
-#### Calendar
-```bash
-cli-top calendar [-s SEMESTER] [-g CLASS_GROUP]
-```
-Shows calendar with class schedule.
+Submit a leave request non-interactively with all required application fields:
 
-### Examination
-
-#### Exam Schedule
-```bash
-cli-top exams [-s SEMESTER]
-```
-Shows exam schedule for a particular semester.
-
-### Campus Services
-
-#### Facility
-```bash
-cli-top facility
-```
-View or register for physical facilities.
-
-#### Hostel
-```bash
-cli-top hostel
-```
-Shows your hostel details.
-
-#### Library Dues
-```bash
-cli-top library-dues
-```
-Shows your library dues.
-
-#### Receipts
-```bash
-cli-top receipts
-```
-Shows your receipt details.
-
-#### Nightslip
-```bash
-cli-top nightslip
-```
-Shows your nightslip request status first. If no request is pending, the command asks whether you want to apply and then walks you through the required details interactively before submission.
-
-#### Leave
-```bash
-cli-top leave
-```
-Shows your leave request status first. If no request is pending, the command asks whether you want to apply and then walks you through the leave type, place, reason, dates, and times interactively before submission.
-
-For deterministic automation, submit non-interactively with explicit flags:
 ```bash
 cli-top leave --apply \
   --leave-code HT1 \
@@ -148,48 +89,24 @@ cli-top leave --apply \
   --to-date 2026-04-24 \
   --to-time 06:30
 ```
-The command validates the leave type locally against known VTOP codes, normalizes dates and times, checks the date/time range, rejects malformed place/reason text before opening the leave workflow, and verifies the leave type against VTOP's form before posting.
 
-### Communication
+The leave application flags are `--apply`, `--leave-code`, `--visiting-place`, `--reason`, `--from-date`, `--from-time`, `--to-date`, and `--to-time`. Application fields are rejected unless `--apply` is present.
 
-#### Class Messages
+## Communication
+
 ```bash
+cli-top msg
 cli-top class-messages
 ```
-Shows class messages.
 
-### Account Management
+Both forms show class messages. `msg` is the canonical command and `class-messages` is its alias.
 
-#### Logout
+## Shell completion
+
 ```bash
-cli-top logout
-```
-Logs out from VTOP.
-
-## Usage Examples
-
-1. Check your current semester's attendance:
-```bash
-cli-top attendance
+cli-top completion SHELL
 ```
 
-2. Download course materials for a specific semester:
-```bash
-cli-top course-page -s 1
-```
+Supported shells are `bash`, `fish`, `powershell`, and `zsh`.
 
-3. View exam schedule:
-```bash
-cli-top exams
-```
-
-4. Check your grades for a specific semester:
-```bash
-cli-top grades -s 2
-```
-
-## Notes
-- Most semester-specific commands will prompt for semester selection if the `-s` flag is not provided
-- The course page download supports fuzzy search for easier course selection
-- All commands require you to be logged in first
-- Use `cli-top [command] --help` for more information about a specific command 
+All portal-backed feature commands require stored credentials. See the project [README](../README.md) for installation and first-use examples.

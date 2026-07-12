@@ -404,15 +404,11 @@ func TableSelectorFuzzy(subject string, nestedList [][]string, initialQuery stri
 	}
 }
 
-func PrintTable(nestedList [][]string, indexStatus int) int {
+func PrintTable(nestedList [][]string, indexStatus int) {
 	StopHeadlineForOutput()
 	if len(nestedList) == 0 {
-		fmt.Println("Ummm are you sure you are printing the right thing?")
-		return 1
-	}
-
-	for i, v := range nestedList[0] {
-		nestedList[0][i] = strings.ToUpper(v)
+		fmt.Println("No data to display.")
+		return
 	}
 
 	maxCols := len(nestedList[0])
@@ -421,6 +417,9 @@ func PrintTable(nestedList [][]string, indexStatus int) int {
 		normalizedRow := make([]string, maxCols)
 		copy(normalizedRow, row)
 		normalizedList = append(normalizedList, normalizedRow)
+	}
+	for i, header := range normalizedList[0] {
+		normalizedList[0][i] = strings.ToUpper(header)
 	}
 
 	if indexStatus == 1 {
@@ -432,7 +431,7 @@ func PrintTable(nestedList [][]string, indexStatus int) int {
 
 	emitTableSnapshot(sanitizeTableData(normalizedList), indexStatus)
 	if ShouldMuteUI() {
-		return 0
+		return
 	}
 
 	colWidths := make([]int, len(normalizedList[0]))
@@ -521,7 +520,6 @@ func PrintTable(nestedList [][]string, indexStatus int) int {
 		}
 	}
 
-	return 0
 }
 
 func NewFuzzySearch(nestedList [][]string, stringFlag string) []int {
@@ -646,25 +644,6 @@ func wrapLine(line string, width int) []string {
 		lines = append(lines, current)
 	}
 	return lines
-}
-
-func splitLongWord(word string, width int) []string {
-	if width <= 0 {
-		return []string{word}
-	}
-	runes := []rune(word)
-	if len(runes) == 0 {
-		return []string{""}
-	}
-	var parts []string
-	for start := 0; start < len(runes); start += width {
-		end := start + width
-		if end > len(runes) {
-			end = len(runes)
-		}
-		parts = append(parts, string(runes[start:end]))
-	}
-	return parts
 }
 
 func visibleLen(s string) int {

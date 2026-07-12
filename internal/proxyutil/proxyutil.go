@@ -104,16 +104,16 @@ func canonicalFlagName(flag string) string {
 		return "facility"
 	case "g", "class-group", "classgroup":
 		return "classGroup"
-	case "i", "fuzzy-index", "fuzzyindex":
-		return "fuzzyIndex"
 	case "d", "debug":
 		return "debug"
 	case "x", "commands", "sync", "sync-commands":
 		return "commands"
 	case "apply":
 		return "apply"
-	case "details", "reason":
+	case "details":
 		return "details"
+	case "reason":
+		return "reason"
 	case "materials", "material", "topics", "topic-selection":
 		return "materials"
 	case "assignment", "assignments", "da-selection":
@@ -134,6 +134,10 @@ func canonicalFlagName(flag string) string {
 		return "applied-to"
 	case "room-type-id", "roomtypeid":
 		return "room-type-id"
+	case "building-id", "buildingid":
+		return "building-id"
+	case "venue":
+		return "venue"
 	case "event-id", "eventid", "late-hour-event-id", "latehoureventid":
 		return "event-id"
 	default:

@@ -20,7 +20,7 @@ const (
 	GradeSummarySelector   = "div.panel-body"
 )
 
-func GetGrades(regNo string, cookies types.Cookies, semId string, semChoice int) {
+func GetGrades(regNo string, cookies types.Cookies, semChoice int) {
 	if !helpers.ValidateLogin(cookies) {
 		return
 	}
@@ -102,11 +102,10 @@ func findAndSaveGrade(doc *goquery.Document) {
 		courseType := strings.ToUpper(strings.TrimSpace(selectedRow[2]))
 		grade := strings.ToUpper(strings.TrimSpace(selectedRow[6]))
 
-		if courseType == "ONLINE COURSE" || courseType == "PROJECT" || courseType == "EXTRA CURRICULAR ACTIVITY" {
+		if (courseType == "ONLINE COURSE" || courseType == "PROJECT" || courseType == "EXTRA CURRICULAR ACTIVITY") &&
+			!strings.HasPrefix(selectedRow[0], "CFOC") {
 			for idx := range selectedRow {
-				if selectedRow[0][0:4] != "CFOC" {
-					selectedRow[idx] = fmt.Sprintf("\x1b[32m%s\x1b[0m", selectedRow[idx]) // Green
-				}
+				selectedRow[idx] = fmt.Sprintf("\x1b[32m%s\x1b[0m", selectedRow[idx]) // Green
 			}
 		} else {
 			if grade == "F" || grade == "N" {

@@ -32,7 +32,6 @@ func init() {
 		ReadBufferSize:        32 * 1024,
 		WriteBufferSize:       32 * 1024,
 		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
 			ClientSessionCache: sessionCache,
 		},
 	}

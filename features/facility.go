@@ -32,39 +32,26 @@ func RegisterPhyFacility(regNo string, cookies types.Cookies, facilityQuery stri
 	}
 
 	killSwitch := helpers.CheckKillSwitch()
-	if killSwitch == 4 {
-		// helpers.Println("This feature is currently disabled by the administrator (killswitch=4). View-only mode enabled.")
-		registrations, err := ListRegistrations(regNo, cookies)
-		if err != nil {
-			helpers.Println("Error fetching registrations:", err)
-			registrations = []types.Registration{}
-		}
-		facilities, err := fetchAvailableFacilities(regNo, cookies)
-		if err != nil {
-			helpers.Println("Error fetching facilities:", err)
-		}
-		displayFacilities(facilities, registrations)
-		return nil
-	}
-
-	registrations, err := ListRegistrations(regNo, cookies)
-	if err != nil {
-		helpers.Println("Error fetching registrations:", err)
+	registrations, registrationsErr := ListRegistrations(regNo, cookies)
+	if registrationsErr != nil {
+		helpers.Println("Error fetching registrations:", registrationsErr)
 		registrations = []types.Registration{}
 	}
 
-	facilities, err := fetchAvailableFacilities(regNo, cookies)
-	if err != nil {
-		helpers.Println("Error fetching facilities:", err)
+	facilities, facilitiesErr := fetchAvailableFacilities(regNo, cookies)
+	if facilitiesErr != nil {
+		helpers.Println("Error fetching facilities:", facilitiesErr)
 	}
 
 	if len(facilities) == 0 && len(registrations) == 0 {
 		helpers.Println("No facilities or registrations found.")
+		if facilitiesErr != nil {
+			return facilitiesErr
+		}
+		if registrationsErr != nil {
+			return registrationsErr
+		}
 		return nil
-	}
-	if err != nil {
-		helpers.Println("Error fetching registrations:", err)
-		registrations = []types.Registration{}
 	}
 	for _, reg := range registrations {
 		found := false
@@ -90,7 +77,6 @@ func RegisterPhyFacility(regNo string, cookies types.Cookies, facilityQuery stri
 	displayFacilities(facilities, registrations)
 
 	if killSwitch == 4 {
-		// helpers.Println("Registration feature is currently in view-only mode.")
 		return nil
 	}
 
@@ -419,7 +405,7 @@ func buildFacilitySelectionTable(facilities []types.Facility, registrations []ty
 
 func selectFacilityForRegistration(facilities []types.Facility, registrations []types.Registration, facilityQuery string) (types.Facility, error) {
 	if strings.TrimSpace(facilityQuery) == "" && !helpers.ShouldMuteUI() {
-		return promptFacilitySelection(facilities, nil)
+		return promptFacilitySelection(facilities)
 	}
 
 	table := buildFacilitySelectionTable(facilities, registrations)
@@ -477,7 +463,7 @@ func confirmFacilityRegistration(selectedFacility types.Facility, autoConfirm bo
 	}
 }
 
-func promptFacilitySelection(facilities []types.Facility, registrationsMap map[string]bool) (types.Facility, error) {
+func promptFacilitySelection(facilities []types.Facility) (types.Facility, error) {
 	reader := bufio.NewReader(os.Stdin)
 
 	for {

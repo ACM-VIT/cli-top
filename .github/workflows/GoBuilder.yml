@@ -22,12 +22,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
-
-      - name: Install dependencies
-        run: |
-          go mod tidy
-          go get .
+          go-version-file: go.mod
 
       - name: Build
         run: |
@@ -49,12 +44,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
-
-      - name: Install dependencies
-        run: |
-          go mod tidy
-          go get .
+          go-version-file: go.mod
 
       - name: Build Windows Executable
         run: |
@@ -256,12 +246,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
-
-      - name: Install dependencies
-        run: |
-          go mod tidy
-          go get .
+          go-version-file: go.mod
 
       - name: Extract version
         id: extract_version_macos
@@ -550,12 +535,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
-
-      - name: Install dependencies
-        run: |
-          go mod tidy
-          go get .
+          go-version-file: go.mod
 
       - name: Build Android Binary
         run: |

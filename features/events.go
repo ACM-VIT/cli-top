@@ -488,7 +488,7 @@ func printInteractiveEventsOverview(upcomingEvents []types.Event, registeredUpco
 	helpers.Println()
 
 	if len(registerableEvents) > len(shortlist) {
-		helpers.Printf("Type `m` to show %d more open events.\n", minInt(eventSelectionPageSize, len(registerableEvents)-len(shortlist)))
+		helpers.Printf("Type `m` to show %d more open events.\n", min(eventSelectionPageSize, len(registerableEvents)-len(shortlist)))
 	}
 	if len(registerableEvents) > 0 {
 		helpers.Println("Choose from the shortlist, search open registrations, type `mine` to review your registrations, `clear` to reset, or `exit`.")
@@ -502,7 +502,7 @@ func promptEventSelection(events []types.Event, registeredUpcoming []types.Event
 
 	reader := bufio.NewReader(os.Stdin)
 	searchQuery := ""
-	visibleCount := minInt(eventSelectionPageSize, len(events))
+	visibleCount := min(eventSelectionPageSize, len(events))
 
 	for {
 		helpers.Print("Choose an event, search, `m`, `mine`, `clear`, or `exit`: ")
@@ -527,7 +527,7 @@ func promptEventSelection(events []types.Event, registeredUpcoming []types.Event
 			continue
 		case "clear":
 			searchQuery = ""
-			visibleCount = minInt(eventSelectionPageSize, len(events))
+			visibleCount = min(eventSelectionPageSize, len(events))
 			printEventPickerView(events, searchQuery, visibleCount)
 			continue
 		case "m", "more":
@@ -568,7 +568,7 @@ func promptEventSelection(events []types.Event, registeredUpcoming []types.Event
 			continue
 		}
 
-		visibleCount = minInt(eventSelectionPageSize, len(filteredEvents))
+		visibleCount = min(eventSelectionPageSize, len(filteredEvents))
 		printEventPickerView(filteredEvents, searchQuery, visibleCount)
 	}
 }
@@ -649,7 +649,7 @@ func printEventPickerView(events []types.Event, searchQuery string, visibleCount
 	helpers.Println()
 
 	if visibleCount < len(events) {
-		helpers.Printf("Type `m` to show %d more.\n", minInt(eventSelectionPageSize, len(events)-visibleCount))
+		helpers.Printf("Type `m` to show %d more.\n", min(eventSelectionPageSize, len(events)-visibleCount))
 	}
 }
 
@@ -660,7 +660,7 @@ func printRegisteredEventPreview(events []types.Event, now time.Time) {
 		return
 	}
 
-	visibleCount := minInt(eventSelectionPageSize, len(events))
+	visibleCount := min(eventSelectionPageSize, len(events))
 	helpers.Printf("Your upcoming registrations (%d of %d)\n", visibleCount, len(events))
 	helpers.Println()
 	helpers.PrintTable(buildEventsTable(events[:visibleCount], now), 0)
@@ -917,11 +917,4 @@ func formatEventStatusCompact(status string) string {
 	default:
 		return status
 	}
-}
-
-func minInt(first int, second int) int {
-	if first < second {
-		return first
-	}
-	return second
 }

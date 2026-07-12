@@ -19,44 +19,23 @@
 
 ## Overview
 
-**cli-top** is an easy-to-use tool for VIT students that helps them quickly access important information from the VTOP student portal. Whether it's checking grades, viewing the timetable, or handling assignments, cli-top makes it simple to get what you need.
-
-
+**cli-top** gives VIT students quick terminal access to VTOP records, schedules, course resources, and campus services.
 
 ## Features
 
-- **Login**: Secure login to the VTOP portal
-- **Mark View**: Check your marks for various courses
-- **Digital Assignment**: Manage your digital assignment submissions
-- **Course Page**: Access course materials and updates
-- **Academic Calendar**: Keep track of important academic dates
-- **Holiday List**: See upcoming holidays that actually cancel your classes
-- **Today Planner**: See today's classes and whether attendance gives you room to skip any
-- **Tomorrow Planner**: See tomorrow's classes and whether attendance gives you room to skip any
-- **Day After Planner**: See the day after tomorrow's classes and whether attendance gives you room to skip any
-- **Exam Schedule**: View upcoming exam schedules
-- **Attendance Calculator**: Calculate your attendance percentage
-- **Time Table**: Easily view your class schedule
-- **Class Messages**: Stay updated with class announcements
-- **Leave Status**: Check the status of your leave applications
-- **Nightslip**: Monitor hostel nightslip requests and submit a new one when none is pending
-- **Library Dues**: Stay on top of library dues
-- **Receipts**: Access fee receipts and payment history
-- **Grade View**: Review your grades and academic performance
-- **Student Profile**: View personal details
-- **Hostel Info**: Check hostel details 
-- **CGPA View**: Track your cumulative GPA over semesters
-- **Syllabus**: Easily download syllabus files
-- **Facility**: View hostel facilities
-- **Logout**: Securely logout from the CLI
+- **Academic records:** attendance, marks, grades, CGPA, exam schedules, and profile details
+- **Planning:** timetable, academic calendar, holidays, and attendance-aware plans for today, tomorrow, and the day after
+- **Course tools:** course allocation, current and archived course materials, syllabi, and digital-assignment status and question papers
+- **Campus services:** events, facilities, hostel details, leave, nightslips, library dues, and receipts
+- **Communication:** class messages and announcements
+- **Local account management:** encrypted credential storage and logout
 
-
+See the [command reference](docs/FEATURES.md) for every command, alias, and flag.
 
 ## Tech Stack
 
 - **GoLang** : Core programming language
 - **Cobra** : Go library for creating the terminal CLI
-
 
 ## Installation
 
@@ -69,6 +48,7 @@ To install **cli-top**, you can download the binary directly from [cli-top.acmvi
 2. **Run the Binary:**
 
 After downloading, navigate to the folder where the binary is saved and run it from your terminal:
+
 ```bash
 ./cli-top
 ```
@@ -83,40 +63,41 @@ CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o cli-top .
 
 Using `-trimpath` removes local file paths from the executable and, together with `-ldflags "-s -w"`, helps reduce binary size.
 
-
 ## Usage
 
-After installation, you can access various features of **cli-top** by running specific commands:
-
-- **Login to VTOP:**
+Store your VTOP credentials locally. Missing values are prompted for interactively:
 
 ```bash
-./cli-top login 
+cli-top login [--username USERNAME] [--password PASSWORD]
 ```
 
-- **View Marks:**
+`login` encrypts and stores the password; the first portal-backed command performs the VTOP authentication.
+
+Run a feature command:
 
 ```bash
-./cli-top marks
-```
-- **Calculate Attendance:**
-```bash
-./cli-top attendance
-```
-- **Check Tomorrow's Skip Leverage:**
-```bash
-./cli-top tomorrow
-```
-- **Check Today's Skip Leverage:**
-```bash
-./cli-top today
-```
-- For a full list of commands and features of cli-top, you can run:
-
-```bash
-./cli-top help
+cli-top marks
+cli-top attendance --semester 1
+cli-top exams --semester 1
+cli-top today
+cli-top msg # alias: class-messages
 ```
 
+List all public commands or inspect one command's flags:
+
+```bash
+cli-top --help
+cli-top attendance --help
+```
+
+## Testing
+
+```bash
+go test ./...
+go test -race ./...
+```
+
+Cross-package workflow and executable tests live in [`tests/`](tests/). Package-local `_test.go` files are reserved for white-box unit tests that exercise unexported implementation details.
 
 ## Project Management
 
@@ -125,23 +106,20 @@ After installation, you can access various features of **cli-top** by running sp
 - Push to the "dev" branch for testing and compatibility checks
 - Main and dev branch pushes require approval from designated maintainers
 
-
 ## Authors
 
 - [Saharsh Bhansali](https://github.com/saharshbhansali)
 - [Manav Muthanna](https://github.com/ManavMuthanna)
 - [Sarthak Gupta](https://github.com/gptsarthak)
 
-
 ## Maintainers
 
 - [Garv Jain](https://github.com/notcoolgarv)
 - [Tanmay Paturu](https://github.com/Tintedfireglass)
 - [Shambhavi Paygude](https://github.com/shambhavipaygude)
-- [Harshit Vootukuri](https://github.com/hvoot36)
+- [Harshit Vootukuri](https://github.com/btcry)
 - [Adheesh Garg](https://github.com/qwerty-dvorak)
 - [Ishaan S](https://github.com/theg1239)
-
 
 ## Contributors
 
@@ -161,7 +139,6 @@ After installation, you can access various features of **cli-top** by running sp
 - [Yashika Panda](https://github.com/yashikaa2005)
 - [Shruthilaya K](https://github.com/shruthilayak11)
 - [Srijan Srivastava](https://github.com/Srijan1202)
-
 
 ## License
 

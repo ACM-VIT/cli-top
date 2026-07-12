@@ -146,7 +146,7 @@ func PromptOptionSelection(reader *bufio.Reader, options []FormOption, label str
 			helpers.Println()
 
 			if maxVisible < len(filteredOptions) {
-				helpers.Printf("Type `m` to show %d more.\n", minInt(selectionPageSize, len(filteredOptions)-maxVisible))
+				helpers.Printf("Type `m` to show %d more.\n", min(selectionPageSize, len(filteredOptions)-maxVisible))
 			}
 		}
 
@@ -429,13 +429,6 @@ func buildOptionSearchTable(options []FormOption) [][]string {
 		table = append(table, []string{displayLabel, option.Value})
 	}
 	return table
-}
-
-func minInt(first int, second int) int {
-	if first < second {
-		return first
-	}
-	return second
 }
 
 func isCancelInput(input string) bool {

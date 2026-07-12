@@ -7,22 +7,29 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
+	"net/url"
 	"strings"
 )
 
 // performLogin executes a single login attempt and returns any high-level error type.
 // errorType is one of: "", "invalid_captcha", "invalid_credentials", "max_attempts", "network_error".
 func performLogin(userInfo types.LogIn, cookies types.Cookies, captcha string) (types.Cookies, string) {
-	client := helpers.GetHTTPClient()
+	client := *helpers.GetHTTPClient()
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		return http.ErrUseLastResponse
 	}
-	defer func() { client.CheckRedirect = nil }()
-	var data = strings.NewReader(fmt.Sprintf(`_csrf=%s&username=%s&password=%s&captchaStr=%s`, cookies.CSRF, userInfo.Username, userInfo.Password, captcha))
+	data := strings.NewReader(url.Values{
+		"_csrf":      {cookies.CSRF},
+		"username":   {userInfo.Username},
+		"password":   {userInfo.Password},
+		"captchaStr": {captcha},
+	}.Encode())
 	req, err := http.NewRequest("POST", "https://vtop.vit.ac.in/vtop/login", data)
-	if err != nil && debug.Debug {
-		helpers.Println(err)
+	if err != nil {
+		if debug.Debug {
+			helpers.Println(err)
+		}
+		return types.Cookies{}, "network_error"
 	}
 	helpers.SetVtopHeaders(req)
 	req.Header.Set("Cache-Control", "max-age=0")
@@ -39,6 +46,12 @@ func performLogin(userInfo types.LogIn, cookies types.Cookies, captcha string) (
 		return types.Cookies{}, "network_error"
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode >= http.StatusBadRequest {
+		if debug.Debug {
+			helpers.Printf("VTOP login request failed with status %s\n", resp.Status)
+		}
+		return types.Cookies{}, "network_error"
+	}
 
 	if errType := errorCheck(cookies); errType != "" {
 		return types.Cookies{}, errType
@@ -50,25 +63,40 @@ func performLogin(userInfo types.LogIn, cookies types.Cookies, captcha string) (
 }
 
 // errorCheck inspects the login/error page to classify failures.
-// Returns one of: "", "invalid_captcha", "invalid_credentials", "max_attempts".
+// Returns one of: "", "invalid_captcha", "invalid_credentials", "max_attempts", "network_error".
 func errorCheck(cookies types.Cookies) string {
 	client := helpers.GetHTTPClient()
 	req, err := http.NewRequest("GET", "https://vtop.vit.ac.in/vtop/login/error", nil)
-	if err != nil && debug.Debug {
-		helpers.Println(err)
+	if err != nil {
+		if debug.Debug {
+			helpers.Println(err)
+		}
+		return "network_error"
 	}
 	helpers.SetVtopHeaders(req)
 	req.Header.Set("Cache-Control", "max-age=0")
 	req.Header.Set("Referer", "https://vtop.vit.ac.in/vtop/login")
 	req.Header.Set("Cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", cookies.JSESSIONID, cookies.SERVERID))
 	resp, err := client.Do(req)
-	if err != nil && debug.Debug {
-		helpers.Println(err)
+	if err != nil {
+		if debug.Debug {
+			helpers.Println(err)
+		}
+		return "network_error"
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		if debug.Debug {
+			helpers.Printf("VTOP login error check failed with status %s\n", resp.Status)
+		}
+		return "network_error"
+	}
 	bodyText, err := io.ReadAll(resp.Body)
-	if err != nil && debug.Debug {
-		helpers.Println(err)
+	if err != nil {
+		if debug.Debug {
+			helpers.Println(err)
+		}
+		return "network_error"
 	}
 
 	if strings.Contains(string(bodyText), "Invalid Captcha") {
@@ -104,7 +132,13 @@ func Login(regNo string, password string) types.Cookies {
 	}
 
 	for attempt := 0; attempt < maxCaptchaRetries; attempt++ {
-		vtopTokens, captcha := getLoginPage()
+		vtopTokens, captcha, err := getLoginPage()
+		if err != nil {
+			if debug.Debug {
+				helpers.Println(err)
+			}
+			return types.Cookies{}
+		}
 		loginCreds, errType := performLogin(userInfo, vtopTokens, captcha)
 
 		if errType == "" {
@@ -129,8 +163,11 @@ func Login(regNo string, password string) types.Cookies {
 func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
 	client := helpers.GetHTTPClient()
 	req, err := http.NewRequest("GET", "https://vtop.vit.ac.in/vtop/init/page", nil)
-	if err != nil && debug.Debug {
-		helpers.Println(err)
+	if err != nil {
+		if debug.Debug {
+			helpers.Println(err)
+		}
+		return vtopTokens, ""
 	}
 	helpers.SetVtopHeaders(req)
 	req.Header.Set("Cache-Control", "max-age=0")
@@ -138,12 +175,27 @@ func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
 	req.Header.Set("Referer", "https://vtop.vit.ac.in/vtop/login")
 	req.Header.Set("Cookie", fmt.Sprintf("JSESSIONID=%s; SERVERID=%s", vtopTokens.JSESSIONID, vtopTokens.SERVERID))
 	resp, err := client.Do(req)
-	if err != nil && debug.Debug {
-		helpers.Println(err)
+	if err != nil {
+		if debug.Debug {
+			helpers.Println(err)
+		}
+		return vtopTokens, ""
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		if debug.Debug {
+			helpers.Printf("VTOP home page request failed with status %s\n", resp.Status)
+		}
+		return vtopTokens, ""
+	}
 
-	bodyText := helpers.ExtractBodyText(resp)
+	bodyText, err := io.ReadAll(resp.Body)
+	if err != nil {
+		if debug.Debug {
+			helpers.Println(err)
+		}
+		return vtopTokens, ""
+	}
 
 	if strings.Contains(string(bodyText), "Session Timed Out") {
 		if debug.Debug {
@@ -152,43 +204,12 @@ func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
 		return vtopTokens, ""
 	}
 
-	vtopTokens.CSRF = helpers.ExtractCSRF2(bodyText)
+	vtopTokens.CSRF = helpers.ExtractCSRF2(string(bodyText))
 
-	RegNo, err := helpers.ExtractRegNo(bodyText)
+	RegNo, err := helpers.ExtractRegNo(string(bodyText))
 	if err != nil && debug.Debug {
-		// Handle the error
 		helpers.Println("Error:", err)
-		// You might want to return or log the error, or take other appropriate actions
-	}
-
-	if debug.Debug {
-		helpers.Println("(Helper - ExtractRegNo):", RegNo)
 	}
 
 	return vtopTokens, RegNo
-}
-
-func AutoRelogin(regNo string) (types.Cookies, bool) {
-	username := os.Getenv("VTOP_USERNAME")
-	password := os.Getenv("PASSWORD")
-	if username == "" || password == "" {
-		if debug.Debug {
-			helpers.Println("No stored credentials found for auto-relogin.")
-		}
-		return types.Cookies{}, false
-	}
-	if debug.Debug {
-		helpers.Println("Attempting auto-relogin with stored credentials...")
-	}
-	newCookies := Login(username, password)
-	if helpers.ValidateCookies(newCookies) {
-		if debug.Debug {
-			helpers.Println("Auto-relogin successful.")
-		}
-		return newCookies, true
-	}
-	if debug.Debug {
-		helpers.Println("Auto-relogin failed.")
-	}
-	return types.Cookies{}, false
 }
