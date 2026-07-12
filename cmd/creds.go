@@ -68,8 +68,13 @@ var credCmd = &cobra.Command{
 			}
 			return
 		}
-		if err := os.Chmod(configPath, 0o600); err != nil && debug.Debug {
-			helpers.Println("Error securing config file permissions:", err)
+		if err := os.Chmod(configPath, 0o600); err != nil {
+			if debug.Debug {
+				helpers.Println("Error securing config file permissions:", err)
+			} else {
+				helpers.Println("Unable to secure the cli-top configuration.")
+			}
+			return
 		}
 
 		helpers.Println("Username and encrypted password stored in .env file successfully.")
@@ -87,6 +92,7 @@ func init() {
 	credCmd.Flags().String("username", "", "Enter VTOP username")
 	credCmd.Flags().String("password", "", "Enter VTOP password")
 	viper.SetConfigType("env")
+	viper.SetConfigPermissions(0o600)
 	viper.SetConfigFile(exeConfigPath())
 	viper.ReadInConfig()
 	rootCmd.AddCommand(credCmd)

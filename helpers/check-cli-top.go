@@ -33,6 +33,7 @@ const (
 	latestJSONURLEnv      = "CLI_TOP_LATEST_JSON_URL"
 	latestJSONTimeout     = 5 * time.Second
 	killSwitchCacheTTL    = 30 * time.Second
+	facilityViewOnlyMode  = 4
 	releaseNotesURL       = "https://cli-top.acmvit.in/releases.json"
 )
 
@@ -218,7 +219,10 @@ func CheckKillSwitch() int {
 		if debug.Debug {
 			fmt.Println("Error checking kill switch:", err)
 		}
-		return 1
+		// Metadata controls whether facility registration is allowed. If its
+		// state cannot be verified, keep the feature readable but prevent the
+		// irreversible registration request.
+		return facilityViewOnlyMode
 	}
 
 	cacheKillSwitch(endpoint, versionInfo.KillSwitch)

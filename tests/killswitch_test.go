@@ -40,7 +40,7 @@ func TestCheckKillSwitchStates(t *testing.T) {
 	}
 }
 
-func TestCheckKillSwitchFailsSafe(t *testing.T) {
+func TestCheckKillSwitchFailsClosed(t *testing.T) {
 	tests := []struct {
 		name   string
 		status int
@@ -58,8 +58,8 @@ func TestCheckKillSwitchFailsSafe(t *testing.T) {
 			server := newLatestJSONServer(t, test.status, test.body)
 			t.Setenv(latestJSONURLEnv, server.URL)
 
-			if got := helpers.CheckKillSwitch(); got != 1 {
-				t.Fatalf("CheckKillSwitch() = %d, want safe state 1", got)
+			if got := helpers.CheckKillSwitch(); got != 4 {
+				t.Fatalf("CheckKillSwitch() = %d, want facility view-only state 4", got)
 			}
 			if _, _, err := helpers.CheckUpdateSilently(); err == nil {
 				t.Fatal("CheckUpdateSilently() error = nil, want malformed response error")
@@ -68,14 +68,14 @@ func TestCheckKillSwitchFailsSafe(t *testing.T) {
 	}
 }
 
-func TestCheckKillSwitchFailsSafeWhenServerIsUnavailable(t *testing.T) {
+func TestCheckKillSwitchFailsClosedWhenServerIsUnavailable(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	serverURL := server.URL
 	server.Close()
 	t.Setenv(latestJSONURLEnv, serverURL)
 
-	if got := helpers.CheckKillSwitch(); got != 1 {
-		t.Fatalf("CheckKillSwitch() = %d, want safe state 1", got)
+	if got := helpers.CheckKillSwitch(); got != 4 {
+		t.Fatalf("CheckKillSwitch() = %d, want facility view-only state 4", got)
 	}
 }
 
