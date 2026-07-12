@@ -36,10 +36,11 @@ type workflowResponder func(*workflowTransport, workflowRequest) (string, error)
 // workflowTransport is a stateful, in-memory stand-in for VTOP. Mutating
 // workflows only change submitted; subsequent status responses read that state.
 type workflowTransport struct {
-	requests  []workflowRequest
-	submitted bool
-	responder workflowResponder
-	errors    []error
+	requests        []workflowRequest
+	submitted       bool
+	responder       workflowResponder
+	responseHeaders map[string]http.Header
+	errors          []error
 }
 
 func (transport *workflowTransport) RoundTrip(request *http.Request) (*http.Response, error) {
@@ -56,10 +57,15 @@ func (transport *workflowTransport) RoundTrip(request *http.Request) (*http.Resp
 		return nil, err
 	}
 
+	headers := make(http.Header)
+	if responseHeaders := transport.responseHeaders[request.URL.Path]; responseHeaders != nil {
+		headers = responseHeaders.Clone()
+	}
+
 	return &http.Response{
 		StatusCode: http.StatusOK,
 		Status:     "200 OK",
-		Header:     make(http.Header),
+		Header:     headers,
 		Body:       io.NopCloser(strings.NewReader(body)),
 		Request:    request,
 	}, nil
@@ -189,6 +195,14 @@ func testFacilityWorkflow(t *testing.T) {
 func testCourseAllocationWorkflow(t *testing.T) {
 	t.Setenv("CLI_TOP_PROXY_MODE", "1")
 	transport := installSharedWorkflowTransport(t, courseAllocationWorkflowResponse)
+	transport.responseHeaders = map[string]http.Header{
+		"/vtop/academics/common/StudentRegistrationScheduleAllocation": {
+			"Set-Cookie": {
+				"JSESSIONID=allocation-session; Path=/; HttpOnly",
+				"ALLOCATION_ROUTE=allocation-node; Path=/vtop/; HttpOnly",
+			},
+		},
+	}
 
 	var tables []helpers.TableSnapshot
 	restoreCapture := helpers.RegisterTableCaptureHook(func(snapshot helpers.TableSnapshot) {
@@ -211,12 +225,23 @@ func testCourseAllocationWorkflow(t *testing.T) {
 		t.Fatalf("course allocation initial form = %s, want verifyMenu and nocache", initial.form.Encode())
 	}
 	courses := requireWorkflowRequest(t, transport, "/vtop/academics/common/getCoursesListForCurriculmCategory", 1)
-	assertCommonWorkflowRequest(t, courses, "PAGE-AUTH", "page-csrf")
+	assertCommonWorkflowRequestWithCookies(t, courses, "PAGE-AUTH", "page-csrf", []string{
+		"JSESSIONID=allocation-session",
+		"SERVERID=fake-server",
+		"ALLOCATION_ROUTE=allocation-node",
+	})
+	if strings.Contains(courses.cookie, "JSESSIONID=fake-session") {
+		t.Errorf("%s Cookie = %q, contains stale JSESSIONID", courses.path, courses.cookie)
+	}
 	if courses.form.Get("cccategory") != "CORE" {
 		t.Fatalf("course list form = %s, want selected category CORE", courses.form.Encode())
 	}
 	details := requireWorkflowRequest(t, transport, "/vtop/academics/common/getCoursesDetailForRegistration", 1)
-	assertCommonWorkflowRequest(t, details, "PAGE-AUTH", "page-csrf")
+	assertCommonWorkflowRequestWithCookies(t, details, "PAGE-AUTH", "page-csrf", []string{
+		"JSESSIONID=allocation-session",
+		"SERVERID=fake-server",
+		"ALLOCATION_ROUTE=allocation-node",
+	})
 	if details.form.Get("courseCode") != "CSE2001" {
 		t.Fatalf("course detail form = %s, want courseCode=CSE2001", details.form.Encode())
 	}
@@ -373,6 +398,14 @@ func requireWorkflowRequest(t *testing.T, transport *workflowTransport, path str
 
 func assertCommonWorkflowRequest(t *testing.T, request workflowRequest, regNo string, csrf string) {
 	t.Helper()
+	assertCommonWorkflowRequestWithCookies(t, request, regNo, csrf, []string{
+		"JSESSIONID=fake-session",
+		"SERVERID=fake-server",
+	})
+}
+
+func assertCommonWorkflowRequestWithCookies(t *testing.T, request workflowRequest, regNo string, csrf string, cookies []string) {
+	t.Helper()
 	if request.method != http.MethodPost {
 		t.Errorf("%s method = %q, want POST", request.path, request.method)
 	}
@@ -385,7 +418,7 @@ func assertCommonWorkflowRequest(t *testing.T, request workflowRequest, regNo st
 	if request.form.Get("_csrf") != csrf {
 		t.Errorf("%s _csrf = %q, want %q", request.path, request.form.Get("_csrf"), csrf)
 	}
-	for _, cookie := range []string{"JSESSIONID=fake-session", "SERVERID=fake-server"} {
+	for _, cookie := range cookies {
 		if !strings.Contains(request.cookie, cookie) {
 			t.Errorf("%s Cookie = %q, want %q", request.path, request.cookie, cookie)
 		}
