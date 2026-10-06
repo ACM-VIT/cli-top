@@ -54,6 +54,7 @@ func CommandRunner(label string, run func(cmd *cobra.Command, args []string)) fu
 		}
 
 		run(cmd, args)
+		PrintSemesterListHint()
 
 		if !muted {
 			stopActiveHeadlineAnimation()
@@ -78,6 +79,7 @@ func CommandRunnerE(label string, run func(cmd *cobra.Command, args []string) er
 		}
 
 		err := run(cmd, args)
+		PrintSemesterListHint()
 
 		if !muted {
 			stopActiveHeadlineAnimation()

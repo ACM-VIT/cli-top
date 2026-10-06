@@ -77,6 +77,7 @@ Run a feature command:
 
 ```bash
 cli-top marks
+cli-top marks --list
 cli-top attendance --semester 1
 cli-top exams --semester 1
 cli-top today

@@ -387,27 +387,38 @@ Use "{{.CommandPath}} <subcommand> --help" for more information about a subcomma
 
 	// Define flags for subcommands.
 	marksCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	marksCmd.PersistentFlags().BoolVarP(&helpers.ListSemesters, "list", "l", false, "List semesters to choose from instead of using the latest")
 	gradesCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	gradesCmd.PersistentFlags().BoolVarP(&helpers.ListSemesters, "list", "l", false, "List semesters to choose from instead of using the latest")
 	attendanceCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	attendanceCmd.PersistentFlags().BoolVarP(&helpers.ListSemesters, "list", "l", false, "List semesters to choose from instead of using the latest")
 	timeTableCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
 	holidayCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	holidayCmd.PersistentFlags().BoolVarP(&helpers.ListSemesters, "list", "l", false, "List semesters to choose from instead of using the latest")
 	holidayCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
 	todayCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	todayCmd.PersistentFlags().BoolVarP(&helpers.ListSemesters, "list", "l", false, "List semesters to choose from instead of using the latest")
 	todayCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
 	tomorrowCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	tomorrowCmd.PersistentFlags().BoolVarP(&helpers.ListSemesters, "list", "l", false, "List semesters to choose from instead of using the latest")
 	tomorrowCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
 	dayAfterCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	dayAfterCmd.PersistentFlags().BoolVarP(&helpers.ListSemesters, "list", "l", false, "List semesters to choose from instead of using the latest")
 	dayAfterCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
 	examScheduleCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	examScheduleCmd.PersistentFlags().BoolVarP(&helpers.ListSemesters, "list", "l", false, "List semesters to choose from instead of using the latest")
 	calendarCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	calendarCmd.PersistentFlags().BoolVarP(&helpers.ListSemesters, "list", "l", false, "List semesters to choose from instead of using the latest")
 	calendarCmd.PersistentFlags().IntVarP(&classGrpFlag, "class-group", "g", 0, "Specify the class group")
 	courseAllocationCmd.PersistentFlags().StringVar(&courseAllocationCategoryFlag, "category", "", "Specify curriculum category search or index")
 	courseAllocationCmd.PersistentFlags().StringVarP(&courseAllocationCourseFlag, "course", "c", "", "Specify course search or index")
 	coursePageCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	coursePageCmd.PersistentFlags().BoolVarP(&helpers.ListSemesters, "list", "l", false, "List semesters to choose from instead of using the latest")
 	coursePageCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
 	coursePageCmd.PersistentFlags().StringVarP(&facultyFlag, "faculty", "f", "", "Specify the faculty")
 	coursePageCmd.PersistentFlags().StringVar(&coursePageMaterialsFlag, "materials", "", "Specify material indices or ranges (e.g. 1,2-4 or 0 for all)")
 	coursePageArchiveCmd.PersistentFlags().IntVarP(&semesterFlag, "semester", "s", 0, "Specify the semester")
+	coursePageArchiveCmd.PersistentFlags().BoolVarP(&helpers.ListSemesters, "list", "l", false, "List semesters to choose from instead of using the latest")
 	coursePageArchiveCmd.PersistentFlags().IntVarP(&courseFlag, "course", "c", 0, "Specify the course")
 	coursePageArchiveCmd.PersistentFlags().StringVarP(&facultyFlag, "faculty", "f", "", "Specify the faculty")
 	coursePageArchiveCmd.PersistentFlags().StringVar(&coursePageMaterialsFlag, "materials", "", "Specify material indices or ranges (e.g. 1,2-4 or 0 for all)")
@@ -708,6 +719,9 @@ var logoutCmd = &cobra.Command{
 		content := ""
 		if userUUID := strings.TrimSpace(os.Getenv("UUID")); userUUID != "" {
 			content = fmt.Sprintf("UUID=%s\n", userUUID)
+		}
+		if !helpers.AutoSelectSemesterEnabled() {
+			content += "AUTO_SELECT_SEMESTER=false\n"
 		}
 		if err := os.WriteFile(configFilePath(), []byte(content), 0o600); err != nil {
 			if debug.Debug {

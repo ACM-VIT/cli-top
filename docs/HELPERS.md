@@ -25,8 +25,12 @@ keeps timeout, TLS, proxy, connection reuse, and test behavior consistent.
   config file.
 - `GetSemDetails` tries the attendance page first and the course-page endpoint
   as a fallback.
-- `SelectSemester` renders the shared selector and supports deterministic
-  numeric selection for command flags and proxy execution.
+- `SelectSemester` picks the latest semester unless `--semester` or
+  `--list` (`ListSemesters`) is given or auto-select is turned off with
+  `cli-top config auto-select off` (`AUTO_SELECT_SEMESTER` in the config file), in which case it uses the index or
+  renders the shared selector. Auto-selection is announced via
+  `AnnounceAutoSelectedSemester`, and `CommandRunner` prints the `--list` hint
+  afterwards through `PrintSemesterListHint`.
 
 ## Terminal output and selection
 

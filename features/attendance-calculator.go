@@ -60,7 +60,7 @@ func GetAttendance(regNo string, cookies types.Cookies, sem_choice int) {
 		return
 	}
 
-	candidates, err := semesterCandidates(semDetails, sem_choice)
+	candidates, err := resolveSemesterCandidates(regNo, cookies, semDetails, sem_choice)
 	if err != nil {
 		helpers.Println("Invalid semester selection.")
 		return
@@ -79,6 +79,9 @@ func GetAttendance(regNo string, cookies types.Cookies, sem_choice int) {
 		if len(attendanceRecords) > 0 {
 			if debug.Debug {
 				helpers.Printf("Selected Semester: %s (%s)\n", semester.SemName, semester.SemID)
+			}
+			if sem_choice <= 0 && !helpers.ShouldListSemesters() {
+				helpers.AnnounceAutoSelectedSemester(semester.SemName)
 			}
 			break
 		}
@@ -100,6 +103,17 @@ func GetAttendance(regNo string, cookies types.Cookies, sem_choice int) {
 	helpers.Println()
 	helpers.PrintTable(attendanceRecordsToTable(attendanceRecords), 1)
 	helpers.Println()
+}
+
+func resolveSemesterCandidates(regNo string, cookies types.Cookies, semesters []types.Semester, semChoice int) ([]types.Semester, error) {
+	if semChoice <= 0 && helpers.ShouldListSemesters() && !helpers.ShouldMuteUI() {
+		semester, err := helpers.SelectSemester(regNo, cookies, semChoice)
+		if err != nil {
+			return nil, err
+		}
+		return []types.Semester{semester}, nil
+	}
+	return semesterCandidates(semesters, semChoice)
 }
 
 func semesterCandidates(semesters []types.Semester, semChoice int) ([]types.Semester, error) {

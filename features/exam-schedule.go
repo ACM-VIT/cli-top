@@ -41,7 +41,7 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 		return
 	}
 
-	candidates, err := semesterCandidates(allSems, sem_choice)
+	candidates, err := resolveSemesterCandidates(regNo, cookies, allSems, sem_choice)
 	if err != nil {
 		helpers.Println("Invalid semester selection.")
 		return
@@ -60,6 +60,9 @@ func GetExamSchedule(regNo string, cookies types.Cookies, sem_choice int) {
 		if len(allExams) > 0 {
 			if debug.Debug {
 				helpers.Printf("Selected Semester: %s (%s)\n", semester.SemName, semester.SemID)
+			}
+			if sem_choice <= 0 && !helpers.ShouldListSemesters() {
+				helpers.AnnounceAutoSelectedSemester(semester.SemName)
 			}
 			break
 		}

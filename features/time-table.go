@@ -740,7 +740,7 @@ func timetableSemesterDisplayName(semester types.Semester) string {
 
 func resolveTimetableSemester(regNo string, cookies types.Cookies, semChoice int, now time.Time) (types.Semester, error) {
 	if semChoice > 0 || timetableutil.ShouldPromptSemesterSelection(now) {
-		return helpers.SelectSemester(regNo, cookies, semChoice)
+		return helpers.PromptSemester(regNo, cookies, semChoice)
 	}
 
 	semesters, err := helpers.GetSemDetails(cookies, regNo)

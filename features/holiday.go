@@ -103,23 +103,7 @@ func GetHolidayList(regNo string, cookies types.Cookies, semChoice int, classGro
 }
 
 func resolveHolidaySemester(regNo string, cookies types.Cookies, semChoice int) (types.Semester, error) {
-	if semChoice > 0 {
-		return helpers.SelectSemester(regNo, cookies, semChoice)
-	}
-
-	semesters, err := helpers.GetSemDetails(cookies, regNo)
-	if err != nil {
-		if debug.Debug {
-			helpers.Println("Error fetching semester details:", err)
-		}
-		return types.Semester{}, err
-	}
-
-	if len(semesters) == 0 {
-		return types.Semester{}, fmt.Errorf("error fetching semester details or no semesters available. Try logging out and logging back in")
-	}
-
-	return LatestSemester(semesters), nil
+	return helpers.SelectSemester(regNo, cookies, semChoice)
 }
 
 func LatestSemester(semesters []types.Semester) types.Semester {

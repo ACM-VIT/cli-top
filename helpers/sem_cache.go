@@ -125,12 +125,15 @@ func persistSemesterCache() {
 	writeEnvValue(semesterCacheEnvKey, encoded)
 }
 
-func writeEnvValue(key, value string) {
+func writeEnvValue(key, value string) error {
 	configPath := ConfigFilePath()
 	values, err := godotenv.Read(configPath)
 	if err != nil {
 		values = make(map[string]string)
 	}
 	values[key] = value
-	_ = godotenv.Write(values, configPath)
+	if err := godotenv.Write(values, configPath); err != nil {
+		return err
+	}
+	return os.Chmod(configPath, 0o600)
 }

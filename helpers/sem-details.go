@@ -12,6 +12,53 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+const autoSelectSemesterEnvKey = "AUTO_SELECT_SEMESTER"
+
+var ListSemesters bool
+
+var semesterAutoSelected bool
+
+func AutoSelectSemesterEnabled() bool {
+	value := strings.TrimSpace(os.Getenv(autoSelectSemesterEnvKey))
+	if value == "" {
+		return true
+	}
+	enabled, err := strconv.ParseBool(value)
+	return err != nil || enabled
+}
+
+func SetAutoSelectSemester(enabled bool) error {
+	value := strconv.FormatBool(enabled)
+	if err := writeEnvValue(autoSelectSemesterEnvKey, value); err != nil {
+		return err
+	}
+	return os.Setenv(autoSelectSemesterEnvKey, value)
+}
+
+func ShouldListSemesters() bool {
+	return ListSemesters || !AutoSelectSemesterEnabled()
+}
+
+func AnnounceAutoSelectedSemester(name string) {
+	semesterAutoSelected = true
+	if ShouldMuteUI() {
+		return
+	}
+	StopHeadlineForOutput()
+	fmt.Printf("\n    \033[1;44m Your selected semester: %s \033[0m\n\n", name)
+}
+
+func PrintSemesterListHint() {
+	if !semesterAutoSelected {
+		return
+	}
+	semesterAutoSelected = false
+	if ShouldMuteUI() {
+		return
+	}
+	fmt.Println("\nIf you want to see other semesters, use the --list / -l flag.")
+}
+
 func FindAndSaveSemIds(body []byte) ([]types.Semester, error) {
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
 	if err != nil {
@@ -82,6 +129,14 @@ func GetSemDetails(cookies types.Cookies, regNo string) ([]types.Semester, error
 }
 
 func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) (types.Semester, error) {
+	return selectSemester(regNo, cookies, sem_choice, !ShouldListSemesters())
+}
+
+func PromptSemester(regNo string, cookies types.Cookies, sem_choice int) (types.Semester, error) {
+	return selectSemester(regNo, cookies, sem_choice, false)
+}
+
+func selectSemester(regNo string, cookies types.Cookies, sem_choice int, autoSelect bool) (types.Semester, error) {
 	semDetails, err := GetSemDetails(cookies, regNo)
 	var selectedSem types.Semester
 	if err != nil {
@@ -100,8 +155,11 @@ func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) (types.
 		nested_sem_list = append(nested_sem_list, []string{semDetails[i].SemID, semDetails[i].SemName})
 	}
 
-	if os.Getenv("CLI_TOP_PROXY_MODE") == "1" && sem_choice <= 0 {
+	if sem_choice <= 0 && (autoSelect || os.Getenv("CLI_TOP_PROXY_MODE") == "1") {
 		selectedSem = semDetails[len(semDetails)-1]
+		if autoSelect {
+			AnnounceAutoSelectedSemester(selectedSem.SemName)
+		}
 		return selectedSem, nil
 	}
 

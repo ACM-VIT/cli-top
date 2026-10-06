@@ -156,15 +156,15 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semesterFlag int,
 
 	var selectedSemester string
 
-	if len(semesters) > 1 {
+	if len(semesters) > 1 && semesterFlag <= 0 && (!helpers.ShouldListSemesters() || helpers.ShouldMuteUI()) {
+		selectedSemester = semesters[len(semesters)-1]
+		helpers.AnnounceAutoSelectedSemester(selectedSemester)
+	} else if len(semesters) > 1 {
 		semTable := [][]string{{"SEMESTER"}}
 		for _, sem := range semesters {
 			semTable = append(semTable, []string{sem})
 		}
 		semesterSelection := strconv.Itoa(semesterFlag)
-		if helpers.ShouldMuteUI() && semesterFlag <= 0 {
-			semesterSelection = strconv.Itoa(len(semesters))
-		}
 		semResult := helpers.TableSelector("Semester", semTable, semesterSelection)
 		if semResult.ExitRequest {
 			return types.Course{}, fmt.Errorf("selection canceled by user")

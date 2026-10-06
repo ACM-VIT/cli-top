@@ -27,6 +27,7 @@ var cliE2EVisibleCommands = []string{
 	"calendar",
 	"cgpa",
 	"completion",
+	"config",
 	"course-allocation",
 	"course-page",
 	"course-page-archive",
