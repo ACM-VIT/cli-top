@@ -761,8 +761,7 @@ func ShouldShowUpdateNotification() (bool, string, string) {
 		return false, "", ""
 	}
 
-	viper.Set("LAST_UPDATE_NOTIFIED_VERSION", currentVersion)
-	if err := viper.WriteConfig(); err != nil && debug.Debug {
+	if err := SaveConfigValues(map[string]string{"LAST_UPDATE_NOTIFIED_VERSION": currentVersion}); err != nil && debug.Debug {
 		fmt.Println("Error updating last notified version in config:", err)
 	}
 

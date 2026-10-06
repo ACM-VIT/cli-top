@@ -154,27 +154,9 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semesterFlag int,
 		semesters = append(semesters, si.Raw)
 	}
 
-	var selectedSemester string
-
-	if len(semesters) > 1 && semesterFlag <= 0 && (!helpers.ShouldListSemesters() || helpers.ShouldMuteUI()) {
-		selectedSemester = semesters[len(semesters)-1]
-		helpers.AnnounceAutoSelectedSemester(selectedSemester)
-	} else if len(semesters) > 1 {
-		semTable := [][]string{{"SEMESTER"}}
-		for _, sem := range semesters {
-			semTable = append(semTable, []string{sem})
-		}
-		semesterSelection := strconv.Itoa(semesterFlag)
-		semResult := helpers.TableSelector("Semester", semTable, semesterSelection)
-		if semResult.ExitRequest {
-			return types.Course{}, fmt.Errorf("selection canceled by user")
-		}
-		if !semResult.Selected || semResult.Index < 1 || semResult.Index > len(semesters) {
-			return types.Course{}, fmt.Errorf("invalid semester selection")
-		}
-		selectedSemester = semesters[semResult.Index-1]
-	} else {
-		selectedSemester = semesters[0]
+	selectedSemester, err := chooseCourseSemester(semesters, semesterFlag)
+	if err != nil {
+		return types.Course{}, err
 	}
 
 	var filteredCourses []types.Course
@@ -214,6 +196,33 @@ func fetchAndSelectCourse(regNo string, cookies types.Cookies, semesterFlag int,
 	}
 	selectedCourse := filteredCourses[courseResult.Index-1]
 	return selectedCourse, nil
+}
+
+func chooseCourseSemester(semesters []string, semesterFlag int) (string, error) {
+	if len(semesters) == 0 {
+		return "", fmt.Errorf("no courses found")
+	}
+	if semesterFlag < 0 {
+		return "", fmt.Errorf("invalid semester selection")
+	}
+	if semesterFlag == 0 && (!helpers.ShouldListSemesters() || helpers.ShouldMuteUI()) {
+		selectedSemester := semesters[len(semesters)-1]
+		helpers.AnnounceAutoSelectedSemester(selectedSemester)
+		return selectedSemester, nil
+	}
+
+	semTable := [][]string{{"SEMESTER"}}
+	for _, sem := range semesters {
+		semTable = append(semTable, []string{sem})
+	}
+	semResult := helpers.TableSelector("Semester", semTable, strconv.Itoa(semesterFlag))
+	if semResult.ExitRequest {
+		return "", fmt.Errorf("selection canceled by user")
+	}
+	if !semResult.Selected || semResult.Index < 1 || semResult.Index > len(semesters) {
+		return "", fmt.Errorf("invalid semester selection")
+	}
+	return semesters[semResult.Index-1], nil
 }
 
 func fetchFacultieswithMaterials(regNo string, cookies types.Cookies, courseID string, courseName string, facultyFlag string) ([]types.CourseMaterial, types.Faculty, error) {

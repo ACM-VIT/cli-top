@@ -7,9 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lpernett/godotenv"
-	"github.com/spf13/viper"
-
 	types "cli-top/types"
 )
 
@@ -121,19 +118,5 @@ func persistSemesterCache() {
 	}
 	encoded := base64.StdEncoding.EncodeToString(data)
 	os.Setenv(semesterCacheEnvKey, encoded)
-	viper.Set(semesterCacheEnvKey, "\""+encoded+"\"")
 	writeEnvValue(semesterCacheEnvKey, encoded)
-}
-
-func writeEnvValue(key, value string) error {
-	configPath := ConfigFilePath()
-	values, err := godotenv.Read(configPath)
-	if err != nil {
-		values = make(map[string]string)
-	}
-	values[key] = value
-	if err := godotenv.Write(values, configPath); err != nil {
-		return err
-	}
-	return os.Chmod(configPath, 0o600)
 }

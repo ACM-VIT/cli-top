@@ -55,6 +55,7 @@ func TestSelectSemesterDefaultsToLatestAndQueuesListHint(t *testing.T) {
 		semesterAutoSelected = false
 	})
 
+	t.Setenv(autoSelectSemesterEnvKey, "true")
 	ListSemesters = false
 	got, err := SelectSemester(regNo, types.Cookies{}, 0)
 	if err != nil {

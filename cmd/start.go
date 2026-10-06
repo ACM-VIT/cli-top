@@ -54,8 +54,7 @@ func getOrCreateUUID() string {
 	unregisteredUUID := viper.GetString("UNREGISTERED_UUID")
 	if unregisteredUUID == "" {
 		unregisteredUUID = uuid.New().String()
-		viper.Set("UNREGISTERED_UUID", unregisteredUUID)
-		if err := viper.WriteConfigAs(configFilePath()); err != nil && debug.Debug {
+		if err := helpers.SaveConfigValues(map[string]string{"UNREGISTERED_UUID": unregisteredUUID}); err != nil && debug.Debug {
 			helpers.Println("Error saving unregistered UUID to config:", err)
 		}
 	}
@@ -150,15 +149,16 @@ func vtop_login() (types.Cookies, string) {
 }
 
 func saveCookiesToFile(cookies types.Cookies, userInfo types.LogIn, key string) error {
-	viper.Set("CSRF", "\""+cookies.CSRF+"\"")
-	viper.Set("JSESSIONID", "\""+cookies.JSESSIONID+"\"")
-	viper.Set("SERVERID", "\""+cookies.SERVERID+"\"")
-	viper.Set("REGNO", "\""+userInfo.RegNo+"\"")
-	viper.Set("VTOP_USERNAME", "\""+userInfo.Username+"\"")
-	viper.Set("PASSWORD", "\""+userInfo.Password+"\"")
-	viper.Set("KEY", "\""+key+"\"")
 	path := configFilePath()
-	if err := viper.WriteConfigAs(path); err != nil {
+	if err := helpers.SaveConfigValues(map[string]string{
+		"CSRF":          "\"" + cookies.CSRF + "\"",
+		"JSESSIONID":    "\"" + cookies.JSESSIONID + "\"",
+		"SERVERID":      "\"" + cookies.SERVERID + "\"",
+		"REGNO":         "\"" + userInfo.RegNo + "\"",
+		"VTOP_USERNAME": "\"" + userInfo.Username + "\"",
+		"PASSWORD":      "\"" + userInfo.Password + "\"",
+		"KEY":           "\"" + key + "\"",
+	}); err != nil {
 		return err
 	}
 	if err := os.Chmod(path, 0o600); err != nil {

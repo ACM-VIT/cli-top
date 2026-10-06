@@ -92,7 +92,7 @@ func GetAttendance(regNo string, cookies types.Cookies, sem_choice int) {
 	}
 
 	if len(attendanceRecords) == 0 {
-		if sem_choice > 0 {
+		if sem_choice > 0 || len(candidates) == 1 {
 			helpers.Println("No attendance data available for the selected semester.")
 		} else {
 			helpers.Println("No attendance data available in any semester.")

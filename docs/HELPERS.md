@@ -23,6 +23,10 @@ keeps timeout, TLS, proxy, connection reuse, and test behavior consistent.
   executable directory, or the user's config directory.
 - Semester results are cached per registration number and persisted in the
   config file.
+- `SaveConfigValues` is the single way to write Viper-managed settings. It and
+  the semester-cache/preference writer share one lock and keep Viper's
+  in-memory settings current, so a background write (such as UUID
+  registration) cannot overwrite a newer value.
 - `GetSemDetails` tries the attendance page first and the course-page endpoint
   as a fallback.
 - `SelectSemester` picks the latest semester unless `--semester` or

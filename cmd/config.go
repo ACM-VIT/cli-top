@@ -21,31 +21,30 @@ var configCmd = &cobra.Command{
 }
 
 var configAutoSelectCmd = &cobra.Command{
-	Use:       "auto-select [on|off]",
-	Short:     "Use the latest semester by default instead of listing semesters",
-	Args:      cobra.MaximumNArgs(1),
-	ValidArgs: []string{"on", "off"},
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:          "auto-select [on|off]",
+	Short:        "Use the latest semester by default instead of listing semesters",
+	Args:         cobra.MaximumNArgs(1),
+	ValidArgs:    []string{"on", "off"},
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
 		loadConfigEnv()
 		if len(args) == 0 {
 			helpers.Printf("auto-select is %s\n", onOff(helpers.AutoSelectSemesterEnabled()))
-			return
+			return nil
 		}
 
 		enabled, err := parseOnOff(args[0])
 		if err != nil {
-			helpers.Println(err)
-			return
+			return err
 		}
 		if err := helpers.SetAutoSelectSemester(enabled); err != nil {
 			if debug.Debug {
-				helpers.Println("Error writing to .env file:", err)
-			} else {
-				helpers.Println("Unable to write the cli-top configuration.")
+				return fmt.Errorf("write config: %w", err)
 			}
-			return
+			return fmt.Errorf("unable to write the cli-top configuration")
 		}
 		helpers.Printf("auto-select is now %s\n", onOff(enabled))
+		return nil
 	},
 }
 

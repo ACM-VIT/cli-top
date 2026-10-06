@@ -1,8 +1,10 @@
 package features
 
 import (
+	"cli-top/helpers"
 	"cli-top/types"
 	"fmt"
+	"os"
 	"testing"
 )
 
@@ -55,4 +57,81 @@ func TestSemesterCandidatesRejectsInvalidChoice(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestChooseCourseSemesterDefaultsToLatest(t *testing.T) {
+	t.Setenv("AUTO_SELECT_SEMESTER", "true")
+	t.Setenv("CLI_TOP_PROXY_MODE", "")
+	semesters := []string{"Fall Semester 2025-26", "Winter Semester 2025-26"}
+
+	got, err := chooseCourseSemester(semesters, 0)
+	if err != nil {
+		t.Fatalf("chooseCourseSemester returned an error: %v", err)
+	}
+	if got != "Winter Semester 2025-26" {
+		t.Fatalf("got %q, want latest semester", got)
+	}
+}
+
+func TestChooseCourseSemesterExplicitAndInvalidChoices(t *testing.T) {
+	t.Setenv("AUTO_SELECT_SEMESTER", "true")
+	semesters := []string{"Fall Semester 2025-26", "Winter Semester 2025-26"}
+
+	got, err := chooseCourseSemester(semesters, 1)
+	if err != nil || got != "Fall Semester 2025-26" {
+		t.Fatalf("chooseCourseSemester(1) = %q, %v; want first semester", got, err)
+	}
+	if _, err := chooseCourseSemester(semesters, -1); err == nil {
+		t.Fatal("expected a negative choice to be rejected")
+	}
+	if _, err := chooseCourseSemester(nil, 0); err == nil {
+		t.Fatal("expected an empty semester list to be rejected")
+	}
+}
+
+func TestChooseCourseSemesterListsWhenRequested(t *testing.T) {
+	semesters := []string{"Fall Semester 2025-26", "Winter Semester 2025-26"}
+
+	for _, tc := range []struct {
+		name string
+		env  string
+		list bool
+	}{
+		{name: "list flag", env: "true", list: true},
+		{name: "auto-select off", env: "false", list: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("AUTO_SELECT_SEMESTER", tc.env)
+			t.Setenv("CLI_TOP_PROXY_MODE", "")
+			helpers.ListSemesters = tc.list
+			t.Cleanup(func() { helpers.ListSemesters = false })
+			withStdin(t, "1\n")
+
+			got, err := chooseCourseSemester(semesters, 0)
+			if err != nil {
+				t.Fatalf("chooseCourseSemester returned an error: %v", err)
+			}
+			if got != "Fall Semester 2025-26" {
+				t.Fatalf("got %q, want the semester picked from the list", got)
+			}
+		})
+	}
+}
+
+func withStdin(t *testing.T, input string) {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("create stdin pipe: %v", err)
+	}
+	if _, err := w.WriteString(input); err != nil {
+		t.Fatalf("write stdin: %v", err)
+	}
+	w.Close()
+	original := os.Stdin
+	os.Stdin = r
+	t.Cleanup(func() {
+		os.Stdin = original
+		r.Close()
+	})
 }

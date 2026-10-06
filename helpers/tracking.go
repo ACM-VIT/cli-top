@@ -11,7 +11,6 @@ import (
 
 	"cli-top/debug"
 	types "cli-top/types"
-	"github.com/spf13/viper"
 )
 
 const maxRetries = 3
@@ -59,9 +58,7 @@ func RegisterUUID(uuid string) error {
 			if debug.Debug {
 				fmt.Println("UUID registered successfully.")
 			}
-			viper.Set("UUID", uuid)
-			viper.Set("UNREGISTERED_UUID", "")
-			if err := viper.WriteConfig(); err != nil && debug.Debug {
+			if err := SaveConfigValues(map[string]string{"UUID": uuid, "UNREGISTERED_UUID": ""}); err != nil && debug.Debug {
 				fmt.Println("Error updating config after registration:", err)
 			}
 			return nil
@@ -71,9 +68,7 @@ func RegisterUUID(uuid string) error {
 			if debug.Debug {
 				fmt.Println("UUID already registered.")
 			}
-			viper.Set("UUID", uuid)
-			viper.Set("UNREGISTERED_UUID", "")
-			if err := viper.WriteConfig(); err != nil && debug.Debug {
+			if err := SaveConfigValues(map[string]string{"UUID": uuid, "UNREGISTERED_UUID": ""}); err != nil && debug.Debug {
 				fmt.Println("Error updating config after conflict:", err)
 			}
 			return nil

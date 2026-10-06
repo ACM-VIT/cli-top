@@ -55,12 +55,12 @@ var credCmd = &cobra.Command{
 		}
 
 		helpers.Printf("Logging in with username: %s\n", username)
-		viper.Set("VTOP_USERNAME", "\""+username+"\"")
-		viper.Set("PASSWORD", "\""+encryptedPassword+"\"")
-		viper.Set("KEY", "\""+key+"\"")
-
 		configPath := exeConfigPath()
-		if err := viper.WriteConfigAs(configPath); err != nil {
+		if err := helpers.SaveConfigValues(map[string]string{
+			"VTOP_USERNAME": "\"" + username + "\"",
+			"PASSWORD":      "\"" + encryptedPassword + "\"",
+			"KEY":           "\"" + key + "\"",
+		}); err != nil {
 			if debug.Debug {
 				helpers.Println("Error writing to .env file:", err)
 			} else {

@@ -45,7 +45,11 @@ func AnnounceAutoSelectedSemester(name string) {
 		return
 	}
 	StopHeadlineForOutput()
-	fmt.Printf("\n    \033[1;44m Your selected semester: %s \033[0m\n\n", name)
+	if terminalSupportsColor() {
+		fmt.Printf("\n    \033[1;44m Your selected semester: %s \033[0m\n\n", name)
+	} else {
+		fmt.Printf("\n    Your selected semester: %s\n\n", name)
+	}
 }
 
 func PrintSemesterListHint() {
@@ -129,6 +133,9 @@ func GetSemDetails(cookies types.Cookies, regNo string) ([]types.Semester, error
 }
 
 func SelectSemester(regNo string, cookies types.Cookies, sem_choice int) (types.Semester, error) {
+	if sem_choice < 0 {
+		return types.Semester{}, fmt.Errorf("invalid semester selection")
+	}
 	return selectSemester(regNo, cookies, sem_choice, !ShouldListSemesters())
 }
 
