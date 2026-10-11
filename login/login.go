@@ -109,6 +109,10 @@ func errorCheck(cookies types.Cookies) string {
 		helpers.Println("\nInvalid LoginId/Password. Please check your cli-top config and try again...")
 		return "invalid_credentials"
 	}
+	if strings.Contains(string(bodyText), "Invalid Credentials") {
+		helpers.Println("\nInvalid LoginId/Password. Please check your cli-top config and try again...")
+		return "invalid_credentials"
+	}
 
 	if strings.Contains(string(bodyText), "Invalid Username/Password") {
 		helpers.Println("\nInvalid Username/Password. Please check your cli-top config and try again...")
