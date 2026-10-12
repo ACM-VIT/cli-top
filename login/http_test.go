@@ -124,6 +124,8 @@ func TestPerformLoginDetectsInvalidCredentials(t *testing.T) {
 		case "/vtop/login":
 			resp := response(req, http.StatusFound, "302 Found", "")
 			resp.Header.Set("Location", "https://vtop.vit.ac.in/vtop/login/error")
+			resp.Header.Add("Set-Cookie", "JSESSIONID=failed-session; Path=/")
+			resp.Header.Add("Set-Cookie", "SERVERID=failed-server; Path=/")
 			return resp, nil
 
 		case "/vtop/login/error":
