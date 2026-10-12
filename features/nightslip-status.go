@@ -106,7 +106,7 @@ func RunInteractiveNightSlip(regNo string, cookies types.Cookies) error {
 
 	if message := nightsliputil.ExtractMessage(applyBody); message != "" && strings.Contains(strings.ToUpper(message), "PENDING") {
 		helpers.Println(message)
-		return fmt.Errorf(message)
+		return fmt.Errorf("%s", message)
 	}
 
 	input, err := promptNightSlipApplyInput(reader, regNo, cookies, applyBody)
@@ -165,7 +165,7 @@ func ApplyNightSlip(regNo string, cookies types.Cookies, input NightSlipApplyInp
 	if message := nightsliputil.ExtractMessage(applyBody); message != "" && strings.Contains(strings.ToUpper(message), "PENDING") {
 		helpers.Println()
 		helpers.Println(message)
-		return fmt.Errorf(message)
+		return fmt.Errorf("%s", message)
 	}
 
 	resolvedInput, err := resolveNightSlipApplyInput(applyBody, cookies.CSRF, input)
