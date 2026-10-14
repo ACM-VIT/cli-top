@@ -1,11 +1,9 @@
 {
-  "version": "2.12.0",
-  "releaseDate": "2026-04-23",
+  "version": "2.12.1",
+  "releaseDate": "2026-10-15",
   "killSwitch": 0,
   "baseUrl": "/buildFiles",
   "changes": [
-    "Added ability to post leave request",
-    "Fixed timetable bugs",
-    "Added regression tests"
+    "Bug fixes"
   ]
 }
