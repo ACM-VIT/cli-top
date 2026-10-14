@@ -56,8 +56,16 @@ jobs:
 
       - name: Install Inno Setup
         run: |
-          Invoke-WebRequest -Uri https://jrsoftware.org/download.php/is.exe -OutFile is.exe
-          Start-Process -FilePath is.exe -Args '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /LOG="install.log"' -Wait
+          $installerUrl = 'https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe'
+          $expectedHash = '9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732'
+          Invoke-WebRequest -Uri $installerUrl -OutFile is.exe
+          if ((Get-FileHash -Path is.exe -Algorithm SHA256).Hash -ne $expectedHash) {
+              throw 'Inno Setup installer checksum mismatch'
+          }
+          $installer = Start-Process -FilePath (Resolve-Path is.exe).Path -Args '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /LOG="install.log"' -Wait -PassThru
+          if ($installer.ExitCode -ne 0) {
+              throw "Inno Setup installation failed with exit code $($installer.ExitCode)"
+          }
           Remove-Item is.exe -Force
 
       - name: Extract Version for Installer
@@ -316,8 +324,9 @@ jobs:
             exit 1
           fi
 
-          openssl pkcs12 -in "$APP_CERT_PATH" -passin pass:"$MACOS_CERT_PASSWORD" -noout >/dev/null
-          openssl pkcs12 -in "$INSTALLER_CERT_PATH" -passin pass:"$MACOS_INSTALLER_CERT_PASSWORD" -noout >/dev/null
+          # Apple-exported P12 bundles can use RC2-40-CBC, which requires the legacy provider.
+          openssl pkcs12 -legacy -in "$APP_CERT_PATH" -passin env:MACOS_CERT_PASSWORD -noout >/dev/null
+          openssl pkcs12 -legacy -in "$INSTALLER_CERT_PATH" -passin env:MACOS_INSTALLER_CERT_PASSWORD -noout >/dev/null
 
           # Import with trusted tools to avoid ACL prompts, plus -A for CI
           security import "$APP_CERT_PATH" -k "$KEYCHAIN_PATH" -P "$MACOS_CERT_PASSWORD" -A -f pkcs12 -T /usr/bin/codesign
