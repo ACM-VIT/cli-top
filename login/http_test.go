@@ -118,7 +118,48 @@ func TestGetLoginPageBoundsMissingCaptchaRetries(t *testing.T) {
 		t.Fatalf("request counts = root:%d prelogin:%d, want 3 each", rootRequests, preloginRequests)
 	}
 }
+func TestPerformLoginDetectsInvalidCredentials(t *testing.T) {
+	replaceSharedClientState(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/vtop/login":
+			resp := response(req, http.StatusFound, "302 Found", "")
+			resp.Header.Set("Location", "https://vtop.vit.ac.in/vtop/login/error")
+			resp.Header.Add("Set-Cookie", "JSESSIONID=failed-session; Path=/")
+			resp.Header.Add("Set-Cookie", "SERVERID=failed-server; Path=/")
+			return resp, nil
 
+		case "/vtop/login/error":
+			body := `<span class="text-danger text-center" role="alert">
+				<strong>Invalid Credentials</strong>
+				</span>`
+			return response(req, http.StatusOK, "200 OK", body), nil
+
+		default:
+			t.Fatalf("unexpected request path %q", req.URL.Path)
+			return nil, errors.New("unexpected request")
+		}
+	}), func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	})
+
+	tokens, errType := performLogin(
+		types.LogIn{Username: "nonexistent", Password: "wrong"},
+		types.Cookies{
+			CSRF:       "csrf",
+			JSESSIONID: "session",
+			SERVERID:   "server",
+		},
+		"123abc",
+	)
+
+	if errType != "invalid_credentials" {
+		t.Fatalf("performLogin error type = %q, want %q", errType, "invalid_credentials")
+	}
+
+	if tokens.JSESSIONID != "" || tokens.SERVERID != "" {
+		t.Fatalf("expected empty cookies on invalid credentials, got %+v", tokens)
+	}
+}
 func TestSessionRequestReturnsReadError(t *testing.T) {
 	wantErr := errors.New("read failed")
 	replaceSharedClientState(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {

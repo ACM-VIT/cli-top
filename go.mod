@@ -1,6 +1,6 @@
 module cli-top
 
-go 1.23.0
+go 1.25.0
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.1
@@ -33,8 +33,8 @@ require (
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	golang.org/x/net v0.38.0
-	golang.org/x/sys v0.31.0 // indirect
-	golang.org/x/term v0.30.0
-	golang.org/x/text v0.28.0
+	golang.org/x/net v0.55.0
+	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/term v0.43.0
+	golang.org/x/text v0.37.0
 )
