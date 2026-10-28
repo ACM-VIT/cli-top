@@ -148,7 +148,7 @@ func TableSelector(subject string, nestedList [][]string, initialQuery string) S
 	if isNumeric(initialQuery) {
 		choice, _ := strconv.Atoi(initialQuery)
 		if choice >= 1 && choice <= len(nestedList)-1 {
-			fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, nestedList[choice][0])
+			Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, nestedList[choice][0])
 			return SelectionResult{Index: choice, Selected: true}
 		}
 	} else if initialQuery == "exit" {
@@ -158,9 +158,9 @@ func TableSelector(subject string, nestedList [][]string, initialQuery string) S
 	reader := bufio.NewReader(os.Stdin)
 
 	// Initial display of the table
-	fmt.Println("")
+	Println("")
 	PrintTable(nestedList, 1)
-	fmt.Println("")
+	Println("")
 
 	if ShouldMuteUI() {
 		EmitProxySelectionRequest(subject, nestedList, 1, initialQuery, fmt.Sprintf("selection required for %s", subject))
@@ -168,7 +168,7 @@ func TableSelector(subject string, nestedList [][]string, initialQuery string) S
 	}
 
 	for {
-		fmt.Printf("Choose a %s (enter a number): ", subject)
+		Printf("Choose a %s (enter a number): ", subject)
 		input, _ := reader.ReadString('\n')
 		choice := strings.TrimSpace(input)
 
@@ -179,24 +179,24 @@ func TableSelector(subject string, nestedList [][]string, initialQuery string) S
 		// Check if input is a number
 		choiceNum, err := strconv.Atoi(choice)
 		if err != nil {
-			fmt.Printf("Invalid input. Please enter a number between 1 and %d.\n", len(nestedList)-1)
+			Printf("Invalid input. Please enter a number between 1 and %d.\n", len(nestedList)-1)
 			// Reprint the table after invalid input
-			fmt.Println("")
+			Println("")
 			PrintTable(nestedList, 1)
-			fmt.Println("")
+			Println("")
 			continue
 		}
 
 		// Validate the choice
 		if choiceNum >= 1 && choiceNum <= len(nestedList)-1 {
-			fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, nestedList[choiceNum][0])
+			Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, nestedList[choiceNum][0])
 			return SelectionResult{Index: choiceNum, Selected: true}
 		} else {
-			fmt.Printf("Invalid choice. Please enter a number between 1 and %d.\n", len(nestedList)-1)
+			Printf("Invalid choice. Please enter a number between 1 and %d.\n", len(nestedList)-1)
 			// Reprint the table after invalid input
-			fmt.Println("")
+			Println("")
 			PrintTable(nestedList, 1)
-			fmt.Println("")
+			Println("")
 		}
 	}
 }
@@ -208,11 +208,11 @@ func TableSelectorFuzzy(subject string, nestedList [][]string, initialQuery stri
 	if isNumeric(initialQuery) {
 		choice, _ := strconv.Atoi(initialQuery)
 		if choice >= 1 && choice <= len(nestedList)-1 {
-			fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, nestedList[choice][0])
+			Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, nestedList[choice][0])
 			return SelectionResult{Index: choice, Selected: true}
 		} else {
 			// Invalid numeric initial query, will display table and prompt for new input
-			fmt.Printf("Invalid number. Please enter a number between 1 and %d.\n", len(nestedList)-1)
+			Printf("Invalid number. Please enter a number between 1 and %d.\n", len(nestedList)-1)
 			initialQuery = ""
 		}
 	} else if initialQuery == "exit" {
@@ -224,14 +224,14 @@ func TableSelectorFuzzy(subject string, nestedList [][]string, initialQuery stri
 
 	// If no initial query provided or if initial query was an invalid number, prompt for input
 	if searchQuery == "" {
-		fmt.Println("")
+		Println("")
 		PrintTable(nestedList, 1)
-		fmt.Println("")
+		Println("")
 		if ShouldMuteUI() {
 			EmitProxySelectionRequest(subject, nestedList, 1, "", fmt.Sprintf("selection required for %s", subject))
 			return SelectionResult{}
 		}
-		fmt.Printf("Enter a search term or number for %s (or 'exit' to quit): ", subject)
+		Printf("Enter a search term or number for %s (or 'exit' to quit): ", subject)
 		input, _ := reader.ReadString('\n')
 		searchQuery = strings.TrimSpace(input)
 
@@ -244,19 +244,19 @@ func TableSelectorFuzzy(subject string, nestedList [][]string, initialQuery stri
 		// Check if query is a direct number selection
 		if num, err := strconv.Atoi(searchQuery); err == nil {
 			if num >= 1 && num <= len(nestedList)-1 {
-				fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, nestedList[num][0])
+				Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, nestedList[num][0])
 				return SelectionResult{Index: num, Selected: true}
 			} else {
-				fmt.Printf("Invalid number. Please enter a number between 1 and %d.\n", len(nestedList)-1)
+				Printf("Invalid number. Please enter a number between 1 and %d.\n", len(nestedList)-1)
 				// Reprint the table after invalid input
-				fmt.Println("")
+				Println("")
 				PrintTable(nestedList, 1)
-				fmt.Println("")
+				Println("")
 				if ShouldMuteUI() {
 					EmitProxySelectionRequest(subject, nestedList, 1, searchQuery, fmt.Sprintf("invalid selection for %s", subject))
 					return SelectionResult{}
 				}
-				fmt.Printf("Enter a search term or number for %s (or 'exit' to quit): ", subject)
+				Printf("Enter a search term or number for %s (or 'exit' to quit): ", subject)
 				input, _ := reader.ReadString('\n')
 				searchQuery = strings.TrimSpace(input)
 				if searchQuery == "exit" {
@@ -276,16 +276,16 @@ func TableSelectorFuzzy(subject string, nestedList [][]string, initialQuery stri
 		}
 
 		if len(selectedIndices) == 0 {
-			fmt.Println("No matching results found for your query.")
+			Println("No matching results found for your query.")
 			// Reprint the table after no results found
-			fmt.Println("")
+			Println("")
 			PrintTable(nestedList, 1)
-			fmt.Println("")
+			Println("")
 			if ShouldMuteUI() {
 				EmitProxySelectionRequest(subject, nestedList, 1, searchQuery, fmt.Sprintf("no matches found for %s", subject))
 				return SelectionResult{}
 			}
-			fmt.Printf("Enter a new search term or number for %s (or 'exit' to quit): ", subject)
+			Printf("Enter a new search term or number for %s (or 'exit' to quit): ", subject)
 			input, _ := reader.ReadString('\n')
 			searchQuery = strings.TrimSpace(input)
 			if searchQuery == "exit" {
@@ -295,16 +295,16 @@ func TableSelectorFuzzy(subject string, nestedList [][]string, initialQuery stri
 		} else if len(selectedIndices) == 1 {
 			index := selectedIndices[0]
 			if index < 1 || index > len(nestedList)-1 {
-				fmt.Println("Selected index is out of range.")
+				Println("Selected index is out of range.")
 				// Reprint the table after invalid selection
-				fmt.Println("")
+				Println("")
 				PrintTable(nestedList, 1)
-				fmt.Println("")
+				Println("")
 				if ShouldMuteUI() {
 					EmitProxySelectionRequest(subject, nestedList, 1, searchQuery, fmt.Sprintf("invalid filtered selection for %s", subject))
 					return SelectionResult{}
 				}
-				fmt.Printf("Enter a new search term or number for %s (or 'exit' to quit): ", subject)
+				Printf("Enter a new search term or number for %s (or 'exit' to quit): ", subject)
 				input, _ := reader.ReadString('\n')
 				searchQuery = strings.TrimSpace(input)
 				if searchQuery == "exit" {
@@ -312,7 +312,7 @@ func TableSelectorFuzzy(subject string, nestedList [][]string, initialQuery stri
 				}
 				continue
 			}
-			fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, nestedList[index][0])
+			Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, nestedList[index][0])
 			return SelectionResult{Index: index, Selected: true}
 		} else {
 			// Multiple matches found, create a filtered list
@@ -326,16 +326,16 @@ func TableSelectorFuzzy(subject string, nestedList [][]string, initialQuery stri
 			}
 
 			if len(filteredList) <= 1 {
-				fmt.Println("No valid results found in the matched items.")
+				Println("No valid results found in the matched items.")
 				// Reprint the table after no valid results
-				fmt.Println("")
+				Println("")
 				PrintTable(nestedList, 1)
-				fmt.Println("")
+				Println("")
 				if ShouldMuteUI() {
 					EmitProxySelectionRequest(subject, nestedList, 1, searchQuery, fmt.Sprintf("no valid matches found for %s", subject))
 					return SelectionResult{}
 				}
-				fmt.Printf("Enter a new search term or number for %s (or 'exit' to quit): ", subject)
+				Printf("Enter a new search term or number for %s (or 'exit' to quit): ", subject)
 				input, _ := reader.ReadString('\n')
 				searchQuery = strings.TrimSpace(input)
 				if searchQuery == "exit" {
@@ -344,10 +344,10 @@ func TableSelectorFuzzy(subject string, nestedList [][]string, initialQuery stri
 				continue
 			}
 
-			fmt.Println("\nMultiple matches found. Please select from the results below:")
-			fmt.Println("")
+			Println("\nMultiple matches found. Please select from the results below:")
+			Println("")
 			PrintTable(filteredList, 1)
-			fmt.Println("")
+			Println("")
 			if ShouldMuteUI() {
 				EmitProxySelectionRequest(subject, filteredList, 1, searchQuery, fmt.Sprintf("multiple matches found for %s", subject))
 				return SelectionResult{}
@@ -355,7 +355,7 @@ func TableSelectorFuzzy(subject string, nestedList [][]string, initialQuery stri
 
 			// Loop until valid selection from filtered results
 			for {
-				fmt.Printf("Choose a %s (number) or type 'search' for a new search: ", subject)
+				Printf("Choose a %s (number) or type 'search' for a new search: ", subject)
 				input, _ := reader.ReadString('\n')
 				input = strings.TrimSpace(input)
 
@@ -364,10 +364,10 @@ func TableSelectorFuzzy(subject string, nestedList [][]string, initialQuery stri
 				}
 
 				if input == "search" {
-					fmt.Println()
+					Println()
 					PrintTable(nestedList, 1)
-					fmt.Println()
-					fmt.Printf("Enter a new search term or number for %s (or 'exit' to quit): ", subject)
+					Println()
+					Printf("Enter a new search term or number for %s (or 'exit' to quit): ", subject)
 					input, _ := reader.ReadString('\n')
 					searchQuery = strings.TrimSpace(input)
 					if searchQuery == "exit" {
@@ -378,26 +378,26 @@ func TableSelectorFuzzy(subject string, nestedList [][]string, initialQuery stri
 
 				choice, err := strconv.Atoi(input)
 				if err != nil {
-					fmt.Println("Invalid input. Please enter a valid number.")
+					Println("Invalid input. Please enter a valid number.")
 					// Reprint the filtered table after invalid input
-					fmt.Println("")
+					Println("")
 					PrintTable(filteredList, 1)
-					fmt.Println("")
+					Println("")
 					continue
 				}
 
 				if choice < 1 || choice > len(filteredList)-1 {
-					fmt.Printf("Invalid choice. Please enter a number between 1 and %d.\n", len(filteredList)-1)
+					Printf("Invalid choice. Please enter a number between 1 and %d.\n", len(filteredList)-1)
 					// Reprint the filtered table after invalid choice
-					fmt.Println("")
+					Println("")
 					PrintTable(filteredList, 1)
-					fmt.Println("")
+					Println("")
 					continue
 				}
 
 				// Map the selection back to the original index directly from our mapping
 				originalIndex := filteredIndices[choice-1]
-				fmt.Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, nestedList[originalIndex][0])
+				Printf("\n    \033[1;44m Your selected %s: %s \033[0m\n\n", subject, nestedList[originalIndex][0])
 				return SelectionResult{Index: originalIndex, Selected: true}
 			}
 		}
@@ -407,7 +407,7 @@ func TableSelectorFuzzy(subject string, nestedList [][]string, initialQuery stri
 func PrintTable(nestedList [][]string, indexStatus int) {
 	StopHeadlineForOutput()
 	if len(nestedList) == 0 {
-		fmt.Println("No data to display.")
+		Println("No data to display.")
 		return
 	}
 
@@ -466,24 +466,24 @@ func PrintTable(nestedList [][]string, indexStatus int) {
 		return s + strings.Repeat(" ", padding)
 	}
 
-	fmt.Print("   ")
+	Print("   ")
 	for colIdx, headerCell := range normalizedList[0] {
 		aligned := leftAlign(headerCell, colWidths[colIdx])
-		fmt.Print(" ", aligned, " ")
+		Print(" ", aligned, " ")
 		if colIdx < len(normalizedList[0])-1 {
-			fmt.Print("│")
+			Print("│")
 		}
 	}
-	fmt.Println()
+	Println()
 
-	fmt.Print("    ")
+	Print("    ")
 	for colIdx, width := range colWidths {
-		fmt.Print(strings.Repeat("─", width))
+		Print(strings.Repeat("─", width))
 		if colIdx < len(colWidths)-1 {
-			fmt.Print("─┼─")
+			Print("─┼─")
 		}
 	}
-	fmt.Println()
+	Println()
 
 	for _, row := range normalizedList[1:] {
 		rowLines := make([][]string, 0)
@@ -497,7 +497,7 @@ func PrintTable(nestedList [][]string, indexStatus int) {
 		}
 
 		for lineIdx := 0; lineIdx < maxLines; lineIdx++ {
-			fmt.Print("   ")
+			Print("   ")
 			for colIdx, cellLines := range rowLines {
 				line := ""
 				if lineIdx < len(cellLines) {
@@ -511,12 +511,12 @@ func PrintTable(nestedList [][]string, indexStatus int) {
 					aligned = leftAlign(line, colWidths[colIdx])
 				}
 
-				fmt.Print(" ", aligned, " ")
+				Print(" ", aligned, " ")
 				if colIdx < len(row)-1 {
-					fmt.Print("│")
+					Print("│")
 				}
 			}
-			fmt.Println()
+			Println()
 		}
 	}
 

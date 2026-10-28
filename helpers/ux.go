@@ -37,6 +37,9 @@ var (
 )
 
 func ShouldMuteUI() bool {
+	if p := CurrentExecutionPolicy(); p != nil && (p.Machine || p.NonInteractive) {
+		return true
+	}
 	return os.Getenv("CLI_TOP_PROXY_MODE") == "1"
 }
 

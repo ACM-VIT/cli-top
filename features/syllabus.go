@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"cli-top/helpers"
+	"cli-top/internal/contract"
 	"cli-top/types"
 
 	"github.com/PuerkitoBio/goquery"
@@ -80,7 +81,7 @@ func DownloadSyllabus(courseCode, courseName string, cookies types.Cookies, auth
 			return "", fmt.Errorf("no pdf file found in zip")
 		}
 	} else {
-		return "", fmt.Errorf("unexpected content type: %s", ct)
+		return "", contract.New("parse_error", "VTOP returned an unexpected syllabus download.")
 	}
 	filename := fmt.Sprintf("%s_%s.pdf", courseName, courseCode)
 	sanitizedFilename := helpers.SanitizeFilename(filename)
@@ -124,7 +125,7 @@ func getCurriculumCategories(regNo string, cookies types.Cookies) ([]Category, e
 		}
 	})
 	if len(categories) == 0 {
-		return nil, fmt.Errorf("no syllabus categories found")
+		return nil, contract.New("parse_error", "VTOP did not expose curriculum categories.")
 	}
 
 	return categories, nil
@@ -146,7 +147,7 @@ func getCoursesForCategory(regNo string, cookies types.Cookies, categoryID strin
 		table = doc.Find(SyllabusTableAltSelector)
 	}
 	if table.Length() == 0 {
-		return nil, fmt.Errorf("no course table found in category view")
+		return nil, contract.New("parse_error", "VTOP returned an unexpected curriculum course page.")
 	}
 	var courses []Course
 	table.Find(SyllabusRowsSelector).Each(func(i int, s *goquery.Selection) {

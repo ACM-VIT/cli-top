@@ -166,14 +166,14 @@ func SolveCaptcha(imageURL string) string {
 		return "disabled"
 	}
 	if !strings.HasPrefix(imageURL, "data:image/jpeg;base64,") {
-		fmt.Println("Unsupported URL scheme")
+		Println("Unsupported URL scheme")
 		return ""
 	}
 
 	data, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(imageURL, "data:image/jpeg;base64,"))
 	if err != nil {
 		if debug.Debug {
-			fmt.Println("Error decoding captcha:", err)
+			Println("Error decoding captcha:", err)
 		}
 		return ""
 	}
@@ -181,27 +181,27 @@ func SolveCaptcha(imageURL string) string {
 		StopHeadlineForOutput()
 		if err := os.WriteFile("captcha.jpg", data, 0o600); err != nil {
 			if debug.Debug {
-				fmt.Println("Error saving captcha:", err)
+				Println("Error saving captcha:", err)
 			}
 			return ""
 		}
-		fmt.Println("Captcha auto-solver has been disabled. \nPlease manually solve captcha.jpg and answer here:")
+		Println("Captcha auto-solver has been disabled. \nPlease manually solve captcha.jpg and answer here:")
 		var captcha string
-		fmt.Scanln(&captcha)
+		fmt.Fscanln(InputReader(), &captcha)
 		return strings.TrimSpace(captcha)
 	}
 
 	img, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
 		if debug.Debug {
-			fmt.Println("Error decoding captcha image:", err)
+			Println("Error decoding captcha image:", err)
 		}
 		return ""
 	}
 	bounds := img.Bounds()
 	if bounds.Dx() != 200 || bounds.Dy() != 40 {
 		if debug.Debug {
-			fmt.Printf("Unexpected captcha dimensions: %dx%d\n", bounds.Dx(), bounds.Dy())
+			Printf("Unexpected captcha dimensions: %dx%d\n", bounds.Dx(), bounds.Dy())
 		}
 		return ""
 	}
@@ -229,7 +229,7 @@ func SolveCaptcha(imageURL string) string {
 
 	result := resultText.String()
 	if debug.Debug {
-		fmt.Println("(Helper - Captcha):", result)
+		Println("(Helper - Captcha):", result)
 	}
 	return result
 }

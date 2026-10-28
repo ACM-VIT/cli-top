@@ -26,15 +26,18 @@ var cliE2EVisibleCommands = []string{
 	"attendance",
 	"calendar",
 	"cgpa",
+	"class-groups",
 	"completion",
 	"course-allocation",
 	"course-page",
 	"course-page-archive",
+	"courses",
 	"da",
 	"dayafter",
 	"events",
 	"exams",
 	"facility",
+	"faculties",
 	"grades",
 	"holiday",
 	"hostel",
@@ -47,6 +50,8 @@ var cliE2EVisibleCommands = []string{
 	"nightslip",
 	"profile",
 	"receipts",
+	"schema",
+	"semesters",
 	"syllabus",
 	"timetable",
 	"today",
@@ -283,12 +288,15 @@ func TestCLIEndToEndSmoke(t *testing.T) {
 		writeCLIE2EConfig(t, configPath, "UUID=e2e-proxy-uuid\n", 0o600)
 		requestsBefore := latestJSONRequests.Load()
 
-		stdout, stderr := runCLIE2ECommand(t, binPath, env, cwd, "proxy", "", "", "profile")
+		stdout, stderr, status := runCLIE2ECommandStatus(t, binPath, env, cwd, "proxy", "", "", "profile")
+		if status != 3 {
+			t.Fatalf("proxy exit = %d, want 3", status)
+		}
 		if stderr != "" {
 			t.Fatalf("cli-top proxy wrote to stderr:\n%s", stderr)
 		}
-		if got := latestJSONRequests.Load(); got != requestsBefore+1 {
-			t.Fatalf("proxy made %d latest.json requests, want 1", got-requestsBefore)
+		if got := latestJSONRequests.Load(); got != requestsBefore {
+			t.Fatalf("invalid proxy input made %d latest.json requests, want 0", got-requestsBefore)
 		}
 
 		var response struct {
@@ -387,6 +395,14 @@ func writeCLIE2EConfig(t *testing.T, path, content string, mode os.FileMode) {
 
 func runCLIE2ECommand(t *testing.T, binPath string, env []string, cwd string, args ...string) (stdout, stderr string) {
 	t.Helper()
+	stdout, stderr, status := runCLIE2ECommandStatus(t, binPath, env, cwd, args...)
+	if status != 0 {
+		t.Fatalf("cli-top failed with exit %d: %s\n%s", status, stdout, stderr)
+	}
+	return stdout, stderr
+}
+func runCLIE2ECommandStatus(t *testing.T, binPath string, env []string, cwd string, args ...string) (stdout, stderr string, status int) {
+	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -402,7 +418,11 @@ func runCLIE2ECommand(t *testing.T, binPath string, env []string, cwd string, ar
 		t.Fatalf("cli-top %q timed out\nstdout:\n%s\nstderr:\n%s", args, stdoutBuffer.String(), stderrBuffer.String())
 	}
 	if err != nil {
-		t.Fatalf("cli-top %q failed: %v\nstdout:\n%s\nstderr:\n%s", args, err, stdoutBuffer.String(), stderrBuffer.String())
+		if exit, ok := err.(*exec.ExitError); ok {
+			status = exit.ExitCode()
+		} else {
+			t.Fatalf("start cli-top: %v", err)
+		}
 	}
-	return stdoutBuffer.String(), stderrBuffer.String()
+	return stdoutBuffer.String(), stderrBuffer.String(), status
 }

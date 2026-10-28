@@ -1,12 +1,14 @@
 # cli-top command reference
 
-Use `cli-top --help` to list public commands and `cli-top COMMAND --help` to inspect a command.
+Use `cli-top --help` to list public commands and `cli-top COMMAND --help` to inspect a command. `cli-top schema COMMAND` provides the current flags, defaults, conditional requirements, and result schema offline. See [the agent interface](AGENT_INTERFACE.md) for JSON and ID examples.
 
 ## Global flags
 
 | Flag | Effect |
 | --- | --- |
-| `-d`, `--debug` | Enable debug output. |
+| `--output table\|json` | Select terminal output (default) or a versioned JSON result. |
+| `--non-interactive` | Disable prompts. JSON and nonterminal stdin also disable prompts. |
+| `-d`, `--debug` | Enable debug output in terminal mode. |
 | `-h`, `--help` | Show help. |
 | `-u`, `--update` | Check for updates when used as `cli-top --update`. |
 | `-v`, `--version` | Print the installed version when used as `cli-top --version`. |
@@ -19,7 +21,7 @@ Use `cli-top --help` to list public commands and `cli-top COMMAND --help` to ins
 cli-top login [--username USERNAME] [--password PASSWORD]
 ```
 
-Stores the username and encrypted password in cli-top's local configuration. If either value is omitted, cli-top prompts for it. This command does not open a VTOP session; the next portal-backed command authenticates with the stored credentials.
+Stores the username and encrypted password in cli-top's local configuration. In a terminal, omitted values are prompted for. JSON or noninteractive invocations return an error listing missing fields. This command does not open a VTOP session; the next portal-backed command authenticates with the stored credentials.
 
 ### Logout
 
@@ -40,7 +42,7 @@ Clears stored VTOP credentials and session data.
 | `cli-top attendance` | `-s`, `--semester INDEX` | Show attendance and skip/attend guidance. |
 | `cli-top exams` | `-s`, `--semester INDEX` | Show the upcoming exam schedule. |
 
-Without `--semester`, `attendance` and `exams` search recent semesters for available data. Commands with an interactive semester picker prompt when no selection is supplied.
+Without `--semester`, `attendance` and `exams` search recent semesters for available data. Commands requiring a selection prompt only in a terminal; machine invocations receive structured choices. Use `semesters` to discover IDs and `--semester-id ID` to select them directly.
 
 ## Schedule and planning
 
@@ -63,19 +65,19 @@ Without `--semester`, `attendance` and `exams` search recent semesters for avail
 | `cli-top syllabus` | `-c`, `--course QUERY_OR_INDEX` | Download a course syllabus. |
 | `cli-top da` | `-c`, `--course QUERY_OR_INDEX`; `-a`, `--assignment QUERY_OR_INDEX` | Review digital-assignment deadlines and submission status, and download available question papers. |
 
-For `--materials`, use comma-separated indices and ranges such as `1,2-4`, or `0` for all materials. Omit selection flags to use the interactive pickers.
+For `--materials`, use comma-separated indices and ranges such as `1,2-4`, or `0` for all materials. Omitting `--materials` lists material metadata without downloading. `syllabus` supports `--category-id` and `--category` to scope course selection. Course commands support exact IDs; see `schema COMMAND` and the [ID discovery examples](AGENT_INTERFACE.md#discovering-scoped-ids).
 
 ## Campus services
 
 | Command | Flags | Purpose |
 | --- | --- | --- |
-| `cli-top events` | — | View upcoming club events and interactively register for an open event. |
+| `cli-top events` | `--event-id ID`; `--confirm` | View events; register only with an explicit event ID and confirmation. |
 | `cli-top facility` | `-f`, `--facility QUERY_OR_INDEX`; `--confirm` | View or register for a physical facility. |
 | `cli-top hostel` | — | Show hostel details. |
 | `cli-top library-dues` | — | Show library dues. |
 | `cli-top receipts` | — | Show receipts and payment history. |
-| `cli-top nightslip` | — | Show nightslip status and, when none is pending, optionally apply interactively. |
-| `cli-top leave` | See below. | Show leave status and, when none is pending, optionally apply interactively. |
+| `cli-top nightslip` | `--apply` and application fields; see `schema nightslip` | Show nightslip status; explicitly submit with `--apply`. |
+| `cli-top leave` | See below. | Show leave status; explicitly submit with `--apply`. |
 
 Submit a leave request non-interactively with all required application fields:
 
@@ -91,6 +93,10 @@ cli-top leave --apply \
 ```
 
 The leave application flags are `--apply`, `--leave-code`, `--visiting-place`, `--reason`, `--from-date`, `--from-time`, `--to-date`, and `--to-time`. Application fields are rejected unless `--apply` is present.
+
+## Discovery
+
+`semesters` lists academic semester IDs. `class-groups --semester-id ID` lists class groups. `courses --source SOURCE` lists course IDs within a source; `faculties --course-id ID` lists faculty IDs. Sources are `consolidated`, `archive`, `syllabus`, `allocation`, and `assignments`. Parent selections may be required; inspect `error.choices` or `schema COMMAND`.
 
 ## Communication
 

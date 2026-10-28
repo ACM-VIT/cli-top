@@ -3,6 +3,7 @@ package login
 import (
 	"cli-top/debug"
 	"cli-top/helpers"
+	"cli-top/internal/contract"
 	types "cli-top/types"
 	"fmt"
 	"io"
@@ -165,13 +166,18 @@ func Login(regNo string, password string) types.Cookies {
 }
 
 func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
+	c, r, _ := HomePageE(vtopTokens)
+	return c, r
+}
+
+func HomePageE(vtopTokens types.Cookies) (types.Cookies, string, error) {
 	client := helpers.GetHTTPClient()
 	req, err := http.NewRequest("GET", "https://vtop.vit.ac.in/vtop/init/page", nil)
 	if err != nil {
 		if debug.Debug {
 			helpers.Println(err)
 		}
-		return vtopTokens, ""
+		return vtopTokens, "", contract.From(err)
 	}
 	helpers.SetVtopHeaders(req)
 	req.Header.Set("Cache-Control", "max-age=0")
@@ -183,14 +189,14 @@ func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
 		if debug.Debug {
 			helpers.Println(err)
 		}
-		return vtopTokens, ""
+		return vtopTokens, "", contract.From(err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		if debug.Debug {
 			helpers.Printf("VTOP home page request failed with status %s\n", resp.Status)
 		}
-		return vtopTokens, ""
+		return vtopTokens, "", helpers.HTTPError(resp.StatusCode)
 	}
 
 	bodyText, err := io.ReadAll(resp.Body)
@@ -198,14 +204,14 @@ func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
 		if debug.Debug {
 			helpers.Println(err)
 		}
-		return vtopTokens, ""
+		return vtopTokens, "", contract.Wrap("network_error", "Unable to read the VTOP response.", err)
 	}
 
-	if strings.Contains(string(bodyText), "Session Timed Out") {
+	if strings.Contains(string(bodyText), "Session Timed Out") || strings.Contains(string(bodyText), `name="username"`) || strings.Contains(string(bodyText), `name='username'`) {
 		if debug.Debug {
 			helpers.Println("Session Timed Out, login failed. Retrying...")
 		}
-		return vtopTokens, ""
+		return vtopTokens, "", contract.New("auth_required", "VTOP session is unavailable; run cli-top login.")
 	}
 
 	vtopTokens.CSRF = helpers.ExtractCSRF2(string(bodyText))
@@ -215,5 +221,35 @@ func HomePage(vtopTokens types.Cookies) (types.Cookies, string) {
 		helpers.Println("Error:", err)
 	}
 
-	return vtopTokens, RegNo
+	if err != nil {
+		return vtopTokens, "", contract.Wrap("parse_error", "VTOP did not return a student identity.", err)
+	}
+	return vtopTokens, RegNo, nil
+}
+
+// LoginE preserves the failure classification for command callers.
+func LoginE(username, password string) (types.Cookies, error) {
+	for attempt := 0; attempt < 3; attempt++ {
+		tokens, captcha, err := getLoginPage()
+		if err != nil {
+			return types.Cookies{}, contract.From(err)
+		}
+		logged, kind := performLogin(types.LogIn{Username: username, Password: password}, tokens, captcha)
+		switch kind {
+		case "":
+			tokens.JSESSIONID = logged.JSESSIONID
+			return tokens, nil
+		case "invalid_captcha":
+			continue
+		case "network_error":
+			e := contract.New("network_error", "Unable to complete VTOP authentication.")
+			e.Retryable = true
+			return types.Cookies{}, e
+		case "max_attempts":
+			return types.Cookies{}, contract.New("auth_failed", "VTOP has locked further login attempts; recover your account on VTOP.")
+		default:
+			return types.Cookies{}, contract.New("auth_failed", "VTOP rejected the credentials.")
+		}
+	}
+	return types.Cookies{}, contract.New("human_action_required", "VTOP authentication requires human attention; log in interactively.")
 }

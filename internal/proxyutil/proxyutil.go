@@ -89,7 +89,10 @@ func NormalizeOutput(raw string) (string, []string) {
 	return strings.Join(messages, "\n"), messages
 }
 
-func canonicalFlagName(flag string) string {
+func canonicalFlagName(flag string) string { return CanonicalFlagName(flag) }
+
+// CanonicalFlagName retains legacy proxy spellings.
+func CanonicalFlagName(flag string) string {
 	normalized := strings.ToLower(strings.TrimSpace(flag))
 	switch normalized {
 	case "s", "semester", "semesterflag", "semesterquery":

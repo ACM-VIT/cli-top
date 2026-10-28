@@ -3,6 +3,7 @@ package helpers
 import (
 	"bytes"
 	"cli-top/debug"
+	"cli-top/internal/contract"
 	"cli-top/types"
 	"fmt"
 	"os"
@@ -44,7 +45,7 @@ func FindAndSaveSemIds(body []byte) ([]types.Semester, error) {
 	if debug.Debug {
 		fmt.Println("No semesters found in document.")
 	}
-	return nil, fmt.Errorf("no semesters found")
+	return nil, contract.New("parse_error", "VTOP did not return semester options.")
 }
 
 // GetSemDetails fetches semester details

@@ -63,6 +63,13 @@ func storeSemesters(regNo string, semesters []types.Semester) {
 	persistSemesterCache()
 }
 
+// ForgetSemesterCache removes in-memory data without writing configuration.
+func ForgetSemesterCache(regNo string) {
+	semCacheMu.Lock()
+	delete(semCache, regNo)
+	semCacheMu.Unlock()
+}
+
 // InvalidateSemesterCache removes cached semester data for the provided reg no.
 func InvalidateSemesterCache(regNo string) {
 	semCacheMu.Lock()
@@ -102,6 +109,11 @@ func LoadSemesterCacheFromEnv() {
 }
 
 func persistSemesterCache() {
+	// Typed command invocations keep this read cache in memory; credential writes
+	// belong to the command-owned atomic configuration writer.
+	if CurrentExecutionPolicy() != nil {
+		return
+	}
 	semCacheMu.RLock()
 	snapshot := make(map[string]persistedSemesterCacheEntry, len(semCache))
 	for regNo, entry := range semCache {

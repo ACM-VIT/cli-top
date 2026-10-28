@@ -409,7 +409,7 @@ func fetchFacultieswithMaterials(regNo string, cookies types.Cookies, courseID s
 // Fallback is simply the label (but the escape sequence is still emitted).
 func makeANSILink(url, label string) string {
 	if strings.TrimSpace(url) == "" {
-		return ""
+		return label
 	}
 	// Standard terminal hyperlink OSC 8 sequence
 	return fmt.Sprintf("\x1b]8;;%s\x07%s\x1b]8;;\x07", url, label)
@@ -990,7 +990,7 @@ func inferExtFromBody(body []byte) string {
 				}
 			}
 		}
-		return ""
+		return ".zip"
 	case "\xD0\xCF\x11\xE0":
 		// Legacy OLE Compound File: inspect for stream names
 		window := body

@@ -267,6 +267,12 @@ func fetchLeaveRequests(regNo string, cookies types.Cookies) ([]types.LeaveReque
 		return nil, err
 	}
 
+	if helpers.CurrentExecutionPolicy() != nil {
+		doc, _ := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
+		if doc.Find(LeaveStatusTableSelector).Length() == 0 && !emptyPage(doc) {
+			return nil, parseFailure("leave status")
+		}
+	}
 	return ParseLeaveRequests(bodyText)
 }
 

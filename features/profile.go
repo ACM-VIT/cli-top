@@ -3,6 +3,7 @@ package features
 import (
 	"cli-top/debug"
 	"cli-top/helpers"
+	"cli-top/internal/contract"
 	"cli-top/types"
 	"fmt"
 	"strings"
@@ -47,7 +48,7 @@ func fetchStudentDetails(cookies types.Cookies, regNo string) (types.StudentDeta
 	schoolName := doc.Find(ProfileSchoolNameSelector).Text()
 
 	if registerNumber == "" || programAndBranch == "" || vitEmail == "" || schoolName == "" {
-		return types.StudentDetails{}, fmt.Errorf("unable to fetch student details, check login config")
+		return types.StudentDetails{}, contract.New("parse_error", "VTOP returned an unexpected student profile page.")
 	}
 
 	return types.StudentDetails{

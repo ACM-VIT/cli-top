@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"bytes"
+	"cli-top/internal/contract"
 	"cli-top/types"
 	"context"
 	"fmt"
@@ -57,7 +58,7 @@ func refreshVtopSession() (types.Cookies, string, error) {
 		return sessionRefresh.cookies, sessionRefresh.regNo, nil
 	}
 	if sessionRefresh.login == nil {
-		return types.Cookies{}, "", fmt.Errorf("no VTOP login handler is configured")
+		return types.Cookies{}, "", contract.New("auth_required", "VTOP session expired; run cli-top login.")
 	}
 
 	cookies, regNo, err := sessionRefresh.login()
@@ -66,7 +67,7 @@ func refreshVtopSession() (types.Cookies, string, error) {
 	}
 	regNo = strings.TrimSpace(regNo)
 	if !ValidateCookies(cookies) || regNo == "" {
-		return types.Cookies{}, "", fmt.Errorf("login returned an invalid VTOP session")
+		return types.Cookies{}, "", contract.New("auth_failed", "login returned an invalid VTOP session")
 	}
 
 	sessionRefresh.cookies = cookies
@@ -142,11 +143,11 @@ func FetchReq(regNo string, cookies types.Cookies, url string, semID string, pay
 				regNo = newRegNo
 				continue
 			}
-			return nil, fmt.Errorf("Session expired or VTOP returned 404. Please run 'cli-top login' to refresh your session.")
+			return nil, contract.New("auth_required", "VTOP session expired; run cli-top login.")
 		}
 
 		if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-			return nil, fmt.Errorf("VTOP request failed with status %s", resp.Status)
+			return nil, HTTPError(resp.StatusCode)
 		}
 
 		return body, nil

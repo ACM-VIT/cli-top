@@ -252,7 +252,7 @@ func FetchReqClientWithContext(ctx context.Context, client *http.Client, cookies
 		return nil, nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return body, resp.Header, fmt.Errorf("VTOP request failed with status %s", resp.Status)
+		return body, resp.Header, HTTPError(resp.StatusCode)
 	}
 
 	return body, resp.Header, nil

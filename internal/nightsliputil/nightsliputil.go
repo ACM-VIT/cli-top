@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"cli-top/helpers"
+	"cli-top/internal/contract"
 	"cli-top/types"
 
 	"github.com/PuerkitoBio/goquery"
@@ -364,7 +365,12 @@ func ResolveField(scope *goquery.Selection, fieldName string, providedValue stri
 		return "", fmt.Errorf("missing %s and VTOP returned no usable options for %s", flagName, fieldName)
 	}
 
-	return "", fmt.Errorf("missing %s; available %s values: %s", flagName, fieldName, formatOptions(options))
+	e := contract.New("selection_required", fmt.Sprintf("missing %s; available %s values: %s", flagName, fieldName, formatOptions(options)))
+	e.RequiredFlags = []string{flagName}
+	for i, o := range options {
+		e.Choices = append(e.Choices, contract.Choice{ID: o.Value, Label: o.Label, Scope: fieldName, Index: i + 1})
+	}
+	return "", e
 }
 
 func CollectOptions(selection *goquery.Selection) ([]FormOption, string) {

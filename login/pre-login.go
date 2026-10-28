@@ -2,6 +2,7 @@ package login
 
 import (
 	"cli-top/helpers"
+	"cli-top/internal/contract"
 	types "cli-top/types"
 	"fmt"
 	"io"
@@ -24,7 +25,7 @@ func getSessionServer() (types.Cookies, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return types.Cookies{}, fmt.Errorf("VTOP session request failed with status %s", resp.Status)
+		return types.Cookies{}, helpers.HTTPError(resp.StatusCode)
 	}
 	bodyText, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -72,7 +73,7 @@ func getLoginPage() (types.Cookies, string, error) {
 			return types.Cookies{}, "", readErr
 		}
 		if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-			return types.Cookies{}, "", fmt.Errorf("VTOP prelogin request failed with status %s", resp.Status)
+			return types.Cookies{}, "", helpers.HTTPError(resp.StatusCode)
 		}
 
 		captchaImage := helpers.ExtractImage(string(bodyText))
@@ -80,13 +81,16 @@ func getLoginPage() (types.Cookies, string, error) {
 			continue
 		}
 
+		if !helpers.CanPrompt() && helpers.CheckKillSwitch() == 1 {
+			return types.Cookies{}, "", contract.New("human_action_required", "VTOP requires manual CAPTCHA entry. Run login in a terminal.")
+		}
 		captcha := helpers.SolveCaptcha(captchaImage)
 		if captcha == "" || captcha == "disabled" {
-			return types.Cookies{}, "", fmt.Errorf("captcha solving is unavailable")
+			return types.Cookies{}, "", contract.New("human_action_required", "VTOP authentication requires human attention; log in interactively.")
 		}
 
 		return cookies, captcha, nil
 	}
 
-	return types.Cookies{}, "", fmt.Errorf("VTOP did not provide a captcha after %d attempts", maxPreloginAttempts)
+	return types.Cookies{}, "", contract.New("upstream_error", "VTOP did not provide an authentication challenge after 3 attempts.")
 }

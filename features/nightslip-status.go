@@ -347,6 +347,12 @@ func fetchNightSlipRequests(regNo string, cookies types.Cookies) ([]types.NightS
 		helpers.Println("---- Response Body End ----")
 	}
 
+	if helpers.CurrentExecutionPolicy() != nil {
+		doc, _ := goquery.NewDocumentFromReader(bytes.NewReader(bodyText))
+		if doc.Find("table#LateHourStatusTable").Length() == 0 && !emptyPage(doc) {
+			return nil, parseFailure("nightslip status")
+		}
+	}
 	return nightsliputil.ParseRequests(bodyText)
 }
 

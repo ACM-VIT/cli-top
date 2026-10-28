@@ -41,10 +41,8 @@ func ConfigFilePath() string {
 
 		if userConfigDir, err := os.UserConfigDir(); err == nil {
 			configDir := filepath.Join(userConfigDir, configDirName)
-			if err := os.MkdirAll(configDir, 0o700); err == nil {
-				cachedConfigPath = filepath.Join(configDir, configFileName)
-				return
-			}
+			cachedConfigPath = filepath.Join(configDir, configFileName)
+			return
 		}
 
 		if homeDir, err := os.UserHomeDir(); err == nil {
