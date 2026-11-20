@@ -52,7 +52,7 @@ func GetSemDetails(cookies types.Cookies, regNo string) ([]types.Semester, error
 	if cached, ok := getCachedSemesters(regNo); ok {
 		return cached, nil
 	}
-	if cookies.CSRF == "" || cookies.JSESSIONID == "" || cookies.SERVERID == "" {
+	if cookies.CSRF == "" || cookies.JSESSIONID == "" {
 		return nil, fmt.Errorf("please login first using the cli-top login command")
 	}
 	endpoints := []string{

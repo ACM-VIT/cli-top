@@ -384,7 +384,7 @@ func SanitizeString(input string) string {
 }
 
 func ValidateCookies(cookies types.Cookies) bool {
-	return cookies.CSRF != "" && cookies.JSESSIONID != "" && cookies.SERVERID != ""
+	return cookies.CSRF != "" && cookies.JSESSIONID != ""
 }
 
 func ExtractRowData(rowSelection *goquery.Selection) []string {
